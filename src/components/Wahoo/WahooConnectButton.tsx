@@ -6,6 +6,8 @@ import { WahooLogoIcon, DisconnectIcon } from "./WahooIcons";
 import { fetchWahooClientId } from "./WahooApi";
 import { useWahooAuthPopup } from "./WahooAuthPopupHook";
 import { syncWahooProfileAndRoutes } from "./WahooSyncApi";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 const REDIRECT_URI = `${window.location.origin}/wahoo-callback`;
@@ -15,23 +17,28 @@ export function WahooConnectButton() {
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const {
     isConnected,
     disconnect,
   } = useWahooAuthPopup({
-    onConnect: () => {},
+    onConnect: () => {
+      setConnectionError(null);
+    },
     onError: () => {},
   });
 
   const handleConnect = async () => {
     try {
       setIsConnecting(true);
+      setConnectionError(null);
       console.log("Initiating Wahoo connection flow");
+      
       const clientId = await fetchWahooClientId();
       
       if (!clientId) {
-        throw new Error("Could not retrieve Wahoo client ID");
+        throw new Error("Die Client-ID für Wahoo konnte nicht abgerufen werden");
       }
       
       const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -48,9 +55,21 @@ export function WahooConnectButton() {
       window.location.href = authUrl;
     } catch (error) {
       console.error("Error initiating Wahoo connection:", error);
+      
+      // Check for connection errors and set appropriate message
+      const errorMsg = error?.message || "";
+      if (errorMsg.includes("Verbindung") || 
+          errorMsg.includes("abgelehnt") ||
+          errorMsg.includes("connection") ||
+          errorMsg.includes("timeout")) {
+        setConnectionError("Der Wahoo-Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.");
+      } else {
+        setConnectionError(errorMsg || "Verbindung zu Wahoo fehlgeschlagen");
+      }
+      
       toast({
-        title: "Failed to connect to Wahoo",
-        description: error?.message ?? "Please try again later or contact support.",
+        title: "Verbindung zu Wahoo fehlgeschlagen",
+        description: errorMsg || "Bitte versuchen Sie es später erneut.",
         variant: "destructive",
       });
       setIsConnecting(false);
@@ -59,17 +78,19 @@ export function WahooConnectButton() {
 
   const handleDisconnect = () => {
     disconnect();
+    setConnectionError(null);
     toast({
-      title: "Wahoo Disconnected",
-      description: "Your Wahoo account has been disconnected.",
+      title: "Wahoo getrennt",
+      description: "Ihre Wahoo-Verbindung wurde getrennt.",
     });
   };
 
   const handleResync = async () => {
     setIsSyncing(true);
+    setConnectionError(null);
     try {
       const wahooTokenString = localStorage.getItem("wahoo_token");
-      if (!wahooTokenString) throw new Error("No Wahoo token present");
+      if (!wahooTokenString) throw new Error("Kein Wahoo-Token vorhanden");
       
       const token = JSON.parse(wahooTokenString);
       console.log("Starting resync with Wahoo");
@@ -77,8 +98,8 @@ export function WahooConnectButton() {
       await syncWahooProfileAndRoutes(token);
       
       toast({ 
-        title: "Wahoo Synced", 
-        description: "Rides and profile updated." 
+        title: "Wahoo synchronisiert", 
+        description: "Ihre Fahrten und Ihr Profil wurden aktualisiert." 
       });
       
       window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
@@ -87,17 +108,19 @@ export function WahooConnectButton() {
       
       // Enhanced error handling for connection issues
       const errorMsg = error?.message || "";
-      let description = "Please re-connect to Wahoo.";
+      let description = "Bitte verbinden Sie sich erneut mit Wahoo.";
       let clearToken = false;
       
-      if (errorMsg.includes("Connection to Wahoo API failed") || 
-          errorMsg.includes("Verbindung abgelehnt") ||
-          errorMsg.includes("timeout") ||
-          errorMsg.includes("service") ||
-          errorMsg.includes("temporarily unavailable")) {
-        description = "The Wahoo service is currently unavailable. Please try again later.";
+      if (errorMsg.includes("Verbindung") || 
+          errorMsg.includes("abgelehnt") ||
+          errorMsg.includes("nicht verfügbar") ||
+          errorMsg.includes("connection") ||
+          errorMsg.includes("unavailable") ||
+          errorMsg.includes("timeout")) {
+        description = "Der Wahoo-Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.";
+        setConnectionError("Der Wahoo-Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.");
       } else if (errorMsg.includes("token")) {
-        description = "Your Wahoo session has expired. Please reconnect.";
+        description = "Ihre Wahoo-Sitzung ist abgelaufen. Bitte verbinden Sie sich erneut.";
         clearToken = true;
       }
       
@@ -108,7 +131,7 @@ export function WahooConnectButton() {
       }
       
       toast({
-        title: "Failed to resync",
+        title: "Synchronisation fehlgeschlagen",
         description: description,
         variant: "destructive"
       });
@@ -119,25 +142,35 @@ export function WahooConnectButton() {
 
   return (
     <div className="flex flex-col gap-2">
+      {connectionError && (
+        <Alert variant="destructive" className="mb-2">
+          <AlertTitle className="flex items-center gap-2">
+            <ExclamationTriangleIcon className="h-4 w-4" />
+            Verbindungsfehler
+          </AlertTitle>
+          <AlertDescription>{connectionError}</AlertDescription>
+        </Alert>
+      )}
+      
       {!isConnected ? (
         <Button variant="outline" className="gap-2" onClick={handleConnect} disabled={isConnecting}>
           <WahooLogoIcon />
-          {isConnecting ? "Connecting..." : "Connect Wahoo"}
+          {isConnecting ? "Verbinden..." : "Mit Wahoo verbinden"}
         </Button>
       ) : (
         <div className="flex gap-2">
           <Button variant="default" className="gap-2" disabled>
             <WahooLogoIcon />
-            Wahoo Connected
+            Mit Wahoo verbunden
           </Button>
           <Button variant="secondary" size="sm" onClick={handleResync} disabled={isSyncing}>
-            {isSyncing ? "Syncing..." : "Resync"}
+            {isSyncing ? "Synchronisiere..." : "Neu synchronisieren"}
           </Button>
           <Button
             variant="outline"
             size="icon"
             onClick={handleDisconnect}
-            title="Disconnect Wahoo"
+            title="Wahoo-Verbindung trennen"
           >
             <DisconnectIcon />
           </Button>
