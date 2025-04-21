@@ -26,23 +26,27 @@ export function WahooConnectButton() {
     disconnect,
   } = useWahooAuthPopup({
     onConnect: () => {
+      console.log("WahooConnectButton: Connection successful callback");
       toast({
         title: "Wahoo Connected",
         description: "Your Wahoo account was successfully connected!",
         variant: "success",
       });
       
-      // Ensure UI updates by forcing a refresh
+      // Force a refresh of the UI
       setTimeout(() => {
+        console.log("WahooConnectButton: Dispatching wahoo_connection_changed event");
         window.dispatchEvent(new CustomEvent('wahoo_connection_changed'));
-      }, 500);
+      }, 100);
     },
-    onError: (description) =>
+    onError: (description) => {
+      console.error("WahooConnectButton: Connection error:", description);
       toast({
         title: "Connection Failed",
         description,
         variant: "destructive",
-      }),
+      });
+    },
   });
 
   // Debug - add console logs to help debug connection issues
@@ -55,7 +59,10 @@ export function WahooConnectButton() {
     try {
       setIsConnecting(true);
       setStatusMessage("Fetching client ID...");
+      console.log("WahooConnectButton: Starting connection flow");
+      
       const clientId = await fetchWahooClientId();
+      console.log("WahooConnectButton: Received client ID");
 
       setStatusMessage("Opening authorization window...");
 
@@ -83,6 +90,7 @@ export function WahooConnectButton() {
       );
       
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        console.error("WahooConnectButton: Popup blocked");
         setIsConnecting(false);
         setStatusMessage("");
         toast({
@@ -93,11 +101,13 @@ export function WahooConnectButton() {
         return;
       }
       
+      console.log("WahooConnectButton: Auth popup opened");
       setAuthWindow(popup);
       popup.focus();
 
       setTimeout(() => {
         if (isConnecting) {
+          console.log("WahooConnectButton: Connection timeout");
           setIsConnecting(false);
           setStatusMessage("");
           toast({
@@ -121,6 +131,7 @@ export function WahooConnectButton() {
   };
 
   const handleDisconnect = () => {
+    console.log("WahooConnectButton: Disconnecting Wahoo");
     disconnect();
     toast({
       title: "Wahoo Disconnected",

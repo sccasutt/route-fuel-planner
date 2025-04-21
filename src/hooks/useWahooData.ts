@@ -21,6 +21,8 @@ export function useWahooData() {
 
   // Check if Wahoo is connected
   useEffect(() => {
+    console.log("useWahooData: Initializing connection check");
+    
     const checkWahooConnection = () => {
       const hasWahooToken = localStorage.getItem("wahoo_token");
       console.log("useWahooData: Checking connection status:", !!hasWahooToken);
@@ -31,39 +33,55 @@ export function useWahooData() {
     checkWahooConnection();
     
     // Listen for connection changes from any component
-    const handleConnectionChange = () => {
-      const hasWahooToken = localStorage.getItem("wahoo_token");
-      console.log("useWahooData: Storage event detected directly, token:", !!hasWahooToken);
-      setIsConnected(!!hasWahooToken);
-      
-      // If we just connected, start loading activities
-      if (hasWahooToken) {
-        setIsLoading(true);
-        fetchWahooActivities();
+    const handleStorageEvent = (event: StorageEvent) => {
+      console.log("useWahooData: Storage event detected:", event.key, event.newValue);
+      if (event.key === "wahoo_token") {
+        console.log("useWahooData: Wahoo token changed:", event.newValue);
+        setIsConnected(!!event.newValue);
+        
+        // If we just connected, start loading activities
+        if (event.newValue) {
+          setIsLoading(true);
+          fetchWahooActivities();
+        } else {
+          // If disconnected, clear activities
+          setActivities([]);
+        }
       }
     };
     
-    // Listen for both normal storage events and custom events
-    window.addEventListener("storage", (event) => {
-      console.log("useWahooData: Storage event detected:", event.key, event.newValue);
-      if (event.key === "wahoo_token") {
-        handleConnectionChange();
+    // Custom event handler for same-window updates
+    const handleCustomEvent = () => {
+      const hasWahooToken = localStorage.getItem("wahoo_token");
+      console.log("useWahooData: Custom event detected, token present:", !!hasWahooToken);
+      setIsConnected(!!hasWahooToken);
+      
+      // If connected, fetch activities
+      if (hasWahooToken) {
+        setIsLoading(true);
+        fetchWahooActivities();
+      } else {
+        // If disconnected, clear activities
+        setActivities([]);
       }
-    });
+    };
     
-    // Add a custom event listener for same-window updates
-    window.addEventListener("wahoo_connection_changed", handleConnectionChange);
+    // Add event listeners
+    window.addEventListener("storage", handleStorageEvent);
+    window.addEventListener("wahoo_connection_changed", handleCustomEvent);
     
     return () => {
-      window.removeEventListener("storage", handleConnectionChange);
-      window.removeEventListener("wahoo_connection_changed", handleConnectionChange);
+      console.log("useWahooData: Removing event listeners");
+      window.removeEventListener("storage", handleStorageEvent);
+      window.removeEventListener("wahoo_connection_changed", handleCustomEvent);
     };
   }, []);
 
   // Fetch Wahoo activities
   const fetchWahooActivities = async () => {
-    if (!isConnected) {
+    if (!isConnected && !localStorage.getItem("wahoo_token")) {
       console.log("useWahooData: Not connected, skipping activity fetch");
+      setIsLoading(false);
       return;
     }
 
@@ -118,14 +136,11 @@ export function useWahooData() {
     }
   };
 
-  // Fetch activities when connection status changes
+  // Fetch activities on initial mount if connected
   useEffect(() => {
     if (isConnected) {
-      console.log("useWahooData: Connected, fetching activities");
+      console.log("useWahooData: Connected on mount, fetching activities");
       fetchWahooActivities();
-    } else {
-      console.log("useWahooData: Not connected, clearing activities");
-      setActivities([]);
     }
   }, [isConnected]);
 
