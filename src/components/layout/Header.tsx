@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import {
   CircleUser,
   ChevronDown,
@@ -16,7 +17,7 @@ import {
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Will be replaced with actual auth state
+  const { user, signOut } = useAuth();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -36,7 +37,7 @@ const Header = () => {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
-          {isLoggedIn ? (
+          {user ? (
             <>
               <Link to="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
                 Dashboard
@@ -50,7 +51,7 @@ const Header = () => {
               <Link to="/profile" className="text-sm font-medium hover:text-primary transition-colors">
                 Profile
               </Link>
-              <Button variant="ghost" onClick={() => setIsLoggedIn(false)} className="gap-2">
+              <Button variant="ghost" onClick={signOut} className="gap-2">
                 <CircleUser className="h-4 w-4" />
                 Logout
               </Button>
@@ -92,7 +93,7 @@ const Header = () => {
       {isMenuOpen && (
         <div className="md:hidden bg-background border-b">
           <div className="container py-4 space-y-4">
-            {isLoggedIn ? (
+            {user ? (
               <>
                 <Link
                   to="/dashboard"
@@ -130,7 +131,7 @@ const Header = () => {
                   variant="ghost"
                   className="w-full justify-start gap-3 px-4"
                   onClick={() => {
-                    setIsLoggedIn(false);
+                    signOut();
                     toggleMenu();
                   }}
                 >
