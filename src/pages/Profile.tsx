@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,8 +28,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Settings, Bell, Shield, CreditCard, LogOut } from "lucide-react";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-// Define the form schema with Zod
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -50,16 +51,19 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 const Profile = () => {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("personal");
+  const { profile, loading } = useUserProfile();
+  const { user, signOut } = useAuth();
+  const [isWahooConnected, setIsWahooConnected] = useState(false);
+  const [wahooLoading, setWahooLoading] = useState(false);
 
-  // Default values for the form
   const defaultValues: Partial<ProfileFormValues> = {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    age: "35",
-    weight: "75",
-    goalType: "endurance",
-    dietType: "none",
-    allergies: "None",
+    name: profile?.full_name || "",
+    email: user?.email || "",
+    age: profile?.age ? String(profile.age) : "",
+    weight: profile?.weight ? String(profile.weight) : "",
+    goalType: profile?.goal_type || "general",
+    dietType: profile?.diet_type || "none",
+    allergies: "",
     intolerances: "",
     bio: "Passionate cyclist looking to improve endurance and track nutrition for better performance.",
     emailNotifications: true,
@@ -71,13 +75,116 @@ const Profile = () => {
     defaultValues,
   });
 
-  function onSubmit(data: ProfileFormValues) {
-    console.log("Profile updated:", data);
-    
+  useEffect(() => {
+    if (profile && !loading) {
+      form.reset({
+        name: profile.full_name || "",
+        email: user?.email || "",
+        age: profile.age ? String(profile.age) : "",
+        weight: profile.weight ? String(profile.weight) : "",
+        goalType: profile.goal_type || "general",
+        dietType: profile.diet_type || "none",
+        allergies: "",
+        intolerances: "",
+        bio: form.getValues("bio"),
+        emailNotifications: form.getValues("emailNotifications"),
+        pushNotifications: form.getValues("pushNotifications"),
+      });
+    }
+  }, [profile, loading, user, form]);
+
+  const handleConnectWahoo = async () => {
+    setWahooLoading(true);
+    try {
+      toast({
+        title: "Wahoo Connection",
+        description: "This would connect to the Wahoo API. This is a mock implementation.",
+      });
+      
+      setTimeout(() => {
+        setIsWahooConnected(true);
+        setWahooLoading(false);
+        
+        form.setValue("weight", "72");
+        form.setValue("age", "32");
+        
+        toast({
+          title: "Connected to Wahoo",
+          description: "Successfully retrieved your data from Wahoo",
+        });
+      }, 1000);
+    } catch (error) {
+      console.error("Error connecting to Wahoo:", error);
+      toast({
+        title: "Connection failed",
+        description: "Could not connect to Wahoo API",
+        variant: "destructive",
+      });
+      setWahooLoading(false);
+    }
+  };
+
+  const handleDisconnectWahoo = () => {
+    setIsWahooConnected(false);
     toast({
-      title: "Profile updated!",
-      description: "Your profile information has been saved.",
+      title: "Disconnected from Wahoo",
+      description: "Your Wahoo account has been disconnected",
     });
+  };
+
+  async function onSubmit(data: ProfileFormValues) {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update your profile",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: data.name,
+          age: data.age ? parseInt(data.age) : null,
+          weight: data.weight ? parseFloat(data.weight) : null,
+          goal_type: data.goalType,
+          diet_type: data.dietType,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Profile updated!",
+        description: "Your profile information has been saved.",
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Update failed",
+        description: "There was an error updating your profile.",
+        variant: "destructive",
+      });
+    }
+  }
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container py-8">
+          <div className="flex items-center justify-center h-[50vh]">
+            <p>Loading profile...</p>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   return (
@@ -85,7 +192,7 @@ const Profile = () => {
       <div className="container py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Your Profile</h1>
-          <Button variant="destructive" className="gap-2">
+          <Button variant="destructive" className="gap-2" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             Logout
           </Button>
@@ -100,8 +207,8 @@ const Profile = () => {
                     <User className="h-12 w-12 text-muted-foreground" />
                   </div>
                   <div className="text-center">
-                    <h2 className="font-semibold text-lg">{defaultValues.name}</h2>
-                    <p className="text-sm text-muted-foreground">{defaultValues.email}</p>
+                    <h2 className="font-semibold text-lg">{profile?.full_name || "Your Name"}</h2>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
                   </div>
                   <Button variant="outline" className="w-full gap-2">
                     <Shield className="h-4 w-4" />
@@ -200,7 +307,7 @@ const Profile = () => {
                                   <Input placeholder="35" type="number" {...field} />
                                 </FormControl>
                                 <FormDescription>
-                                  Used for more accurate calculations
+                                  {isWahooConnected ? "Synced from Wahoo" : "Used for more accurate calculations"}
                                 </FormDescription>
                                 <FormMessage />
                               </FormItem>
@@ -217,7 +324,7 @@ const Profile = () => {
                                   <Input placeholder="75" type="number" {...field} />
                                 </FormControl>
                                 <FormDescription>
-                                  Used for energy expenditure calculations
+                                  {isWahooConnected ? "Synced from Wahoo" : "Used for energy expenditure calculations"}
                                 </FormDescription>
                                 <FormMessage />
                               </FormItem>
@@ -310,6 +417,36 @@ const Profile = () => {
                               </FormItem>
                             )}
                           />
+                        </div>
+
+                        <div className="flex justify-center">
+                          {!isWahooConnected ? (
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              onClick={handleConnectWahoo}
+                              disabled={wahooLoading}
+                              className="gap-2"
+                            >
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 17.5L6 14.5V8L12 5L18 8V14.5L12 17.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              {wahooLoading ? "Connecting..." : "Connect to Wahoo"}
+                            </Button>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <div className="text-sm text-green-600 mb-2">✓ Connected to Wahoo</div>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={handleDisconnectWahoo}
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                Disconnect
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
                         <FormField
@@ -512,10 +649,21 @@ const Profile = () => {
                               </div>
                               <div>
                                 <p className="font-medium">Wahoo</p>
-                                <p className="text-sm text-muted-foreground">Connected on Apr 10, 2023</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {isWahooConnected 
+                                    ? "Connected on " + new Date().toLocaleDateString() 
+                                    : "Not connected"
+                                  }
+                                </p>
                               </div>
                             </div>
-                            <Button variant="outline" size="sm">Disconnect</Button>
+                            {isWahooConnected ? (
+                              <Button variant="outline" size="sm" onClick={handleDisconnectWahoo}>Disconnect</Button>
+                            ) : (
+                              <Button variant="outline" size="sm" onClick={handleConnectWahoo} disabled={wahooLoading}>
+                                {wahooLoading ? "Connecting..." : "Connect"}
+                              </Button>
+                            )}
                           </div>
                         </div>
                         <Button variant="outline" className="gap-2">
