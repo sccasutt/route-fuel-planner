@@ -29,7 +29,7 @@ export function WahooConnectButton() {
       toast({
         title: "Wahoo Connected",
         description: "Your Wahoo account was successfully connected!",
-        variant: "default",
+        variant: "success",
       });
       
       // Clean up the URL by removing the success parameter
@@ -50,7 +50,7 @@ export function WahooConnectButton() {
         toast({
           title: "Wahoo Connected",
           description: "Your Wahoo account was successfully connected!",
-          variant: "default",
+          variant: "success",
         });
       }
     };
