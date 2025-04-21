@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -18,9 +18,16 @@ import {
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  // Helper function to handle sign out and redirect
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/");
   };
 
   return (
@@ -51,7 +58,7 @@ const Header = () => {
               <Link to="/profile" className="text-sm font-medium hover:text-primary transition-colors">
                 Profile
               </Link>
-              <Button variant="ghost" onClick={signOut} className="gap-2">
+              <Button variant="ghost" onClick={handleLogout} className="gap-2">
                 <CircleUser className="h-4 w-4" />
                 Logout
               </Button>
@@ -130,9 +137,10 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-3 px-4"
-                  onClick={() => {
-                    signOut();
+                  onClick={async () => {
+                    await signOut();
                     toggleMenu();
+                    navigate("/");
                   }}
                 >
                   <CircleUser className="h-5 w-5" />
@@ -180,3 +188,4 @@ const Header = () => {
 };
 
 export default Header;
+
