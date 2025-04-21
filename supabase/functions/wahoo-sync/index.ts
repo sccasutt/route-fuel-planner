@@ -15,11 +15,22 @@ function parseJwt(token) {
 
 async function parseRequestJson(req) {
   try {
-    return await req.json();
+    const text = await req.text();
+    if (!text || text.trim() === '') {
+      throw new Error("Empty request body");
+    }
+    
+    console.log("Request body content length:", text.length);
+    try {
+      return JSON.parse(text);
+    } catch (jsonError) {
+      console.error("JSON parse error:", jsonError);
+      throw new Error("Invalid JSON in request body");
+    }
   } catch (err) {
     console.error("Error parsing request body:", err);
     throw {
-      message: "Invalid request body",
+      message: err.message || "Invalid request body",
       status: 400
     };
   }
@@ -151,6 +162,15 @@ async function upsertRoutes(client, user_id, activities) {
 }
 
 Deno.serve(async (req) => {
+  // Add detailed logging about the request
+  console.log("Received request:", {
+    method: req.method,
+    url: req.url,
+    hasAuthHeader: !!req.headers.get("authorization"),
+    contentType: req.headers.get("content-type"),
+    contentLength: req.headers.get("content-length")
+  });
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -164,11 +184,11 @@ Deno.serve(async (req) => {
     }
     const jwt = authHeader.split(" ")[1];
 
-    // Parse request body
+    // Parse request body with better error handling
     let body;
     try {
       body = await parseRequestJson(req);
-      console.log("Request body received:", {
+      console.log("Request body parsed successfully:", {
         hasAccessToken: !!body.access_token,
         hasRefreshToken: !!body.refresh_token,
         hasWahooUserId: !!body.wahoo_user_id,
@@ -176,7 +196,10 @@ Deno.serve(async (req) => {
       });
     } catch (err) {
       console.error("Error parsing request body:", err);
-      return new Response(JSON.stringify({ error: err.message }), { status: err.status, headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        error: err.message || "Invalid request body",
+        details: "Could not parse request JSON"
+      }), { status: err.status || 400, headers: corsHeaders });
     }
 
     const { access_token, refresh_token, wahoo_user_id, user_id: clientProvidedUserId } = body;
@@ -210,7 +233,7 @@ Deno.serve(async (req) => {
         error: err.message, 
         details: err.details, 
         status: err.httpStatus || 502 
-      }), { status: err.status, headers: corsHeaders });
+      }), { status: err.status || 502, headers: corsHeaders });
     }
 
     // Get the Wahoo user ID from the profile response if not provided in token
@@ -233,7 +256,7 @@ Deno.serve(async (req) => {
         error: err.message, 
         details: err.details, 
         status: err.httpStatus || 502 
-      }), { status: err.status, headers: corsHeaders });
+      }), { status: err.status || 502, headers: corsHeaders });
     }
 
     // Insert/update profile and upsert routes

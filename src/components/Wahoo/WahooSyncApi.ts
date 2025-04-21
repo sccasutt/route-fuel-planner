@@ -28,13 +28,18 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
       console.warn("Warning: No Wahoo user ID provided for sync operation");
     }
     
+    // Create a properly formatted request body
+    const requestBody = {
+      access_token: tokenObj.access_token,
+      refresh_token: tokenObj.refresh_token,
+      wahoo_user_id: tokenObj.wahoo_user_id || null,
+      user_id: userId
+    };
+    
     // Send both the user ID and Wahoo token data to the sync function
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {
       method: "POST",
-      body: JSON.stringify({
-        ...tokenObj,
-        user_id: userId, // Explicitly passing the user ID to ensure correct association
-      }),
+      body: JSON.stringify(requestBody),
       headers: {
         "Content-Type": "application/json"
       }
