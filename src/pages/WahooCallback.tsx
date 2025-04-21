@@ -6,7 +6,7 @@ import Layout from "@/components/layout/Layout";
 import { exchangeCodeForToken } from "@/components/Wahoo/WahooApi";
 import { syncWahooProfileAndRoutes } from "@/components/Wahoo/WahooSyncApi";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
+import { AlertTriangle } from "lucide-react"; // Using lucide-react instead of radix-ui
 import { Button } from "@/components/ui/button";
 
 export default function WahooCallback() {
@@ -178,7 +178,7 @@ export default function WahooCallback() {
             <>
               <Alert variant="destructive" className="mb-4">
                 <AlertTitle className="flex items-center gap-2">
-                  <ExclamationTriangleIcon className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" />
                   Verbindungsfehler
                 </AlertTitle>
                 <AlertDescription>{error}</AlertDescription>

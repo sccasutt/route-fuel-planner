@@ -10,9 +10,8 @@ export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string
       body: tokenObj,
       headers: {
         "Content-Type": "application/json"
-      },
-      // Adding a longer timeout for the function call
-      timeout: 20000 // 20 seconds
+      }
+      // Removed invalid timeout option
     });
 
     if (error) {

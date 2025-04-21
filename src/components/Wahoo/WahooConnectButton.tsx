@@ -7,7 +7,7 @@ import { fetchWahooClientId } from "./WahooApi";
 import { useWahooAuthPopup } from "./WahooAuthPopupHook";
 import { syncWahooProfileAndRoutes } from "./WahooSyncApi";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
+import { AlertTriangle } from "lucide-react"; // Using lucide-react instead of radix-ui
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 const REDIRECT_URI = `${window.location.origin}/wahoo-callback`;
@@ -145,7 +145,7 @@ export function WahooConnectButton() {
       {connectionError && (
         <Alert variant="destructive" className="mb-2">
           <AlertTitle className="flex items-center gap-2">
-            <ExclamationTriangleIcon className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" />
             Verbindungsfehler
           </AlertTitle>
           <AlertDescription>{connectionError}</AlertDescription>
