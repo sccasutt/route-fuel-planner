@@ -1,11 +1,13 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
-import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
+import SignUpForm from "./Auth/SignUpForm";
+import LoginForm from "./Auth/LoginForm";
+import EmailConfirmationPrompt from "./Auth/EmailConfirmationPrompt";
+import WahooConnectPrompt from "./Auth/WahooConnectPrompt";
 
 type AuthMode = "login" | "signup";
 
@@ -26,10 +28,6 @@ const AuthPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-  };
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -37,8 +35,6 @@ const AuthPage = () => {
     if (mode === "signup") {
       const { email, password, name, age, weight, goal_type, diet_type } = form;
       const siteUrl = window.location.origin;
-      console.log("Using redirect URL:", siteUrl + "/auth");
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -53,9 +49,8 @@ const AuthPage = () => {
           emailRedirectTo: siteUrl + "/auth",
         },
       });
-
       setLoading(false);
-      
+
       if (error) {
         toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
       } else if (data?.user?.identities?.length === 0) {
@@ -79,7 +74,7 @@ const AuthPage = () => {
       const { email, password } = form;
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
-      
+
       if (error) {
         if (error.message.includes("Email not confirmed")) {
           toast({ 
@@ -98,52 +93,11 @@ const AuthPage = () => {
   };
 
   if (showWahooConnect) {
-    return (
-      <Layout>
-        <div className="container max-w-md mx-auto py-12">
-          <div className="space-y-8 text-center">
-            <h1 className="text-3xl font-bold">Sign up successful!</h1>
-            <p className="text-muted-foreground">
-              You can connect your Wahoo account now, or do this later from your dashboard.
-            </p>
-            <div className="flex flex-col items-center gap-4">
-              <div>
-                <WahooConnectButton />
-              </div>
-              <Button 
-                onClick={() => navigate("/dashboard")} 
-                variant="secondary"
-                className="mt-4"
-              >
-                Skip for now
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
+    return <WahooConnectPrompt onSkip={() => navigate("/dashboard")} />;
   }
 
   if (confirmationSent) {
-    return (
-      <Layout>
-        <div className="container max-w-md mx-auto py-12">
-          <div className="space-y-6 text-center">
-            <h1 className="text-3xl font-bold">Check your email</h1>
-            <p className="text-muted-foreground">
-              We've sent you a confirmation email. Please check your inbox and click the link to verify your account.
-            </p>
-            <Button 
-              onClick={() => setConfirmationSent(false)} 
-              variant="outline"
-              className="mt-4"
-            >
-              Back to sign in
-            </Button>
-          </div>
-        </div>
-      </Layout>
-    );
+    return <EmailConfirmationPrompt onBack={() => setConfirmationSent(false)} />;
   }
 
   return (
@@ -154,68 +108,11 @@ const AuthPage = () => {
             {mode === "login" ? "Login to PedalPlate" : "Sign up for PedalPlate"}
           </h1>
           <form className="space-y-4" onSubmit={handleAuth}>
-            {mode === "signup" && (
-              <>
-                <Input
-                  required
-                  name="name"
-                  placeholder="Full Name"
-                  value={form.name}
-                  onChange={handleChange}
-                />
-                <Input
-                  name="age"
-                  placeholder="Age (optional)"
-                  type="number"
-                  value={form.age}
-                  onChange={handleChange}
-                />
-                <Input
-                  name="weight"
-                  placeholder="Weight in kg (optional)"
-                  type="number"
-                  value={form.weight}
-                  onChange={handleChange}
-                />
-                <Input
-                  name="goal_type"
-                  placeholder="Goal (optional)"
-                  value={form.goal_type}
-                  onChange={handleChange}
-                />
-                <Input
-                  name="diet_type"
-                  placeholder="Diet type (optional)"
-                  value={form.diet_type}
-                  onChange={handleChange}
-                />
-              </>
+            {mode === "signup" ? (
+              <SignUpForm form={form} setForm={setForm} loading={loading} onSubmit={handleAuth} />
+            ) : (
+              <LoginForm form={form} setForm={setForm} loading={loading} onSubmit={handleAuth} />
             )}
-            <Input
-              required
-              name="email"
-              placeholder="Email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              autoComplete="username"
-            />
-            <Input
-              required
-              name="password"
-              placeholder="Password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              autoComplete="current-password"
-            />
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading
-                ? "Loading..."
-                : mode === "login"
-                ? "Login"
-                : "Sign Up"}
-            </Button>
           </form>
           <div className="text-center text-sm">
             {mode === "login" ? (
