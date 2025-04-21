@@ -27,7 +27,7 @@ export function WahooConnectButton() {
     try {
       console.log("Starting Wahoo connect process");
       const clientId = await fetchWahooClientId();
-      const state = Math.random().toString(36).substring(2, 10);
+      const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       // Store the state in localStorage for verification when the user returns
       localStorage.setItem("wahoo_auth_state", state);

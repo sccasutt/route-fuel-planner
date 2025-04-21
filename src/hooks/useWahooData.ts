@@ -23,14 +23,20 @@ export function useWahooData() {
     console.log("useWahooData: Initializing connection check");
     
     const checkWahooConnection = () => {
-      const hasWahooToken = localStorage.getItem("wahoo_token");
-      console.log("useWahooData: Checking connection status:", !!hasWahooToken);
-      setIsConnected(!!hasWahooToken);
+      const wahooToken = localStorage.getItem("wahoo_token");
+      const isTokenValid = wahooToken ? isWahooTokenValid(wahooToken) : false;
+      
+      console.log("useWahooData: Checking connection status:", !!wahooToken, "Valid token:", isTokenValid);
+      setIsConnected(isTokenValid);
       
       // If connected, fetch activities; otherwise, set loading to false
-      if (hasWahooToken) {
+      if (isTokenValid) {
         fetchWahooActivities();
       } else {
+        if (wahooToken && !isTokenValid) {
+          // Clear invalid token
+          localStorage.removeItem("wahoo_token");
+        }
         setIsLoading(false);
         setActivities([]);
       }
@@ -48,9 +54,20 @@ export function useWahooData() {
     window.addEventListener("wahoo_connection_changed", handleConnectionEvent);
     
     return () => {
+      console.log("useWahooData: Removing event listeners");
       window.removeEventListener("wahoo_connection_changed", handleConnectionEvent);
     };
   }, []);
+
+  // Check if token is valid
+  const isWahooTokenValid = (tokenString: string) => {
+    try {
+      const tokenData = JSON.parse(tokenString);
+      return tokenData && tokenData.access_token && tokenData.expires_at && tokenData.expires_at > Date.now();
+    } catch {
+      return false;
+    }
+  };
 
   // Fetch Wahoo activities
   const fetchWahooActivities = async () => {

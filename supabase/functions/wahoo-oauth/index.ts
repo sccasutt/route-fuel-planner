@@ -1,3 +1,4 @@
+
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
@@ -54,6 +55,101 @@ Deno.serve(async (req) => {
       console.error("Error retrieving client ID:", error);
       return new Response(
         JSON.stringify({ error: "Internal server error", details: error.message }),
+        { 
+          status: 500, 
+          headers: corsHeaders
+        }
+      );
+    }
+  }
+  
+  // Route to exchange the authorization code for a token
+  if (path === "token-exchange") {
+    try {
+      // Get code from request body
+      const { code, redirectUri } = await req.json();
+      
+      if (!code) {
+        console.error("No code provided for token exchange");
+        return new Response(
+          JSON.stringify({ error: "Authorization code is required" }),
+          { 
+            status: 400, 
+            headers: corsHeaders
+          }
+        );
+      }
+      
+      const clientId = Deno.env.get("WAHOO_CLIENT_ID");
+      const clientSecret = Deno.env.get("WAHOO_CLIENT_SECRET");
+      
+      if (!clientId || !clientSecret) {
+        console.error("Wahoo client credentials not configured");
+        return new Response(
+          JSON.stringify({ error: "Wahoo client credentials not configured." }),
+          { 
+            status: 500, 
+            headers: corsHeaders
+          }
+        );
+      }
+      
+      console.log("Exchanging code for token with params:", { 
+        hasCode: !!code, 
+        hasClientId: !!clientId, 
+        hasClientSecret: !!clientSecret,
+        redirectUri
+      });
+      
+      // Exchange the code for a token
+      const tokenResponse = await fetch(WAHOO_TOKEN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code,
+          redirect_uri: redirectUri
+        })
+      });
+      
+      const tokenData = await tokenResponse.json();
+      
+      if (!tokenResponse.ok) {
+        console.error("Token exchange error:", tokenData);
+        return new Response(
+          JSON.stringify({ 
+            error: "Failed to exchange code for token", 
+            details: tokenData.error || tokenResponse.statusText 
+          }),
+          { 
+            status: tokenResponse.status, 
+            headers: corsHeaders
+          }
+        );
+      }
+      
+      console.log("Successfully exchanged code for token");
+      
+      // Return the token to the client
+      return new Response(
+        JSON.stringify({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_in: tokenData.expires_in
+        }),
+        { 
+          status: 200,
+          headers: corsHeaders
+        }
+      );
+    } catch (error) {
+      console.error("Error during token exchange:", error);
+      return new Response(
+        JSON.stringify({ error: "Token exchange failed", details: error.message }),
         { 
           status: 500, 
           headers: corsHeaders

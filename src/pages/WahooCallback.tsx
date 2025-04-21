@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
+import { exchangeCodeForToken } from "@/components/Wahoo/WahooApi";
 
 export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
@@ -72,8 +73,16 @@ export default function WahooCallback() {
         console.log("WahooCallback: Valid authorization code received, exchanging for token");
         setStatus("Connecting to your Wahoo account...");
         
-        // Store token (in a real implementation, you'd exchange the code for a token)
-        localStorage.setItem("wahoo_token", "connected");
+        // Exchange the code for a token
+        const redirectUri = `${window.location.origin}/wahoo-callback`;
+        const tokenData = await exchangeCodeForToken(code, redirectUri);
+        
+        // Store token data
+        localStorage.setItem("wahoo_token", JSON.stringify({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_at: Date.now() + (tokenData.expires_in * 1000)
+        }));
         
         // Trigger global connection event so all components are updated
         window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
