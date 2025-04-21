@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export interface WahooActivityData {
@@ -40,69 +39,16 @@ export function useWahooData() {
     checkWahooConnection();
     
     // Listen for connection changes from any component
-    const handleStorageEvent = (event: StorageEvent) => {
-      console.log("useWahooData: Storage event detected:", event.key, event.newValue);
-      if (event.key === "wahoo_token") {
-        console.log("useWahooData: Wahoo token changed:", event.newValue);
-        setIsConnected(!!event.newValue);
-        
-        // If we just connected, start loading activities
-        if (event.newValue) {
-          setIsLoading(true);
-          fetchWahooActivities();
-        } else {
-          // If disconnected, clear activities
-          setActivities([]);
-          setIsLoading(false);
-        }
-      }
+    const handleConnectionEvent = () => {
+      console.log("useWahooData: Connection event detected");
+      checkWahooConnection();
     };
-    
-    // Custom event handler for same-window updates
-    const handleCustomEvent = () => {
-      const hasWahooToken = localStorage.getItem("wahoo_token");
-      console.log("useWahooData: Custom event detected, token present:", !!hasWahooToken);
-      setIsConnected(!!hasWahooToken);
-      
-      // If connected, fetch activities
-      if (hasWahooToken) {
-        setIsLoading(true);
-        fetchWahooActivities();
-      } else {
-        // If disconnected, clear activities
-        setActivities([]);
-        setIsLoading(false);
-      }
-    };
-    
-    // URL parameter check for Wahoo connection status changes
-    const url = new URL(window.location.href);
-    const wahooSuccess = url.searchParams.get("wahoo_success");
-    
-    if (wahooSuccess === "true") {
-      console.log("useWahooData: Detected successful auth in URL parameters");
-      // This will be handled by the storage and custom event listeners
-      // But let's make sure to trigger a refresh if needed
-      const hasWahooToken = localStorage.getItem("wahoo_token");
-      if (!hasWahooToken) {
-        console.log("useWahooData: Setting token from URL success parameter");
-        localStorage.setItem("wahoo_token", "connected");
-        window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
-      }
-      
-      // Clean up URL parameters
-      url.searchParams.delete("wahoo_success");
-      window.history.replaceState({}, document.title, url.toString());
-    }
     
     // Add event listeners
-    window.addEventListener("storage", handleStorageEvent);
-    window.addEventListener("wahoo_connection_changed", handleCustomEvent);
+    window.addEventListener("wahoo_connection_changed", handleConnectionEvent);
     
     return () => {
-      console.log("useWahooData: Removing event listeners");
-      window.removeEventListener("storage", handleStorageEvent);
-      window.removeEventListener("wahoo_connection_changed", handleCustomEvent);
+      window.removeEventListener("wahoo_connection_changed", handleConnectionEvent);
     };
   }, []);
 

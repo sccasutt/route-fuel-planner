@@ -8,8 +8,8 @@ import { useWahooAuthPopup } from "./WahooAuthPopupHook";
 
 // OAuth constants
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
-// Use the Supabase Edge Function URL directly as the callback
-const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/functions/v1/wahoo-oauth";
+// Use the current app URL as the base for the callback
+const REDIRECT_URI = `${window.location.origin}/wahoo-callback`;
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
 
 export function WahooConnectButton() {
@@ -32,6 +32,14 @@ export function WahooConnectButton() {
       // Store the state in localStorage for verification when the user returns
       localStorage.setItem("wahoo_auth_state", state);
       
+      // Log everything for debugging
+      console.log("Wahoo connection details:", {
+        clientId: clientId ? "Received" : "Missing",
+        redirectUri: REDIRECT_URI,
+        authUrl: WAHOO_AUTH_URL,
+        state,
+      });
+      
       const authUrl =
         `${WAHOO_AUTH_URL}?response_type=code` +
         `&client_id=${encodeURIComponent(clientId)}` +
@@ -39,7 +47,8 @@ export function WahooConnectButton() {
         `&scope=${encodeURIComponent(SCOPE)}` +
         `&state=${encodeURIComponent(state)}`;
       
-      console.log("Redirecting to Wahoo authorization URL");
+      console.log("Redirecting to Wahoo authorization URL:", authUrl);
+      
       // Full page redirect to Wahoo's auth page
       window.location.href = authUrl;
     } catch (error) {
