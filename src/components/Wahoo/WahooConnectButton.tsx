@@ -53,11 +53,14 @@ export function WahooConnectButton() {
       localStorage.removeItem("wahoo_token");
       localStorage.removeItem("wahoo_auth_state");
       
+      // Fetch the client ID from the edge function
       const clientId = await fetchWahooClientId();
       
       if (!clientId) {
         throw new Error("Could not retrieve Wahoo Client ID");
       }
+      
+      console.log("Retrieved client ID successfully");
       
       // Generate and store state parameter for CSRF protection
       const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);

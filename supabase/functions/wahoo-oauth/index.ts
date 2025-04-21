@@ -67,7 +67,14 @@ Deno.serve(async (req) => {
   if (path === "token-exchange") {
     try {
       // Get code from request body
-      const { code, redirectUri } = await req.json();
+      const body = await req.json();
+      const { code, redirectUri } = body;
+      
+      console.log("Token exchange request received with:", { 
+        hasCode: !!code, 
+        hasRedirectUri: !!redirectUri, 
+        redirectUri
+      });
       
       if (!code) {
         console.error("No code provided for token exchange");
@@ -101,28 +108,52 @@ Deno.serve(async (req) => {
         redirectUri
       });
       
+      // Build the request body for token exchange
+      const formData = new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: code,
+        redirect_uri: redirectUri
+      });
+      
+      console.log("Sending token request to Wahoo with form data keys:", 
+        [...formData.keys()].join(", "));
+      
       // Exchange the code for a token
       const tokenResponse = await fetch(WAHOO_TOKEN_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          client_id: clientId,
-          client_secret: clientSecret,
-          code: code,
-          redirect_uri: redirectUri
-        })
+        body: formData
       });
       
-      const tokenData = await tokenResponse.json();
+      const responseText = await tokenResponse.text();
+      let tokenData;
+      
+      try {
+        tokenData = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse token response as JSON:", responseText);
+        return new Response(
+          JSON.stringify({ 
+            error: "Invalid response from Wahoo token endpoint", 
+            details: "Response was not valid JSON"
+          }),
+          { 
+            status: 502, 
+            headers: corsHeaders
+          }
+        );
+      }
       
       if (!tokenResponse.ok) {
-        console.error("Token exchange error:", tokenData);
+        console.error("Token exchange error:", tokenData, "Status:", tokenResponse.status);
         return new Response(
           JSON.stringify({ 
             error: "Failed to exchange code for token", 
+            status: tokenResponse.status,
             details: tokenData.error || tokenResponse.statusText 
           }),
           { 
@@ -132,7 +163,11 @@ Deno.serve(async (req) => {
         );
       }
       
-      console.log("Successfully exchanged code for token");
+      console.log("Successfully exchanged code for token:", {
+        hasAccessToken: !!tokenData.access_token,
+        hasRefreshToken: !!tokenData.refresh_token,
+        expiresIn: tokenData.expires_in
+      });
       
       // Return the token to the client
       return new Response(
@@ -149,7 +184,10 @@ Deno.serve(async (req) => {
     } catch (error) {
       console.error("Error during token exchange:", error);
       return new Response(
-        JSON.stringify({ error: "Token exchange failed", details: error.message }),
+        JSON.stringify({ 
+          error: "Token exchange failed", 
+          details: error.message 
+        }),
         { 
           status: 500, 
           headers: corsHeaders

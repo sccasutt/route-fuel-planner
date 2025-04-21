@@ -36,6 +36,8 @@ export async function fetchWahooClientId() {
 export async function exchangeCodeForToken(code: string, redirectUri: string) {
   console.log("Exchanging authorization code for token...");
   try {
+    console.log(`Sending token exchange request with code length: ${code.length}, redirectUri: ${redirectUri}`);
+    
     const { data, error } = await supabase.functions.invoke('wahoo-oauth/token-exchange', {
       method: 'POST',
       body: { code, redirectUri }
@@ -51,7 +53,12 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
       throw new Error("Invalid token response from server");
     }
     
-    console.log("Successfully exchanged code for token");
+    console.log("Successfully exchanged code for token:", {
+      hasAccessToken: !!data.access_token,
+      hasRefreshToken: !!data.refresh_token,
+      expiresIn: data.expires_in
+    });
+    
     return data;
   } catch (err) {
     console.error("Exception exchanging code for token:", err);

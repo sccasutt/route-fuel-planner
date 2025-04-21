@@ -27,9 +27,10 @@ export default function WahooCallback() {
 
         console.log("WahooCallback: Processing callback with params:", { 
           hasCode: !!code, 
-          hasError: !!authError, 
-          state: state?.substring(0, 5) + "...", 
-          storedState: storedState?.substring(0, 5) + "..."
+          hasError: !!authError,
+          hasState: !!state,
+          hasStoredState: !!storedState,
+          urlParams: Object.fromEntries(searchParams.entries())
         });
 
         if (authError) {
@@ -92,7 +93,12 @@ export default function WahooCallback() {
 
         try {
           const redirectUri = `${window.location.origin}/wahoo-callback`;
+          console.log("Using redirect URI:", redirectUri);
           const tokenData = await exchangeCodeForToken(code, redirectUri);
+
+          if (!tokenData || !tokenData.access_token) {
+            throw new Error("Invalid token response from server");
+          }
 
           console.log("WahooCallback: Token received successfully");
           

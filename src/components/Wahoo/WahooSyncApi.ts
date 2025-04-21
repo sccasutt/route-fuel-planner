@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string; refresh_token: string }) {
   try {
-    console.log("Initiating Wahoo sync with token");
+    console.log("Initiating Wahoo sync with token:", {
+      hasAccessToken: !!tokenObj.access_token,
+      hasRefreshToken: !!tokenObj.refresh_token
+    });
     
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {
       method: "POST",
@@ -33,7 +36,7 @@ export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string
     console.error("Exception during Wahoo sync:", err);
     
     // Enhanced error detection for the caught exception
-    const errorMessage = err.message || "";
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
     if (errorMessage.includes("connection") || 
         errorMessage.includes("timeout") ||
         errorMessage.includes("timed out") ||
