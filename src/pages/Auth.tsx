@@ -21,6 +21,7 @@ const AuthPage = () => {
     diet_type: "",
   });
   const [loading, setLoading] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -46,29 +47,78 @@ const AuthPage = () => {
             goal_type: goal_type || null,
             diet_type: diet_type || null,
           },
+          emailRedirectTo: window.location.origin + "/auth",
         },
       });
 
       setLoading(false);
+      
       if (error) {
-        toast({ title: "Sign up failed", description: error.message });
-      } else {
+        toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+      } else if (data?.user?.identities?.length === 0) {
+        // User already exists but hasn't confirmed their email
+        toast({ 
+          title: "Account already exists", 
+          description: "This email is already registered. Please check your inbox for the confirmation email or try signing in.",
+          duration: 6000
+        });
+      } else if (data?.user?.email_confirmed_at) {
+        // Email already confirmed, user can login directly
         toast({ title: "Sign up successful", description: "You are now logged in." });
         navigate("/dashboard");
+      } else {
+        // New signup, needs email confirmation
+        setConfirmationSent(true);
+        toast({ 
+          title: "Verification email sent", 
+          description: "Please check your email to confirm your account.",
+          duration: 6000
+        });
       }
     } else {
       // login
       const { email, password } = form;
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
+      
       if (error) {
-        toast({ title: "Login failed", description: error.message });
+        if (error.message.includes("Email not confirmed")) {
+          toast({ 
+            title: "Email not confirmed", 
+            description: "Please check your inbox for the confirmation email.",
+            duration: 6000
+          });
+        } else {
+          toast({ title: "Login failed", description: error.message, variant: "destructive" });
+        }
       } else {
         toast({ title: "Welcome!", description: "You are now logged in." });
         navigate("/dashboard");
       }
     }
   };
+
+  if (confirmationSent) {
+    return (
+      <Layout>
+        <div className="container max-w-md mx-auto py-12">
+          <div className="space-y-6 text-center">
+            <h1 className="text-3xl font-bold">Check your email</h1>
+            <p className="text-muted-foreground">
+              We've sent you a confirmation email. Please check your inbox and click the link to verify your account.
+            </p>
+            <Button 
+              onClick={() => setConfirmationSent(false)} 
+              variant="outline"
+              className="mt-4"
+            >
+              Back to sign in
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
