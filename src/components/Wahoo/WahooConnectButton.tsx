@@ -9,7 +9,7 @@ import { WahooErrorAlert } from "./WahooErrorAlert";
 import { WahooResyncButton } from "./WahooResyncButton";
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
-const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
+const REDIRECT_URI = window.location.origin + "/wahoo-callback";
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
 
 export function WahooConnectButton() {

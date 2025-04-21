@@ -7,7 +7,7 @@ import { validateWahooAuthState } from "./validateWahooAuthState";
 import { useWahooCallbackToasts } from "./wahooCallbackToasts";
 
 // Constants
-const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
+const REDIRECT_URI = window.location.origin + "/wahoo-callback";
 
 interface UseProcessWahooCallbackOptions {
   setStatus: (s: string) => void;
