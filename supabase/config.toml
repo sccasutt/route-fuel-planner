@@ -1,6 +1,8 @@
 
 project_id = "jxouzttcjpmmtclagbob"
 
-# Wahoo OAuth function with no JWT verification for callback
 [functions.wahoo-oauth]
 verify_jwt = false
+
+[functions.wahoo-sync]
+verify_jwt = true
