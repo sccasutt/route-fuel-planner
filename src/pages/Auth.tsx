@@ -35,7 +35,7 @@ const AuthPage = () => {
     if (mode === "signup") {
       const { email, password, name, age, weight, goal_type, diet_type } = form;
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -53,8 +53,8 @@ const AuthPage = () => {
       if (error) {
         toast({ title: "Sign up failed", description: error.message });
       } else {
-        toast({ title: "Check your email", description: "A confirmation email was sent." });
-        setMode("login");
+        toast({ title: "Sign up successful", description: "You are now logged in." });
+        navigate("/dashboard");
       }
     } else {
       // login

@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -15,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 // Pre-questionnaire schema using zod
 const questionnaireSchema = z.object({
@@ -28,11 +29,6 @@ const questionnaireSchema = z.object({
 });
 
 type QuestionnaireForm = z.infer<typeof questionnaireSchema>;
-
-// Create Supabase client with explicit values
-const supabaseUrl = "https://cvokzecilcvqqdxwrhbv.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2b2t6ZWNpbGN2cXFkeHdyaGJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTM4ODM4MzgsImV4cCI6MjAyOTQ1OTgzOH0.Fn7VPPrpYlaqSSyDV6QENXvOfCJdkgNSSfM0K6lI0e4";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const GOALS = [
   { value: "general", label: "General Health" },
@@ -55,40 +51,6 @@ const PreQuestionnaire = () => {
 
   // Check if user is authenticated and test Supabase connection
   useEffect(() => {
-    // Test Supabase connection
-    const testConnection = async () => {
-      try {
-        console.log("Testing Supabase connection...");
-        // Simple query to test connection
-        const { data, error } = await supabase
-          .from('users')
-          .select('id')
-          .limit(1);
-        
-        if (error) {
-          console.error("Supabase connection error:", error);
-          toast({ 
-            title: "Connection Error", 
-            description: "Could not connect to database. Please try again." 
-          });
-        } else {
-          console.log("Supabase connection successful:", data);
-          toast({ 
-            title: "Connected", 
-            description: "Successfully connected to Supabase" 
-          });
-        }
-      } catch (err) {
-        console.error("Unexpected error testing Supabase connection:", err);
-        toast({ 
-          title: "Error", 
-          description: "An unexpected error occurred" 
-        });
-      }
-    };
-
-    testConnection();
-
     const checkAuth = async () => {
       const {
         data: { user },
@@ -100,7 +62,7 @@ const PreQuestionnaire = () => {
       }
     };
     checkAuth();
-  }, [navigate, toast]);
+  }, [navigate]);
 
   const form = useForm<QuestionnaireForm>({
     resolver: zodResolver(questionnaireSchema),
@@ -126,38 +88,47 @@ const PreQuestionnaire = () => {
       return;
     }
 
-    const insert = {
-      weight_kg: Number(data.weight_kg),
-      age: Number(data.age),
-      goal: data.goal,
-      diet_type: data.diet_type || null,
-      intolerances: data.intolerances
-        ? data.intolerances.split(",").map((v) => v.trim())
-        : [],
-      allergies: data.allergies
-        ? data.allergies.split(",").map((v) => v.trim())
-        : [],
-    };
+    try {
+      const insert = {
+        weight_kg: Number(data.weight_kg),
+        age: Number(data.age),
+        goal_type: data.goal,
+        diet_type: data.diet_type || null,
+        intolerances: data.intolerances
+          ? data.intolerances.split(",").map((v) => v.trim())
+          : [],
+        allergies: data.allergies
+          ? data.allergies.split(",").map((v) => v.trim())
+          : [],
+      };
 
-    // Update user profile in users table (by id)
-    const { error } = await supabase
-      .from("users")
-      .update(insert)
-      .eq("id", user.id);
+      // Update user profile
+      const { error } = await supabase
+        .from("profiles")
+        .update(insert)
+        .eq("id", user.id);
 
-    if (error) {
-      toast({ title: "Error", description: error.message });
-      return;
+      if (error) {
+        console.error("Profile update error:", error);
+        toast({ title: "Error", description: error.message });
+        return;
+      }
+
+      toast({
+        title: "Profile updated!",
+        description: "Setup complete. Welcome to PedalPlate.",
+      });
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast({ 
+        title: "Error", 
+        description: "An error occurred while updating your profile." 
+      });
     }
-
-    toast({
-      title: "Profile updated!",
-      description: "Setup complete. Welcome to PedalPlate.",
-    });
-
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 1500);
   };
 
   return (

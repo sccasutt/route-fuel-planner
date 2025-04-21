@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import Layout from "@/components/layout/Layout";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define the form schema with Zod
 const loginSchema = z.object({
@@ -44,18 +45,34 @@ const Login = () => {
     },
   });
 
-  const onSubmit = (data: LoginForm) => {
-    console.log("Login form submitted:", data);
-    
-    // Simulate successful login
-    toast({
-      title: "Welcome back!",
-      description: "You've successfully logged in.",
-    });
+  const onSubmit = async (data: LoginForm) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      
+      if (error) {
+        toast({
+          title: "Login failed",
+          description: error.message,
+        });
+        return;
+      }
+      
+      toast({
+        title: "Welcome back!",
+        description: "You've successfully logged in.",
+      });
 
-    setTimeout(() => {
       navigate("/dashboard");
-    }, 1500);
+    } catch (err) {
+      console.error("Login error:", err);
+      toast({
+        title: "Login error",
+        description: "An unexpected error occurred. Please try again.",
+      });
+    }
   };
 
   return (
