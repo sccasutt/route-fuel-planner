@@ -8,13 +8,18 @@ import { useProcessWahooCallback } from "@/hooks/wahoo/useProcessWahooCallback";
 export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
   const [error, setError] = useState<string | null>(null);
-
+  const [initialized, setInitialized] = useState(false);
   const { processCallback } = useProcessWahooCallback({ setStatus, setError });
 
   useEffect(() => {
-    processCallback();
+    // Only process the callback once
+    if (!initialized) {
+      console.log("WahooCallback: Initializing callback processing");
+      setInitialized(true);
+      processCallback();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processCallback]);
+  }, []);
 
   return (
     <Layout>

@@ -22,6 +22,7 @@ export function useWahooData() {
   const { user } = useAuth();
   const lastEventTimestampRef = useRef<number | null>(null);
   const hasInitializedRef = useRef(false);
+  const hookIdRef = useRef(`wahoo-data-${Math.random().toString(36).substring(2, 9)}`);
 
   useEffect(() => {
     const checkWahooConnection = () => {
@@ -29,14 +30,14 @@ export function useWahooData() {
         const wahooToken = localStorage.getItem("wahoo_token");
         const isTokenValid = wahooToken ? isWahooTokenValid(wahooToken) : false;
         
-        console.log("useWahooData: Connection check", isTokenValid ? "connected" : "disconnected");
+        console.log(`[${hookIdRef.current}] Connection check ${isTokenValid ? "connected" : "disconnected"}`);
         setIsConnected(isTokenValid);
         
         if (isTokenValid && user) {
           fetchWahooActivities();
         } else {
           if (wahooToken && !isTokenValid) {
-            console.log("useWahooData: Removing invalid token");
+            console.log(`[${hookIdRef.current}] Removing invalid token`);
             localStorage.removeItem("wahoo_token");
             
             // Only dispatch event if we haven't just processed one
@@ -51,7 +52,7 @@ export function useWahooData() {
           setActivities([]);
         }
       } catch (error) {
-        console.error("Error checking Wahoo connection:", error);
+        console.error(`[${hookIdRef.current}] Error checking Wahoo connection:`, error);
         setIsConnected(false);
         setIsLoading(false);
         setActivities([]);
@@ -60,6 +61,7 @@ export function useWahooData() {
 
     if (user && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
+      console.log(`[${hookIdRef.current}] Initializing Wahoo data hook`);
       checkWahooConnection();
     }
 
@@ -67,11 +69,11 @@ export function useWahooData() {
     const handleConnectionEvent = (event: CustomEvent<{ timestamp?: number }>) => {
       const timestamp = event.detail?.timestamp || Date.now();
       
-      console.log("useWahooData: Connection change event detected, timestamp:", timestamp, "last:", lastEventTimestampRef.current);
+      console.log(`[${hookIdRef.current}] Connection change event detected, timestamp:`, timestamp, "last:", lastEventTimestampRef.current);
       
       // Prevent duplicate/looping handling by checking timestamp
       if (lastEventTimestampRef.current && Math.abs(timestamp - lastEventTimestampRef.current) < 1000) {
-        console.log("useWahooData: Ignoring duplicate event");
+        console.log(`[${hookIdRef.current}] Ignoring duplicate event`);
         return;
       }
       
@@ -85,6 +87,7 @@ export function useWahooData() {
     window.addEventListener("wahoo_connection_changed", handleConnectionEvent as EventListener);
     
     return () => {
+      console.log(`[${hookIdRef.current}] Cleaning up Wahoo data hook`);
       window.removeEventListener("wahoo_connection_changed", handleConnectionEvent as EventListener);
     };
   }, [user, toast]);
@@ -97,10 +100,10 @@ export function useWahooData() {
                       tokenData.access_token && 
                       (!tokenData.expires_at || tokenData.expires_at > Date.now());
       
-      console.log("useWahooData: Token validation", isValid ? "valid" : "invalid or expired");
+      console.log(`[${hookIdRef.current}] Token validation ${isValid ? "valid" : "invalid or expired"}`);
       return isValid;
     } catch (error) {
-      console.error("Error validating Wahoo token:", error);
+      console.error(`[${hookIdRef.current}] Error validating Wahoo token:`, error);
       return false;
     }
   };
@@ -108,7 +111,7 @@ export function useWahooData() {
   // Fetch Wahoo activities from backend
   const fetchWahooActivities = async () => {
     if (!user) {
-      console.log("useWahooData: No user found, not fetching activities");
+      console.log(`[${hookIdRef.current}] No user found, not fetching activities`);
       setActivities([]);
       setIsLoading(false);
       return;
@@ -116,7 +119,7 @@ export function useWahooData() {
     
     setIsLoading(true);
     try {
-      console.log("useWahooData: Fetching Wahoo activities for user", user.id);
+      console.log(`[${hookIdRef.current}] Fetching Wahoo activities for user`, user.id);
       
       // Get Wahoo user ID from token if available
       let wahooUserId = null;
@@ -125,10 +128,10 @@ export function useWahooData() {
         if (tokenString) {
           const tokenData = JSON.parse(tokenString);
           wahooUserId = tokenData.wahoo_user_id;
-          console.log("useWahooData: Using Wahoo user ID from token:", wahooUserId);
+          console.log(`[${hookIdRef.current}] Using Wahoo user ID from token:`, wahooUserId);
         }
       } catch (e) {
-        console.error("useWahooData: Error getting Wahoo user ID from token:", e);
+        console.error(`[${hookIdRef.current}] Error getting Wahoo user ID from token:`, e);
       }
       
       const { data, error } = await supabase
@@ -143,10 +146,10 @@ export function useWahooData() {
       }
       
       if (!data || data.length === 0) {
-        console.log("useWahooData: No activities found for user", user.id);
+        console.log(`[${hookIdRef.current}] No activities found for user`, user.id);
         setActivities([]);
       } else {
-        console.log("useWahooData: Retrieved", data.length, "activities for user", user.id);
+        console.log(`[${hookIdRef.current}] Retrieved ${data.length} activities for user`, user.id);
         setActivities(
           data.map((r) => ({
             id: r.id,
@@ -160,7 +163,7 @@ export function useWahooData() {
         );
       }
     } catch (error) {
-      console.error("Error fetching Wahoo activities:", error);
+      console.error(`[${hookIdRef.current}] Error fetching Wahoo activities:`, error);
       toast({
         title: "Error",
         description: "Failed to load Wahoo activities",

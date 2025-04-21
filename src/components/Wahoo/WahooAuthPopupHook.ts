@@ -11,19 +11,20 @@ export function useWahooAuthPopup({
   const [isConnected, setIsConnected] = useState(false);
   const lastEventTimestampRef = useRef<number | null>(null);
   const hasInitializedRef = useRef(false);
+  const componentIdRef = useRef(`wahoo-auth-${Math.random().toString(36).substring(2, 9)}`);
 
   // Check for connection on initial load and validate token
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
     
-    console.log("useWahooAuthPopup: Checking initial connection state");
+    console.log(`[${componentIdRef.current}] Checking initial connection state`);
     
     const checkToken = () => {
       try {
         const tokenString = localStorage.getItem("wahoo_token");
         if (!tokenString) {
-          console.log("No Wahoo token found");
+          console.log(`[${componentIdRef.current}] No Wahoo token found`);
           setIsConnected(false);
           return false;
         }
@@ -31,7 +32,7 @@ export function useWahooAuthPopup({
         const token = JSON.parse(tokenString);
         const isValid = token && token.access_token && (!token.expires_at || token.expires_at > Date.now());
         
-        console.log("Wahoo token validation:", isValid ? "valid" : "invalid or expired");
+        console.log(`[${componentIdRef.current}] Wahoo token validation: ${isValid ? "valid" : "invalid or expired"}`);
         
         if (isValid) {
           setIsConnected(true);
@@ -45,7 +46,7 @@ export function useWahooAuthPopup({
         
         return isValid;
       } catch (error) {
-        console.error("Error checking Wahoo token:", error);
+        console.error(`[${componentIdRef.current}] Error checking Wahoo token:`, error);
         localStorage.removeItem("wahoo_token");
         localStorage.removeItem("wahoo_auth_state");
         setIsConnected(false);
@@ -60,10 +61,10 @@ export function useWahooAuthPopup({
 
   // Listen for events that indicate connection changes
   useEffect(() => {
-    console.log("useWahooAuthPopup: Setting up event listeners");
+    console.log(`[${componentIdRef.current}] Setting up event listeners`);
     
     const handleStorageChange = (event: StorageEvent) => {
-      console.log("useWahooAuthPopup: Storage event detected", event.key, event.newValue ? "has value" : "empty");
+      console.log(`[${componentIdRef.current}] Storage event detected`, event.key, event.newValue ? "has value" : "empty");
       
       if (event.key === "wahoo_token") {
         const hasToken = !!event.newValue;
@@ -81,11 +82,11 @@ export function useWahooAuthPopup({
       const timestamp = event.detail?.timestamp || Date.now();
       const lastTimestamp = lastEventTimestampRef.current;
       
-      console.log("useWahooAuthPopup: Custom event detected", event.type, "timestamp:", timestamp, "last:", lastTimestamp);
+      console.log(`[${componentIdRef.current}] Custom event detected`, event.type, "timestamp:", timestamp, "last:", lastTimestamp);
 
       // Prevent duplicate/looping handling by checking timestamp
       if (lastTimestamp && Math.abs(timestamp - lastTimestamp) < 1000) {
-        console.log("useWahooAuthPopup: Ignoring duplicate event", timestamp);
+        console.log(`[${componentIdRef.current}] Ignoring duplicate event`, timestamp);
         return;
       }
       
@@ -95,14 +96,14 @@ export function useWahooAuthPopup({
         const tokenString = localStorage.getItem("wahoo_token");
         const hasValidToken = tokenString && JSON.parse(tokenString).access_token;
         
-        console.log("Custom event token check:", hasValidToken ? "valid" : "invalid or missing");
+        console.log(`[${componentIdRef.current}] Custom event token check:`, hasValidToken ? "valid" : "invalid or missing");
         setIsConnected(!!hasValidToken);
         
         if (hasValidToken && onConnect) {
           onConnect();
         }
       } catch (error) {
-        console.error("Error processing custom event:", error);
+        console.error(`[${componentIdRef.current}] Error processing custom event:`, error);
         localStorage.removeItem("wahoo_token");
         localStorage.removeItem("wahoo_auth_state");
         setIsConnected(false);
@@ -113,6 +114,7 @@ export function useWahooAuthPopup({
     window.addEventListener("wahoo_connection_changed", handleCustomEvent as EventListener);
     
     return () => {
+      console.log(`[${componentIdRef.current}] Removing event listeners`);
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("wahoo_connection_changed", handleCustomEvent as EventListener);
     };
@@ -120,7 +122,7 @@ export function useWahooAuthPopup({
 
   // Disconnect function
   const disconnect = useCallback(() => {
-    console.log("useWahooAuthPopup: Disconnecting");
+    console.log(`[${componentIdRef.current}] Disconnecting`);
     localStorage.removeItem("wahoo_token");
     localStorage.removeItem("wahoo_auth_state");
     

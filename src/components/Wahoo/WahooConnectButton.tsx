@@ -16,6 +16,7 @@ export function WahooConnectButton() {
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [instanceId] = useState(`connect-btn-${Math.random().toString(36).substring(2, 9)}`);
 
   const {
     isConnected,
@@ -32,8 +33,8 @@ export function WahooConnectButton() {
 
   useEffect(() => {
     // Debug log for connection state
-    console.log("WahooConnectButton: Connection state changed:", isConnected);
-  }, [isConnected]);
+    console.log(`[${instanceId}] Connection state changed:`, isConnected);
+  }, [isConnected, instanceId]);
 
   const handleConnect = async () => {
     try {
