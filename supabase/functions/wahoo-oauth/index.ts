@@ -1,3 +1,4 @@
+
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
@@ -80,7 +81,9 @@ Deno.serve(async (req) => {
   // Secrets are injected as env variables in Supabase Edge Functions.
   const clientId = Deno.env.get("WAHOO_CLIENT_ID");
   const clientSecret = Deno.env.get("WAHOO_CLIENT_SECRET");
-  const redirectUri = `${url.origin}/functions/v1/wahoo-oauth`; // This should match your OAuth app's registered callback.
+  
+  // Update the redirect URI to match what's registered in Wahoo's dashboard
+  const redirectUri = "https://jxouzttcjpmmtclagbob.supabase.co/auth/v1/callback";
 
   if (!clientId || !clientSecret) {
     return new Response(

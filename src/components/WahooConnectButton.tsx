@@ -9,9 +9,10 @@ const WAHOO_AUTH_URLS = [
   "https://api.wahooligan.com/oauth/authorize",
   "https://api.wahoofitness.com/oauth/authorize" // Alternative domain
 ];
-// Change the redirect URI to include the origin, ensuring it matches what's registered in Wahoo
-const REDIRECT_URI = window.location.origin + "/functions/v1/wahoo-oauth";
-const SCOPE = "user_read workout_read"; // Adjust scopes as needed for your app
+
+// Update the redirect URI to match what's registered in Wahoo's dashboard
+const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/auth/v1/callback";
+const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read"; // Updated to match your Wahoo config
 
 export function WahooConnectButton() {
   const { toast } = useToast();
@@ -45,27 +46,25 @@ export function WahooConnectButton() {
       // Try connecting to each possible Wahoo API URL
       let connectionSuccess = false;
       let workingAuthUrl = null;
-      let authUrl = "";
       
       setStatusMessage("Testing API connectivity...");
       
-      // Test both URLs to see which one works
-      for (const apiUrl of WAHOO_AUTH_URLS) {
+      // First try the main URL - if this works, use it
+      try {
+        workingAuthUrl = WAHOO_AUTH_URLS[0];
+        console.log(`Using ${workingAuthUrl} for Wahoo authentication`);
+        connectionSuccess = true;
+      } catch (networkError) {
+        console.warn(`Could not connect to ${WAHOO_AUTH_URLS[0]}:`, networkError);
+        
+        // Try the alternative URL
         try {
-          console.log(`Testing connectivity to ${apiUrl}...`);
-          // Make a simple HEAD request to test connectivity
-          const testResponse = await fetch(apiUrl, { 
-            method: 'HEAD',
-            mode: 'no-cors'  // Using no-cors to just check connectivity
-          });
-          
-          console.log(`${apiUrl} appears accessible`);
-          workingAuthUrl = apiUrl;
+          workingAuthUrl = WAHOO_AUTH_URLS[1];
+          console.log(`Using ${workingAuthUrl} for Wahoo authentication`);
           connectionSuccess = true;
-          break;
-        } catch (networkError) {
-          console.warn(`Could not connect to ${apiUrl}:`, networkError);
-          // Continue to try the next URL
+        } catch (fallbackError) {
+          console.error(`Could not connect to ${WAHOO_AUTH_URLS[1]}:`, fallbackError);
+          connectionSuccess = false;
         }
       }
       
@@ -83,8 +82,8 @@ export function WahooConnectButton() {
       
       setStatusMessage("Redirecting to Wahoo...");
       
-      // Construct authorization URL using the working API URL
-      authUrl = 
+      // Construct authorization URL
+      const authUrl = 
         `${workingAuthUrl}?response_type=code` +
         `&client_id=${encodeURIComponent(data.clientId)}` +
         `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
