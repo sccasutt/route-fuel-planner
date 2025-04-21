@@ -4,11 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-// For development testing, let's try both the API domains that Wahoo might use
-const WAHOO_AUTH_URLS = [
-  "https://api.wahooligan.com/oauth/authorize",
-  "https://api.wahoofitness.com/oauth/authorize" // Alternative domain
-];
+// For development testing, let's use the main Wahoo API URL
+const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 
 // Update the redirect URI to match what's registered in Wahoo's dashboard
 const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/auth/v1/callback";
@@ -43,58 +40,19 @@ export function WahooConnectButton() {
         throw new Error("No client ID returned from server");
       }
       
-      // Try connecting to each possible Wahoo API URL
-      let connectionSuccess = false;
-      let workingAuthUrl = null;
+      setStatusMessage("Redirecting to Wahoo authorization...");
       
-      setStatusMessage("Testing API connectivity...");
-      
-      // First try the main URL - if this works, use it
-      try {
-        workingAuthUrl = WAHOO_AUTH_URLS[0];
-        console.log(`Using ${workingAuthUrl} for Wahoo authentication`);
-        connectionSuccess = true;
-      } catch (networkError) {
-        console.warn(`Could not connect to ${WAHOO_AUTH_URLS[0]}:`, networkError);
-        
-        // Try the alternative URL
-        try {
-          workingAuthUrl = WAHOO_AUTH_URLS[1];
-          console.log(`Using ${workingAuthUrl} for Wahoo authentication`);
-          connectionSuccess = true;
-        } catch (fallbackError) {
-          console.error(`Could not connect to ${WAHOO_AUTH_URLS[1]}:`, fallbackError);
-          connectionSuccess = false;
-        }
-      }
-      
-      if (!connectionSuccess) {
-        console.error("Could not connect to any Wahoo API URL");
-        setStatusMessage("");
-        toast({
-          title: "Connection Issue",
-          description: "Unable to reach Wahoo's servers. Please check your internet connection and try again.",
-          variant: "destructive",
-        });
-        setIsConnecting(false);
-        return;
-      }
-      
-      setStatusMessage("Redirecting to Wahoo...");
-      
-      // Construct authorization URL
+      // Construct authorization URL - we're using the main URL without testing
       const authUrl = 
-        `${workingAuthUrl}?response_type=code` +
+        `${WAHOO_AUTH_URL}?response_type=code` +
         `&client_id=${encodeURIComponent(data.clientId)}` +
         `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
         `&scope=${encodeURIComponent(SCOPE)}`;
       
       console.log("Redirecting to Wahoo auth URL:", authUrl);
       
-      // Use a short delay before redirecting to ensure the user sees the status
-      setTimeout(() => {
-        window.location.href = authUrl;
-      }, 1000);
+      // Redirect directly without pre-testing
+      window.location.href = authUrl;
       
     } catch (error) {
       console.error("Error initiating Wahoo connection:", error);
