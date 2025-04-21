@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -102,6 +103,8 @@ const Register = () => {
             goal_type: data.goalType || null,
             diet_type: data.dietType || null,
           },
+          // Use the current site URL for email confirmation
+          emailRedirectTo: window.location.origin + "/auth",
         },
       });
 
@@ -115,9 +118,21 @@ const Register = () => {
         return;
       }
 
+      if (authData?.user?.identities?.length === 0) {
+        // User already exists but hasn't confirmed their email
+        toast({
+          title: "Account already exists",
+          description: "This email is already registered. Please check your inbox for the confirmation email or try signing in.",
+          duration: 6000
+        });
+        setLoading(false);
+        return;
+      }
+
       toast({
         title: "Account created!",
-        description: "You've successfully registered for PedalPlate.",
+        description: "Please check your email to verify your account.",
+        duration: 6000
       });
 
       // Redirect to dashboard instead of pre-questionnaire
