@@ -56,6 +56,7 @@ export function WahooConnectButton() {
         `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
         `&scope=${encodeURIComponent(SCOPE)}` +
         `&state=${encodeURIComponent(state)}`;
+      
       const popupWidth = 800;
       const popupHeight = 700;
       const left = window.innerWidth / 2 - popupWidth / 2;
@@ -66,6 +67,7 @@ export function WahooConnectButton() {
         "WahooAuthPopup",
         `width=${popupWidth},height=${popupHeight},left=${left},top=${top},menubar=no,toolbar=no,location=yes,status=no,resizable=yes`
       );
+      
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
         setIsConnecting(false);
         setStatusMessage("");
@@ -76,6 +78,7 @@ export function WahooConnectButton() {
         });
         return;
       }
+      
       setAuthWindow(popup);
       popup.focus();
 

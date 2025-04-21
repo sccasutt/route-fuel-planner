@@ -27,7 +27,22 @@ export function useWahooAuthPopup({
         setIsConnecting(false);
         setStatusMessage("");
         setIsConnected(true);
+        
+        // Store connection in localStorage - ensure we dispatch a storage event
+        // so other components can react to this change
+        const previousValue = localStorage.getItem("wahoo_token");
         localStorage.setItem("wahoo_token", "connected");
+        
+        // Manually dispatch storage event since same-tab changes don't trigger it
+        if (previousValue !== "connected") {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'wahoo_token',
+            newValue: 'connected',
+            oldValue: previousValue,
+            storageArea: localStorage
+          }));
+        }
+        
         onConnect();
         if (authWindow && !authWindow.closed) authWindow.close();
       }
@@ -60,7 +75,18 @@ export function useWahooAuthPopup({
   }, [isConnecting, authWindow]);
 
   const disconnect = useCallback(() => {
+    // Ensure we dispatch a storage event when disconnecting
+    const previousValue = localStorage.getItem("wahoo_token");
     localStorage.removeItem("wahoo_token");
+    
+    // Manually dispatch storage event
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'wahoo_token',
+      newValue: null,
+      oldValue: previousValue,
+      storageArea: localStorage
+    }));
+    
     setIsConnected(false);
   }, []);
 

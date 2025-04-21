@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Bike, Calendar, Clock, LineChart, Map, Route, Utensils, ArrowRight, Droplet, BarChart, TrendingUp } from "lucide-react";
+import { Bike, Calendar, Clock, LineChart, Map, Route, Utensils, ArrowRight, Droplet, BarChart, TrendingUp, CheckCircle, XCircle, User } from "lucide-react";
 
 // Add import for WahooConnectButton
 import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
