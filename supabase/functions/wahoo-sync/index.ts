@@ -34,6 +34,7 @@ async function fetchWahooProfile(access_token) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
+    console.log("Fetching Wahoo profile with access token...");
     const profileRes = await fetch("https://api.wahooligan.com/v1/user", {
       headers: { "Authorization": `Bearer ${access_token}`, "Accept": "application/json" },
       signal: controller.signal
@@ -42,6 +43,7 @@ async function fetchWahooProfile(access_token) {
 
     if (!profileRes.ok) {
       const errorText = await profileRes.text();
+      console.error("Failed to fetch Wahoo profile:", profileRes.status, errorText);
       throw {
         message: "Failed to fetch Wahoo profile",
         status: 502,
@@ -49,8 +51,12 @@ async function fetchWahooProfile(access_token) {
         httpStatus: profileRes.status
       };
     }
-    return await profileRes.json();
+    
+    const profile = await profileRes.json();
+    console.log("Successfully fetched Wahoo profile with ID:", profile.id);
+    return profile;
   } catch (err) {
+    console.error("Error in fetchWahooProfile:", err);
     throw {
       message: err.message || "Connection error with Wahoo API",
       status: 502,
@@ -63,6 +69,7 @@ async function fetchWahooActivities(access_token) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
+    console.log("Fetching Wahoo activities with access token...");
     const activitiesRes = await fetch("https://api.wahooligan.com/v1/activities", {
       headers: { "Authorization": `Bearer ${access_token}`, "Accept": "application/json" },
       signal: controller.signal
@@ -71,6 +78,7 @@ async function fetchWahooActivities(access_token) {
 
     if (!activitiesRes.ok) {
       const errorText = await activitiesRes.text();
+      console.error("Failed to fetch Wahoo activities:", activitiesRes.status, errorText);
       throw {
         message: "Failed to fetch Wahoo activities",
         status: 502,
@@ -78,8 +86,12 @@ async function fetchWahooActivities(access_token) {
         httpStatus: activitiesRes.status
       };
     }
-    return await activitiesRes.json();
+    
+    const activities = await activitiesRes.json();
+    console.log("Successfully fetched Wahoo activities:", Array.isArray(activities) ? activities.length : "none");
+    return activities;
   } catch (err) {
+    console.error("Error in fetchWahooActivities:", err);
     throw {
       message: err.message || "Connection error with Wahoo API",
       status: 502,
@@ -89,17 +101,28 @@ async function fetchWahooActivities(access_token) {
 }
 
 async function upsertWahooProfile(client, user_id, wahoo_user_id, profile) {
+  console.log("Upserting Wahoo profile for user:", user_id, "Wahoo user ID:", wahoo_user_id);
+  
   // Use upsert with the user_id as the lookup key, wahoo_user_id as the Wahoo identifier
-  await client.from("wahoo_profiles").upsert([{
+  const { error } = await client.from("wahoo_profiles").upsert([{
     id: user_id,
     wahoo_user_id: wahoo_user_id,
     weight_kg: profile.weight_kg,
     updated_at: new Date().toISOString(),
     last_synced_at: new Date().toISOString()
   }]);
+  
+  if (error) {
+    console.error("Error upserting Wahoo profile:", error);
+    throw error;
+  }
+  
+  console.log("Successfully upserted Wahoo profile for user:", user_id);
 }
 
 async function upsertRoutes(client, user_id, activities) {
+  console.log("Upserting routes for user:", user_id, "Activities count:", Array.isArray(activities) ? activities.length : 0);
+  
   const routeRows = Array.isArray(activities) ? activities.map(act => ({
     user_id: user_id, // This links the routes to the user
     wahoo_route_id: act.id,
@@ -113,9 +136,17 @@ async function upsertRoutes(client, user_id, activities) {
     updated_at: new Date().toISOString()
   })) : [];
 
+  let successCount = 0;
   for (const row of routeRows) {
-    await client.from("routes").upsert([row], { onConflict: ["user_id", "wahoo_route_id"] });
+    const { error } = await client.from("routes").upsert([row], { onConflict: ["user_id", "wahoo_route_id"] });
+    if (error) {
+      console.error("Error upserting route:", error, "Data:", JSON.stringify(row));
+    } else {
+      successCount++;
+    }
   }
+  
+  console.log(`Successfully upserted ${successCount}/${routeRows.length} routes for user:`, user_id);
   return routeRows.length;
 }
 
@@ -128,6 +159,7 @@ Deno.serve(async (req) => {
     // Auth - Requires Auth Bearer header
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("Missing or invalid authorization header");
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
     const jwt = authHeader.split(" ")[1];
@@ -136,23 +168,35 @@ Deno.serve(async (req) => {
     let body;
     try {
       body = await parseRequestJson(req);
+      console.log("Request body received:", {
+        hasAccessToken: !!body.access_token,
+        hasRefreshToken: !!body.refresh_token,
+        hasWahooUserId: !!body.wahoo_user_id,
+        hasUserId: !!body.user_id
+      });
     } catch (err) {
+      console.error("Error parsing request body:", err);
       return new Response(JSON.stringify({ error: err.message }), { status: err.status, headers: corsHeaders });
     }
 
     const { access_token, refresh_token, wahoo_user_id, user_id: clientProvidedUserId } = body;
     if (!access_token) {
+      console.error("Missing access_token in request");
       return new Response(JSON.stringify({ error: "Missing access_token" }), { status: 400, headers: corsHeaders });
     }
 
     // Extract user_id from JWT and use it as the primary identifier
     const jwtUserId = extractUserIdFromJwt(jwt);
     if (!jwtUserId) {
+      console.error("Could not extract user ID from JWT");
       return new Response(JSON.stringify({ error: "Invalid user JWT" }), { status: 401, headers: corsHeaders });
     }
 
     // For security, ensure we use the JWT user_id, not the client-provided one
     const user_id = jwtUserId;
+    if (user_id !== clientProvidedUserId) {
+      console.warn("Client-provided user ID doesn't match JWT user ID. Using JWT user ID for security.");
+    }
     
     console.log("Starting Wahoo data fetching for user:", user_id, "Wahoo user ID:", wahoo_user_id || "not provided");
 
@@ -160,26 +204,36 @@ Deno.serve(async (req) => {
     let profile;
     try {
       profile = await fetchWahooProfile(access_token);
-      console.log("Successfully fetched Wahoo profile, user ID:", profile.id);
     } catch (err) {
       console.error("Wahoo profile fetch failed:", err.message);
-      return new Response(JSON.stringify({ error: err.message, details: err.details, status: err.httpStatus || 502 }), { status: err.status, headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        error: err.message, 
+        details: err.details, 
+        status: err.httpStatus || 502 
+      }), { status: err.status, headers: corsHeaders });
     }
 
     // Get the Wahoo user ID from the profile response if not provided in token
     const wahooProfileId = wahoo_user_id || profile.id;
     if (!wahooProfileId) {
-      return new Response(JSON.stringify({ error: "Could not determine Wahoo user ID", details: "Neither token nor profile contained a Wahoo user ID" }), { status: 500, headers: corsHeaders });
+      console.error("Could not determine Wahoo user ID from token or profile");
+      return new Response(JSON.stringify({ 
+        error: "Could not determine Wahoo user ID", 
+        details: "Neither token nor profile contained a Wahoo user ID" 
+      }), { status: 500, headers: corsHeaders });
     }
 
     // Fetch Wahoo activities (recent rides)
     let activities;
     try {
       activities = await fetchWahooActivities(access_token);
-      console.log("Successfully fetched Wahoo activities:", Array.isArray(activities) ? activities.length : "none");
     } catch (err) {
       console.error("Wahoo activities fetch failed:", err.message);
-      return new Response(JSON.stringify({ error: err.message, details: err.details, status: err.httpStatus || 502 }), { status: err.status, headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        error: err.message, 
+        details: err.details, 
+        status: err.httpStatus || 502 
+      }), { status: err.status, headers: corsHeaders });
     }
 
     // Insert/update profile and upsert routes
@@ -193,7 +247,7 @@ Deno.serve(async (req) => {
       await upsertWahooProfile(client, user_id, wahooProfileId, profile);
       const routeCount = await upsertRoutes(client, user_id, activities);
 
-      console.log("Sync operation completed successfully");
+      console.log("Sync operation completed successfully for user:", user_id);
       return new Response(
         JSON.stringify({
           ok: true,

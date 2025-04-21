@@ -22,6 +22,7 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     }
     
     const userId = authData.user.id;
+    console.log("Syncing Wahoo data for user ID:", userId);
     
     if (!tokenObj.wahoo_user_id) {
       console.warn("Warning: No Wahoo user ID provided for sync operation");

@@ -80,11 +80,15 @@ export function useProcessWahooCallback({
 
       // 4. Exchange code for token and store token
       setStatus("Connecting to your Wahoo account...");
+      console.log("WahooCallback: Valid authorization code received, exchanging for token");
+      console.log("Using redirect URI:", REDIRECT_URI);
       let tokenData;
       try {
         tokenData = await exchangeCodeForToken(code, REDIRECT_URI);
         if (!tokenData || !tokenData.access_token)
           throw new Error("Invalid token response from server");
+          
+        console.log("WahooCallback: Token received successfully");
       } catch (tokenError) {
         const tokenErrorMsg =
           tokenError instanceof Error ? tokenError.message : "Unknown error";
@@ -117,6 +121,7 @@ export function useProcessWahooCallback({
       };
       localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
       localStorage.removeItem("wahoo_auth_state");
+      console.log("WahooCallback: Token saved to localStorage");
 
       // 6. Sync profile and rides
       setStatus("Synchronizing your rides...");
@@ -128,6 +133,7 @@ export function useProcessWahooCallback({
             detail: { timestamp: Date.now() },
           })
         );
+        console.log("WahooCallback: Sync successful, navigating to dashboard");
         successToast(
           "Wahoo connected",
           "Your Wahoo account is now connected."
@@ -139,6 +145,8 @@ export function useProcessWahooCallback({
       } catch (err) {
         const errMsg =
           err instanceof Error ? err.message : "Error synchronizing rides";
+        console.error("Error syncing rides:", errMsg);
+        
         if (
           errMsg.includes("connection") ||
           errMsg.includes("refused") ||
@@ -155,11 +163,15 @@ export function useProcessWahooCallback({
           setStatus("Connected, but your rides couldn't be synchronized.");
           setError(errMsg || "Error synchronizing your rides from Wahoo");
         }
+        
+        // Even though sync failed, we still have a valid token, so dispatch the connection event
         window.dispatchEvent(
           new CustomEvent("wahoo_connection_changed", {
             detail: { timestamp: Date.now() },
           })
         );
+        console.log("WahooCallback: Dispatched connection changed event despite sync error");
+        
         errorToast(
           "Partial connection",
           "Connected to Wahoo, but couldn't sync rides. Try again later."
@@ -167,6 +179,7 @@ export function useProcessWahooCallback({
         setTimeout(() => navigate("/dashboard"), 5000);
       }
     } catch (error) {
+      console.error("Unhandled error during callback processing:", error);
       setStatus("An error occurred during authorization processing.");
       setError("Failed to connect to Wahoo. Please try again.");
       errorToast(
@@ -175,9 +188,8 @@ export function useProcessWahooCallback({
       );
       setTimeout(() => navigate("/dashboard"), 5000);
     }
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, location.search, setStatus, setError, errorToast, successToast]);
 
   return { processCallback };
 }
-
