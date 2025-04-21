@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export function useWahooAuthPopup({
   onConnect,
@@ -9,10 +9,14 @@ export function useWahooAuthPopup({
   onError: (desc: string) => void;
 }) {
   const [isConnected, setIsConnected] = useState(false);
-  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | null>(null);
+  const lastEventTimestampRef = useRef<number | null>(null);
+  const hasInitializedRef = useRef(false);
 
   // Check for connection on initial load and validate token
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    
     console.log("useWahooAuthPopup: Checking initial connection state");
     
     const checkToken = () => {
@@ -54,7 +58,7 @@ export function useWahooAuthPopup({
     checkToken();
   }, [onConnect, onError]);
 
-  // Listen for events that indicate connection changes - with timestamp check to prevent infinite loop
+  // Listen for events that indicate connection changes
   useEffect(() => {
     console.log("useWahooAuthPopup: Setting up event listeners");
     
@@ -75,15 +79,17 @@ export function useWahooAuthPopup({
     
     const handleCustomEvent = (event: CustomEvent<{ timestamp?: number }>) => {
       const timestamp = event.detail?.timestamp || Date.now();
-      console.log("useWahooAuthPopup: Custom event detected", event.type, "timestamp:", timestamp, "last:", lastEventTimestamp);
+      const lastTimestamp = lastEventTimestampRef.current;
+      
+      console.log("useWahooAuthPopup: Custom event detected", event.type, "timestamp:", timestamp, "last:", lastTimestamp);
 
       // Prevent duplicate/looping handling by checking timestamp
-      if (lastEventTimestamp && Math.abs(timestamp - lastEventTimestamp) < 500) {
+      if (lastTimestamp && Math.abs(timestamp - lastTimestamp) < 1000) {
         console.log("useWahooAuthPopup: Ignoring duplicate event", timestamp);
         return;
       }
       
-      setLastEventTimestamp(timestamp);
+      lastEventTimestampRef.current = timestamp;
       
       try {
         const tokenString = localStorage.getItem("wahoo_token");
@@ -110,7 +116,7 @@ export function useWahooAuthPopup({
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("wahoo_connection_changed", handleCustomEvent as EventListener);
     };
-  }, [lastEventTimestamp, onConnect, onError]);
+  }, [onConnect, onError]);
 
   // Disconnect function
   const disconnect = useCallback(() => {

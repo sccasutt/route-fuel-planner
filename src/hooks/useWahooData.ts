@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
@@ -20,7 +20,8 @@ export function useWahooData() {
   const [activities, setActivities] = useState<WahooActivityData[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
-  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | null>(null);
+  const lastEventTimestampRef = useRef<number | null>(null);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
     const checkWahooConnection = () => {
@@ -37,10 +38,14 @@ export function useWahooData() {
           if (wahooToken && !isTokenValid) {
             console.log("useWahooData: Removing invalid token");
             localStorage.removeItem("wahoo_token");
-            const event = new CustomEvent("wahoo_connection_changed", { 
-              detail: { timestamp: Date.now() } 
-            });
-            window.dispatchEvent(event);
+            
+            // Only dispatch event if we haven't just processed one
+            if (!lastEventTimestampRef.current || Date.now() - lastEventTimestampRef.current > 1000) {
+              const event = new CustomEvent("wahoo_connection_changed", { 
+                detail: { timestamp: Date.now() } 
+              });
+              window.dispatchEvent(event);
+            }
           }
           setIsLoading(false);
           setActivities([]);
@@ -53,22 +58,24 @@ export function useWahooData() {
       }
     };
 
-    if (user) {
+    if (user && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       checkWahooConnection();
     }
 
     // Listen for connection changes with timestamp check to prevent infinite loops
     const handleConnectionEvent = (event: CustomEvent<{ timestamp?: number }>) => {
       const timestamp = event.detail?.timestamp || Date.now();
-      console.log("useWahooData: Connection change event detected, timestamp:", timestamp, "last:", lastEventTimestamp);
+      
+      console.log("useWahooData: Connection change event detected, timestamp:", timestamp, "last:", lastEventTimestampRef.current);
       
       // Prevent duplicate/looping handling by checking timestamp
-      if (lastEventTimestamp && Math.abs(timestamp - lastEventTimestamp) < 500) {
+      if (lastEventTimestampRef.current && Math.abs(timestamp - lastEventTimestampRef.current) < 1000) {
         console.log("useWahooData: Ignoring duplicate event");
         return;
       }
       
-      setLastEventTimestamp(timestamp);
+      lastEventTimestampRef.current = timestamp;
       
       if (user) {
         checkWahooConnection();
@@ -80,7 +87,7 @@ export function useWahooData() {
     return () => {
       window.removeEventListener("wahoo_connection_changed", handleConnectionEvent as EventListener);
     };
-  }, [user, lastEventTimestamp, toast]);
+  }, [user, toast]);
 
   // Checks token expiry
   const isWahooTokenValid = (tokenString: string) => {
