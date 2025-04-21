@@ -14,6 +14,12 @@ export interface WahooActivityData {
   calories: number;
 }
 
+// Shared state to prevent redundant API calls
+const globalState = {
+  lastFetchTimestamp: 0,
+  isInitialized: false
+};
+
 export function useWahooData() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -34,7 +40,15 @@ export function useWahooData() {
         setIsConnected(isTokenValid);
         
         if (isTokenValid && user) {
-          fetchWahooActivities();
+          // Only fetch if we haven't fetched recently (throttle API calls)
+          const now = Date.now();
+          if (now - globalState.lastFetchTimestamp > 30000) { // 30 second throttle
+            globalState.lastFetchTimestamp = now;
+            fetchWahooActivities();
+          } else {
+            console.log(`[${hookIdRef.current}] Skipping fetch, last fetch was ${(now - globalState.lastFetchTimestamp)/1000}s ago`);
+            setIsLoading(false);
+          }
         } else {
           if (wahooToken && !isTokenValid) {
             console.log(`[${hookIdRef.current}] Removing invalid token`);
@@ -59,10 +73,19 @@ export function useWahooData() {
       }
     };
 
-    if (user && !hasInitializedRef.current) {
+    // Only initialize once per user session
+    if (user && !hasInitializedRef.current && !globalState.isInitialized) {
       hasInitializedRef.current = true;
+      globalState.isInitialized = true;
       console.log(`[${hookIdRef.current}] Initializing Wahoo data hook`);
       checkWahooConnection();
+    } else if (user && hasInitializedRef.current) {
+      // We're already initialized, just update our state
+      console.log(`[${hookIdRef.current}] Already initialized, updating state only`);
+      const wahooToken = localStorage.getItem("wahoo_token");
+      const isTokenValid = wahooToken ? isWahooTokenValid(wahooToken) : false;
+      setIsConnected(isTokenValid);
+      setIsLoading(false);
     }
 
     // Listen for connection changes with timestamp check to prevent infinite loops
@@ -180,5 +203,6 @@ export function useWahooData() {
     isLoading,
     activities,
     syncStatus: isConnected ? "connected" : "disconnected",
+    refresh: fetchWahooActivities // Expose refresh function for manual data refresh
   };
 }

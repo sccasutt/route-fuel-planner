@@ -1,6 +1,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+// Create a singleton pattern to ensure we only check initialization once across the application
+let globalInitialized = false;
+let globalConnectionState = false;
+
 export function useWahooAuthPopup({
   onConnect,
   onError,
@@ -13,12 +17,23 @@ export function useWahooAuthPopup({
   const hasInitializedRef = useRef(false);
   const componentIdRef = useRef(`wahoo-auth-${Math.random().toString(36).substring(2, 9)}`);
 
-  // Check for connection on initial load and validate token
+  // Check for connection on initial load and validate token - but only once
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
     
-    console.log(`[${componentIdRef.current}] Checking initial connection state`);
+    // If global initialization already happened, use that state instead
+    if (globalInitialized) {
+      console.log(`[${componentIdRef.current}] Using global connection state: ${globalConnectionState}`);
+      setIsConnected(globalConnectionState);
+      if (globalConnectionState && onConnect) {
+        onConnect();
+      }
+      return;
+    }
+
+    console.log(`[${componentIdRef.current}] Performing initial connection check`);
+    globalInitialized = true;
     
     const checkToken = () => {
       try {
@@ -26,6 +41,7 @@ export function useWahooAuthPopup({
         if (!tokenString) {
           console.log(`[${componentIdRef.current}] No Wahoo token found`);
           setIsConnected(false);
+          globalConnectionState = false;
           return false;
         }
         
@@ -36,12 +52,14 @@ export function useWahooAuthPopup({
         
         if (isValid) {
           setIsConnected(true);
-          onConnect();
+          globalConnectionState = true;
+          if (onConnect) onConnect();
         } else {
           setIsConnected(false);
+          globalConnectionState = false;
           localStorage.removeItem("wahoo_token");
           localStorage.removeItem("wahoo_auth_state");
-          onError("Wahoo token is invalid or expired");
+          if (onError) onError("Wahoo token is invalid or expired");
         }
         
         return isValid;
@@ -50,7 +68,8 @@ export function useWahooAuthPopup({
         localStorage.removeItem("wahoo_token");
         localStorage.removeItem("wahoo_auth_state");
         setIsConnected(false);
-        onError("Error validating Wahoo connection");
+        globalConnectionState = false;
+        if (onError) onError("Error validating Wahoo connection");
         return false;
       }
     };
@@ -69,6 +88,7 @@ export function useWahooAuthPopup({
       if (event.key === "wahoo_token") {
         const hasToken = !!event.newValue;
         setIsConnected(hasToken);
+        globalConnectionState = hasToken;
         
         if (hasToken && onConnect) {
           onConnect();
@@ -98,6 +118,7 @@ export function useWahooAuthPopup({
         
         console.log(`[${componentIdRef.current}] Custom event token check:`, hasValidToken ? "valid" : "invalid or missing");
         setIsConnected(!!hasValidToken);
+        globalConnectionState = !!hasValidToken;
         
         if (hasValidToken && onConnect) {
           onConnect();
@@ -107,6 +128,7 @@ export function useWahooAuthPopup({
         localStorage.removeItem("wahoo_token");
         localStorage.removeItem("wahoo_auth_state");
         setIsConnected(false);
+        globalConnectionState = false;
       }
     };
     
@@ -132,6 +154,7 @@ export function useWahooAuthPopup({
     window.dispatchEvent(event);
     
     setIsConnected(false);
+    globalConnectionState = false;
   }, []);
 
   return {

@@ -31,10 +31,10 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     // Send both the user ID and Wahoo token data to the sync function
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {
       method: "POST",
-      body: {
+      body: JSON.stringify({
         ...tokenObj,
         user_id: userId, // Explicitly passing the user ID to ensure correct association
-      },
+      }),
       headers: {
         "Content-Type": "application/json"
       }

@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Layout from "@/components/layout/Layout";
 import WahooCallbackError from "./WahooCallbackError";
 import WahooCallbackLoading from "./WahooCallbackLoading";
@@ -8,15 +8,19 @@ import { useProcessWahooCallback } from "@/hooks/wahoo/useProcessWahooCallback";
 export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
   const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
+  const processingRef = useRef(false);
   const { processCallback } = useProcessWahooCallback({ setStatus, setError });
 
   useEffect(() => {
-    // Only process the callback once
-    if (!initialized) {
+    // Only process the callback once using ref to track state across re-renders
+    if (!processingRef.current) {
+      processingRef.current = true;
       console.log("WahooCallback: Initializing callback processing");
-      setInitialized(true);
-      processCallback();
+      processCallback().catch(err => {
+        console.error("Unhandled error in processCallback:", err);
+        setError(err instanceof Error ? err.message : "Unknown error occurred");
+        setStatus("Authorization failed due to an unexpected error");
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
