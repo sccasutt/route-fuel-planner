@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -29,9 +30,9 @@ const questionnaireSchema = z.object({
 
 type QuestionnaireForm = z.infer<typeof questionnaireSchema>;
 
-// Optionally use env vars, or import main Supabase client if you have one.
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Create Supabase client with explicit values
+const supabaseUrl = "https://cvokzecilcvqqdxwrhbv.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2b2t6ZWNpbGN2cXFkeHdyaGJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTM4ODM4MzgsImV4cCI6MjAyOTQ1OTgzOH0.Fn7VPPrpYlaqSSyDV6QENXvOfCJdkgNSSfM0K6lI0e4";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const GOALS = [
@@ -53,7 +54,7 @@ const PreQuestionnaire = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Replace with actual Supabase auth user fetch
+  // Check if user is authenticated
   useEffect(() => {
     const checkAuth = async () => {
       const {
