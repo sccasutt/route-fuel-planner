@@ -23,6 +23,7 @@ export function useWahooData() {
   useEffect(() => {
     const checkWahooConnection = () => {
       const hasWahooToken = localStorage.getItem("wahoo_token");
+      console.log("useWahooData: Checking connection status:", !!hasWahooToken);
       setIsConnected(!!hasWahooToken);
       setIsLoading(false);
     };
@@ -31,8 +32,14 @@ export function useWahooData() {
     
     // Listen for connection changes from WahooConnectButton
     const handleConnectionChange = (event: StorageEvent) => {
+      console.log("useWahooData: Storage event detected:", event.key, event.newValue);
       if (event.key === "wahoo_token") {
         setIsConnected(!!event.newValue);
+        
+        // If we just connected, start loading activities
+        if (event.newValue) {
+          setIsLoading(true);
+        }
       }
     };
     
@@ -47,9 +54,11 @@ export function useWahooData() {
   useEffect(() => {
     const fetchWahooActivities = async () => {
       if (!isConnected) {
+        console.log("useWahooData: Not connected, skipping activity fetch");
         return;
       }
 
+      console.log("useWahooData: Fetching Wahoo activities");
       setIsLoading(true);
       try {
         // In a real implementation, this would call a Supabase Edge Function
@@ -86,6 +95,7 @@ export function useWahooData() {
           },
         ];
         
+        console.log("useWahooData: Setting sample activities:", sampleActivities.length);
         setActivities(sampleActivities);
       } catch (error) {
         console.error("Error fetching Wahoo activities:", error);
@@ -100,7 +110,11 @@ export function useWahooData() {
     };
 
     if (isConnected) {
+      console.log("useWahooData: Connected, fetching activities");
       fetchWahooActivities();
+    } else {
+      console.log("useWahooData: Not connected, clearing activities");
+      setActivities([]);
     }
   }, [isConnected, toast]);
 

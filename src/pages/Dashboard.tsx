@@ -6,11 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Bike, Calendar, Clock, LineChart, Map, Route, Utensils, ArrowRight, Droplet, BarChart, TrendingUp, CheckCircle, XCircle, User } from "lucide-react";
-
-// Add import for WahooConnectButton
 import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
+import { useWahooData } from "@/hooks/useWahooData";
 
-// Sample data
 const sampleRoutes = [
   {
     id: 1,
@@ -43,18 +41,17 @@ const sampleRoutes = [
 
 const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
+  const { isConnected, activities, isLoading } = useWahooData();
 
   return (
     <Layout>
       <div className="container py-8">
         <h1 className="text-3xl font-bold mb-6">Your Dashboard</h1>
 
-        {/* New Connected Accounts tile */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div>
             <div className="rounded-lg border bg-card p-6 shadow-sm">
               <div className="mb-2 font-semibold text-lg flex items-center gap-2">
-                {/* Use lucide link icon as "connected accounts" */}
                 <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24">
                   <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 1 7.072 0l1.414 1.414a5 5 0 1 1-7.072 7.072l-1.414-1.414" />
                   <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M14 11a5 5 0 0 0-7.072 0l-1.414 1.414a5 5 0 1 0 7.072 7.072l1.414-1.414" />
@@ -66,11 +63,55 @@ const Dashboard = () => {
               </p>
               <div className="flex gap-3 flex-wrap">
                 <WahooConnectButton />
-                {/* In the future, add more platform buttons here */}
               </div>
             </div>
           </div>
-          {/* you can add other dashboard cards here if needed */}
+          
+          {isConnected && (
+            <div className="col-span-2">
+              <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
+                <div className="mb-2 font-semibold text-lg flex items-center gap-2">
+                  <Bike className="h-5 w-5 text-primary" />
+                  Wahoo Activity Summary
+                </div>
+                {isLoading ? (
+                  <p className="text-muted-foreground">Loading Wahoo data...</p>
+                ) : activities.length > 0 ? (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground text-sm mb-2">
+                      Your last {activities.length} activities synced from Wahoo
+                    </p>
+                    <div className="grid grid-cols-1 gap-3">
+                      {activities.map((activity) => (
+                        <div key={activity.id} className="flex items-center justify-between border-b pb-2">
+                          <div>
+                            <p className="font-medium">{activity.name}</p>
+                            <p className="text-sm text-muted-foreground">{activity.date}</p>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="flex items-center text-sm">
+                              <Map className="w-3 h-3 mr-1 text-muted-foreground" />
+                              <span>{activity.distance} km</span>
+                            </div>
+                            <div className="flex items-center text-sm">
+                              <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
+                              <span>{activity.duration}</span>
+                            </div>
+                            <div className="flex items-center text-sm">
+                              <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />
+                              <span>{activity.calories} kcal</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No activities found. Start riding and your data will appear here!</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="overview" onValueChange={setSelectedTab} className="space-y-8">
@@ -80,7 +121,6 @@ const Dashboard = () => {
             <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
@@ -261,7 +301,6 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Routes Tab */}
           <TabsContent value="routes">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -333,7 +372,6 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Nutrition Tab */}
           <TabsContent value="nutrition">
             <div className="space-y-6">
               <div className="flex items-center justify-between">

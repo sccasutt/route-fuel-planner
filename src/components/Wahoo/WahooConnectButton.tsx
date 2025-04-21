@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { WahooLogoIcon, DisconnectIcon } from "./WahooIcons";
@@ -39,6 +39,12 @@ export function WahooConnectButton() {
       }),
   });
 
+  // Debug - add console logs to help debug connection issues
+  useEffect(() => {
+    console.log("WahooConnectButton: Connection status:", isConnected);
+    console.log("WahooConnectButton: localStorage has token:", !!localStorage.getItem("wahoo_token"));
+  }, [isConnected]);
+
   const handleConnect = async () => {
     try {
       setIsConnecting(true);
@@ -56,6 +62,8 @@ export function WahooConnectButton() {
         `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
         `&scope=${encodeURIComponent(SCOPE)}` +
         `&state=${encodeURIComponent(state)}`;
+      
+      console.log("Opening Wahoo auth URL:", authUrl);
       
       const popupWidth = 800;
       const popupHeight = 700;
@@ -95,6 +103,7 @@ export function WahooConnectButton() {
         }
       }, 120000);
     } catch (error: any) {
+      console.error("Error connecting to Wahoo:", error);
       setStatusMessage("");
       toast({
         title: "Failed to connect to Wahoo",

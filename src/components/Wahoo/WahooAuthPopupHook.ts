@@ -17,12 +17,15 @@ export function useWahooAuthPopup({
   // Initial connect state from localStorage
   useEffect(() => {
     const hasWahooToken = localStorage.getItem("wahoo_token");
-    if (hasWahooToken) setIsConnected(true);
+    console.log("useWahooAuthPopup: Initial localStorage check for token:", !!hasWahooToken);
+    setIsConnected(!!hasWahooToken);
   }, []);
 
   // Handle popup message events
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      console.log("Received message from popup:", event.data);
+      
       if (event.data && event.data.type === 'wahoo-connected') {
         setIsConnecting(false);
         setStatusMessage("");
@@ -32,6 +35,7 @@ export function useWahooAuthPopup({
         // so other components can react to this change
         const previousValue = localStorage.getItem("wahoo_token");
         localStorage.setItem("wahoo_token", "connected");
+        console.log("Setting wahoo_token in localStorage");
         
         // Manually dispatch storage event since same-tab changes don't trigger it
         if (previousValue !== "connected") {
@@ -47,14 +51,20 @@ export function useWahooAuthPopup({
         if (authWindow && !authWindow.closed) authWindow.close();
       }
       if (event.data && event.data.type === 'wahoo-error') {
+        console.error("Wahoo connection error:", event.data);
         setIsConnecting(false);
         setStatusMessage("");
         onError(event.data.description || event.data.error || "Failed to connect to Wahoo");
         if (authWindow && !authWindow.closed) authWindow.close();
       }
     };
+    
+    console.log("Adding message event listener");
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    return () => {
+      console.log("Removing message event listener");
+      window.removeEventListener("message", handleMessage);
+    };
   }, [onConnect, onError, authWindow]);
 
   // Monitor popup closed
@@ -63,6 +73,7 @@ export function useWahooAuthPopup({
     if (isConnecting && authWindow) {
       popupCheckInterval = window.setInterval(() => {
         if (authWindow.closed) {
+          console.log("Auth popup was closed by user");
           setIsConnecting(false);
           setStatusMessage("");
           clearInterval(popupCheckInterval);
@@ -74,10 +85,24 @@ export function useWahooAuthPopup({
     };
   }, [isConnecting, authWindow]);
 
+  // Listen for storage events from other components
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      console.log("Storage event:", event.key, event.newValue);
+      if (event.key === "wahoo_token") {
+        setIsConnected(!!event.newValue);
+      }
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   const disconnect = useCallback(() => {
     // Ensure we dispatch a storage event when disconnecting
     const previousValue = localStorage.getItem("wahoo_token");
     localStorage.removeItem("wahoo_token");
+    console.log("Removing wahoo_token from localStorage");
     
     // Manually dispatch storage event
     window.dispatchEvent(new StorageEvent('storage', {
