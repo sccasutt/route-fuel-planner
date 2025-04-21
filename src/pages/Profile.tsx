@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,11 +51,45 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 const Profile = () => {
   const { toast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("personal");
-  const { profile, loading } = useUserProfile();
+  const { profile, wahooConnection, loading } = useUserProfile();
   const { user, signOut } = useAuth();
   const [isWahooConnected, setIsWahooConnected] = useState(false);
   const [wahooLoading, setWahooLoading] = useState(false);
+  const [wahooUserData, setWahooUserData] = useState<any>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    
+    if (params.get('connected') === 'true') {
+      toast({
+        title: "Successfully connected",
+        description: "Your Wahoo account has been connected successfully",
+      });
+      navigate('/profile', { replace: true });
+    }
+    
+    if (params.get('error')) {
+      toast({
+        title: "Connection error",
+        description: params.get('error') || "Failed to connect to Wahoo",
+        variant: "destructive",
+      });
+      navigate('/profile', { replace: true });
+    }
+  }, [location, navigate, toast]);
+
+  useEffect(() => {
+    if (wahooConnection) {
+      setIsWahooConnected(true);
+      fetchWahooUserData(wahooConnection.access_token);
+    } else {
+      setIsWahooConnected(false);
+      setWahooUserData(null);
+    }
+  }, [wahooConnection]);
 
   const defaultValues: Partial<ProfileFormValues> = {
     name: profile?.full_name || "",
@@ -93,17 +128,21 @@ const Profile = () => {
     }
   }, [profile, loading, user, form]);
 
-  const handleConnectWahoo = async () => {
-    setWahooLoading(true);
-    try {
-      const userAccessToken = "user-oauth-access-token-placeholder"; // Replace with real token from OAuth flow
+  useEffect(() => {
+    if (wahooUserData) {
+      form.setValue("weight", wahooUserData.weight_kg ? String(wahooUserData.weight_kg) : form.getValues("weight"));
+      form.setValue("age", wahooUserData.age ? String(wahooUserData.age) : form.getValues("age"));
+    }
+  }, [wahooUserData, form]);
 
-      const response = await fetch("/api/wahoo-fetch", {
+  const fetchWahooUserData = async (accessToken: string) => {
+    try {
+      const response = await fetch(`${window.location.origin}/functions/v1/wahoo-fetch?action=profile`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ access_token: userAccessToken }),
+        body: JSON.stringify({ access_token: accessToken }),
       });
 
       if (!response.ok) {
@@ -111,17 +150,32 @@ const Profile = () => {
       }
 
       const data = await response.json();
-
       if (data.profile) {
-        setIsWahooConnected(true);
-        form.setValue("weight", String(data.profile.weight_kg ?? ""));
-        form.setValue("age", String(data.profile.age ?? ""));
+        setWahooUserData(data.profile);
+      }
+    } catch (error) {
+      console.error("Error fetching Wahoo user data:", error);
+    }
+  };
+
+  const handleConnectWahoo = async () => {
+    setWahooLoading(true);
+    try {
+      const response = await fetch(`${window.location.origin}/functions/v1/wahoo-fetch?action=authorize&redirect_uri=${encodeURIComponent(`${window.location.origin}/functions/v1/wahoo-callback`)}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to initiate Wahoo authorization");
       }
 
-      toast({
-        title: "Connected to Wahoo",
-        description: "Successfully retrieved your data from Wahoo",
-      });
+      const { authUrl } = await response.json();
+      if (authUrl) {
+        window.location.href = authUrl;
+      }
     } catch (error) {
       console.error("Error connecting to Wahoo:", error);
       toast({
@@ -129,17 +183,37 @@ const Profile = () => {
         description: "Could not connect to Wahoo API",
         variant: "destructive",
       });
-    } finally {
       setWahooLoading(false);
     }
   };
 
-  const handleDisconnectWahoo = () => {
-    setIsWahooConnected(false);
-    toast({
-      title: "Disconnected from Wahoo",
-      description: "Your Wahoo account has been disconnected",
-    });
+  const handleDisconnectWahoo = async () => {
+    try {
+      if (!user) return;
+      
+      const { error } = await supabase
+        .from("user_connections")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("provider", "wahoo");
+      
+      if (error) throw error;
+      
+      setIsWahooConnected(false);
+      setWahooUserData(null);
+      
+      toast({
+        title: "Disconnected from Wahoo",
+        description: "Your Wahoo account has been disconnected",
+      });
+    } catch (error) {
+      console.error("Error disconnecting Wahoo:", error);
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Wahoo account",
+        variant: "destructive",
+      });
+    }
   };
 
   async function onSubmit(data: ProfileFormValues) {
