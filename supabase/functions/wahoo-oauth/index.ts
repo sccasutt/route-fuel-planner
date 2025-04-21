@@ -1,3 +1,4 @@
+
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
@@ -25,19 +26,28 @@ Deno.serve(async (req) => {
       if (!clientId) {
         return new Response(
           JSON.stringify({ error: "Wahoo client ID not configured." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
         );
       }
       
       return new Response(
         JSON.stringify({ clientId }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { 
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     } catch (error) {
       console.error("Error retrieving client ID:", error);
       return new Response(
         JSON.stringify({ error: "Internal server error", details: error.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
       );
     }
   }
@@ -48,7 +58,10 @@ Deno.serve(async (req) => {
   if (!code) {
     return new Response(
       JSON.stringify({ error: "Missing OAuth code parameter" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { 
+        status: 400, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 
@@ -60,7 +73,10 @@ Deno.serve(async (req) => {
   if (!clientId || !clientSecret) {
     return new Response(
       JSON.stringify({ error: "Wahoo client secrets not configured." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 
@@ -115,7 +131,10 @@ Deno.serve(async (req) => {
     console.error("Wahoo OAuth error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error", details: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 });

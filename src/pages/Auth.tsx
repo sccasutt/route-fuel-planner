@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
+import { WahooConnectButton } from "@/components/WahooConnectButton";
 
 type AuthMode = "login" | "signup";
 
@@ -107,10 +108,7 @@ const AuthPage = () => {
             </p>
             <div className="flex flex-col items-center gap-4">
               <div>
-                {/** @ts-ignore */}
-                {require("../components/WahooConnectButton").WahooConnectButton 
-                  ? require("../components/WahooConnectButton").WahooConnectButton()
-                  : null}
+                <WahooConnectButton />
               </div>
               <Button 
                 onClick={() => navigate("/dashboard")} 
