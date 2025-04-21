@@ -56,7 +56,8 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     console.log("Successfully exchanged code for token:", {
       hasAccessToken: !!data.access_token,
       hasRefreshToken: !!data.refresh_token,
-      expiresIn: data.expires_in
+      expiresIn: data.expires_in,
+      hasWahooUserId: !!data.wahoo_user_id
     });
     
     return data;

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { access_token, refresh_token } = body;
+    const { access_token, refresh_token, wahoo_user_id } = body;
     if (!access_token) {
       return new Response(JSON.stringify({ error: "Missing access_token" }), { status: 400, headers: corsHeaders });
     }
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Invalid user JWT" }), { status: 401, headers: corsHeaders });
     }
 
-    console.log("Starting Wahoo data fetching for user:", user_id);
+    console.log("Starting Wahoo data fetching for user:", user_id, "Wahoo user ID:", wahoo_user_id || "not provided");
 
     // 1. Fetch Wahoo profile with timeout and retry
     let profileRes;
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
     let profile;
     try {
       profile = await profileRes.json();
-      console.log("Successfully fetched Wahoo profile");
+      console.log("Successfully fetched Wahoo profile, user ID:", profile.id);
     } catch (err) {
       console.error("Error parsing Wahoo profile response:", err);
       return new Response(
@@ -102,6 +102,18 @@ Deno.serve(async (req) => {
           details: err.message || "Parse error" 
         }), 
         { status: 502, headers: corsHeaders }
+      );
+    }
+
+    // Get the Wahoo user ID from the profile response if not provided in token
+    const wahooProfileId = wahoo_user_id || profile.id;
+    if (!wahooProfileId) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Could not determine Wahoo user ID", 
+          details: "Neither token nor profile contained a Wahoo user ID" 
+        }), 
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -170,7 +182,7 @@ Deno.serve(async (req) => {
       // (a) Upsert profile
       await client.from("wahoo_profiles").upsert([{
         id: user_id,
-        wahoo_user_id: profile.id,
+        wahoo_user_id: wahooProfileId,
         weight_kg: profile.weight_kg,
         updated_at: new Date().toISOString(),
         last_synced_at: new Date().toISOString()
@@ -190,7 +202,7 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString()
       })) : [];
       
-      console.log(`Processing ${routeRows.length} activities for storage`);
+      console.log(`Processing ${routeRows.length} activities for storage for user ${user_id} with Wahoo ID ${wahooProfileId}`);
       
       for (const row of routeRows) {
         await client.from("routes").upsert([row], { onConflict: ["user_id", "wahoo_route_id"] });

@@ -1,11 +1,16 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string; refresh_token: string }) {
+export async function syncWahooProfileAndRoutes(tokenObj: { 
+  access_token: string; 
+  refresh_token: string;
+  wahoo_user_id?: string | null;
+}) {
   try {
     console.log("Initiating Wahoo sync with token:", {
       hasAccessToken: !!tokenObj.access_token,
-      hasRefreshToken: !!tokenObj.refresh_token
+      hasRefreshToken: !!tokenObj.refresh_token,
+      hasWahooUserId: !!tokenObj.wahoo_user_id
     });
     
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {

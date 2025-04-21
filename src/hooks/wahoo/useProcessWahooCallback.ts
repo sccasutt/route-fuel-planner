@@ -155,14 +155,18 @@ export function useProcessWahooCallback({ setStatus, setError }: UseProcessWahoo
 
         console.log("WahooCallback: Token received successfully");
         
+        // Store Wahoo user ID if present in token response
+        const wahooUserId = tokenData.wahoo_user_id || null;
+        
         const saveObj = {
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
-          expires_at: Date.now() + (tokenData.expires_in * 1000)
+          expires_at: Date.now() + (tokenData.expires_in * 1000),
+          wahoo_user_id: wahooUserId
         };
 
         localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
-        console.log("WahooCallback: Token saved to localStorage");
+        console.log("WahooCallback: Token saved to localStorage with wahoo_user_id:", wahooUserId);
         
         localStorage.removeItem("wahoo_auth_state");
 
@@ -171,8 +175,12 @@ export function useProcessWahooCallback({ setStatus, setError }: UseProcessWahoo
           await syncWahooProfileAndRoutes(saveObj);
           setStatus("Your Wahoo data has been successfully synchronized!");
           
-          window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
-          console.log("WahooCallback: Dispatched connection changed event");
+          // Use a custom event with data to prevent multiple renders
+          const event = new CustomEvent("wahoo_connection_changed", { 
+            detail: { timestamp: Date.now() } 
+          });
+          window.dispatchEvent(event);
+          console.log("WahooCallback: Dispatched connection changed event with timestamp");
           
           toast({ 
             title: "Wahoo connected", 
@@ -196,7 +204,10 @@ export function useProcessWahooCallback({ setStatus, setError }: UseProcessWahoo
           }
           
           // Despite sync error, we still successfully authenticated
-          window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+          const event = new CustomEvent("wahoo_connection_changed", { 
+            detail: { timestamp: Date.now() } 
+          });
+          window.dispatchEvent(event);
           console.log("WahooCallback: Dispatched connection changed event despite sync error");
           
           toast({

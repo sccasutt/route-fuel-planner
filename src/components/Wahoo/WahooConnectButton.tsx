@@ -14,7 +14,6 @@ const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_
 
 export function WahooConnectButton() {
   const { toast } = useToast();
-  const [isSyncing] = useState(false); // No longer used, but keep to avoid breaking the contract
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -24,10 +23,7 @@ export function WahooConnectButton() {
   } = useWahooAuthPopup({
     onConnect: () => {
       setConnectionError(null);
-      toast({
-        title: "Wahoo Connected",
-        description: "Your Wahoo account is now connected."
-      });
+      // Do not show toast here, it causes duplicate toasts due to event handling
     },
     onError: (error) => {
       setConnectionError(error);
