@@ -16,16 +16,23 @@ export function WahooConnectButton() {
     try {
       setIsConnecting(true);
       
-      // Fetch the client ID from our secure edge function
-      const response = await fetch(`${window.location.origin}/functions/v1/wahoo-oauth/get-client-id`, {
+      // Fetch the client ID from our secure edge function with explicit content-type
+      const response = await fetch(`/functions/v1/wahoo-oauth/get-client-id`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
       });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch client ID: ${response.status}`);
+      }
+      
+      // First check if the response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Unexpected response format: ${contentType}`);
       }
       
       const data = await response.json();
@@ -48,7 +55,7 @@ export function WahooConnectButton() {
       console.error("Error initiating Wahoo connection:", error);
       toast({
         title: "Failed to connect to Wahoo",
-        description: "Please try again later or contact support.",
+        description: error.message || "Please try again later or contact support.",
         variant: "destructive",
       });
       setIsConnecting(false);

@@ -1,9 +1,9 @@
-
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Content-Type": "application/json"
 };
 
 // Updated to the correct Wahoo API domain
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
           JSON.stringify({ error: "Wahoo client ID not configured." }),
           { 
             status: 500, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            headers: corsHeaders
           }
         );
       }
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ clientId }),
         { 
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          headers: corsHeaders
         }
       );
     } catch (error) {
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Internal server error", details: error.message }),
         { 
           status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          headers: corsHeaders
         }
       );
     }
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "Missing OAuth code parameter" }),
       { 
         status: 400, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: corsHeaders
       }
     );
   }
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "Wahoo client secrets not configured." }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: corsHeaders
       }
     );
   }
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
       console.error("Token exchange failed:", error);
       return new Response(JSON.stringify({ error: "Token exchange failed", details: error }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: corsHeaders,
       });
     }
 
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "Internal server error", details: error.message }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        headers: corsHeaders
       }
     );
   }
