@@ -10,8 +10,8 @@ export interface UserProfile {
   weight: number | null;
   goal_type: string | null;
   diet_type: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export function useUserProfile() {
@@ -21,24 +21,24 @@ export function useUserProfile() {
 
   useEffect(() => {
     let ignore = false;
-    
+
     async function fetchProfile() {
       try {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (!user) {
           setProfile(null);
           setLoading(false);
           return;
         }
-        
+
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
           .maybeSingle();
-          
+
         if (error) {
           console.error("Error fetching profile:", error);
           toast({
@@ -47,7 +47,7 @@ export function useUserProfile() {
             variant: "destructive",
           });
         }
-        
+
         if (!ignore) {
           setProfile(data ?? null);
           setLoading(false);
@@ -64,10 +64,10 @@ export function useUserProfile() {
         }
       }
     }
-    
+
     fetchProfile();
     return () => { ignore = true; };
   }, [toast]);
-  
+
   return { profile, loading };
 }
