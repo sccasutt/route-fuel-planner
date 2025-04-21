@@ -89,6 +89,7 @@ async function fetchWahooActivities(access_token) {
 }
 
 async function upsertWahooProfile(client, user_id, wahoo_user_id, profile) {
+  // Use upsert with the user_id as the lookup key, wahoo_user_id as the Wahoo identifier
   await client.from("wahoo_profiles").upsert([{
     id: user_id,
     wahoo_user_id: wahoo_user_id,
@@ -100,7 +101,7 @@ async function upsertWahooProfile(client, user_id, wahoo_user_id, profile) {
 
 async function upsertRoutes(client, user_id, activities) {
   const routeRows = Array.isArray(activities) ? activities.map(act => ({
-    user_id,
+    user_id: user_id, // This links the routes to the user
     wahoo_route_id: act.id,
     name: act.name ?? "Wahoo Activity",
     distance: act.distance ?? 0,
@@ -139,16 +140,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: err.message }), { status: err.status, headers: corsHeaders });
     }
 
-    const { access_token, refresh_token, wahoo_user_id } = body;
+    const { access_token, refresh_token, wahoo_user_id, user_id: clientProvidedUserId } = body;
     if (!access_token) {
       return new Response(JSON.stringify({ error: "Missing access_token" }), { status: 400, headers: corsHeaders });
     }
 
-    const user_id = extractUserIdFromJwt(jwt);
-    if (!user_id) {
+    // Extract user_id from JWT and use it as the primary identifier
+    const jwtUserId = extractUserIdFromJwt(jwt);
+    if (!jwtUserId) {
       return new Response(JSON.stringify({ error: "Invalid user JWT" }), { status: 401, headers: corsHeaders });
     }
 
+    // For security, ensure we use the JWT user_id, not the client-provided one
+    const user_id = jwtUserId;
+    
     console.log("Starting Wahoo data fetching for user:", user_id, "Wahoo user ID:", wahoo_user_id || "not provided");
 
     // Fetch Wahoo profile
