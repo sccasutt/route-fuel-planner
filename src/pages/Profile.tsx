@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -29,8 +28,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Settings, Bell, Shield, CreditCard, LogOut } from "lucide-react";
+import { WahooConnectButton } from "@/components/WahooConnectButton";
 
-// Define the form schema with Zod
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -51,7 +50,6 @@ const Profile = () => {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("personal");
 
-  // Default values for the form
   const defaultValues: Partial<ProfileFormValues> = {
     name: "John Doe",
     email: "john.doe@example.com",
@@ -506,16 +504,16 @@ const Profile = () => {
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
-                                <svg className="h-6 w-6 text-foreground" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg className="h-6 w-6 text-foreground" viewBox="0 0 24 24" fill="none">
                                   <path d="M12 17.5L6 14.5V8L12 5L18 8V14.5L12 17.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                               </div>
                               <div>
                                 <p className="font-medium">Wahoo</p>
-                                <p className="text-sm text-muted-foreground">Connected on Apr 10, 2023</p>
+                                <p className="text-sm text-muted-foreground">Not connected</p>
                               </div>
                             </div>
-                            <Button variant="outline" size="sm">Disconnect</Button>
+                            <WahooConnectButton />
                           </div>
                         </div>
                         <Button variant="outline" className="gap-2">
