@@ -5,6 +5,7 @@ import { exchangeCodeForToken } from "@/components/Wahoo/WahooApi";
 import { syncWahooProfileAndRoutes } from "@/components/Wahoo/WahooSyncApi";
 import { validateWahooAuthState } from "./validateWahooAuthState";
 import { useWahooCallbackToasts } from "./wahooCallbackToasts";
+import { useAuth } from "@/hooks/useAuth";
 
 // Constants
 const REDIRECT_URI = window.location.origin + "/wahoo-callback";
@@ -21,6 +22,7 @@ export function useProcessWahooCallback({
   const navigate = useNavigate();
   const location = useLocation();
   const { errorToast, successToast } = useWahooCallbackToasts();
+  const { user } = useAuth();
 
   const processCallback = useCallback(async () => {
     try {
@@ -123,6 +125,26 @@ export function useProcessWahooCallback({
       localStorage.removeItem("wahoo_auth_state");
       console.log("WahooCallback: Token saved to localStorage");
 
+      // Check if user is authenticated before trying to sync
+      if (!user) {
+        setStatus("Wahoo connected but not synced. Please log in to sync your data.");
+        setError("You must be logged in to sync Wahoo data");
+        
+        // Dispatch connection event even though we can't sync yet
+        window.dispatchEvent(
+          new CustomEvent("wahoo_connection_changed", {
+            detail: { timestamp: Date.now() },
+          })
+        );
+        
+        successToast(
+          "Wahoo connected",
+          "Please log in to sync your Wahoo data"
+        );
+        
+        return;
+      }
+
       // 6. Sync profile and rides
       setStatus("Synchronizing your rides...");
       try {
@@ -189,7 +211,7 @@ export function useProcessWahooCallback({
       setTimeout(() => navigate("/dashboard"), 5000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, location.search, setStatus, setError, errorToast, successToast]);
+  }, [navigate, location.search, setStatus, setError, errorToast, successToast, user]);
 
   return { processCallback };
 }

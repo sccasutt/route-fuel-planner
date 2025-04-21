@@ -14,7 +14,12 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     });
     
     // First, get the current user's ID to ensure proper linking
-    const { data: authData } = await supabase.auth.getUser();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error("Error getting authenticated user:", authError);
+      throw new Error("Authentication error: " + authError.message);
+    }
     
     if (!authData || !authData.user || !authData.user.id) {
       console.error("No authenticated user found for Wahoo sync");
