@@ -39,29 +39,98 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Invalid user JWT" }), { status: 401, headers: corsHeaders });
     }
 
-    // 1. Fetch Wahoo profile
-    const profileRes = await fetch("https://api.wahooligan.com/v1/user", {
-      headers: { "Authorization": `Bearer ${access_token}` }
-    });
-    if (!profileRes.ok) {
-      return new Response(JSON.stringify({ error: "Failed to fetch Wahoo profile" }), { status: 500, headers: corsHeaders });
-    }
-    const profile = await profileRes.json();
+    console.log("Starting Wahoo data fetching for user:", user_id);
 
-    // 2. Fetch Wahoo routes (recent activities)
-    const activitiesRes = await fetch("https://api.wahooligan.com/v1/activities", {
-      headers: { "Authorization": `Bearer ${access_token}` }
-    });
-    if (!activitiesRes.ok) {
-      return new Response(JSON.stringify({ error: "Failed to fetch Wahoo activities" }), { status: 500, headers: corsHeaders });
+    // 1. Fetch Wahoo profile with timeout and retry
+    let profileRes;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      profileRes = await fetch("https://api.wahooligan.com/v1/user", {
+        headers: { 
+          "Authorization": `Bearer ${access_token}`,
+          "Accept": "application/json"
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!profileRes.ok) {
+        const errorText = await profileRes.text();
+        console.error("Wahoo profile fetch error:", profileRes.status, errorText);
+        return new Response(
+          JSON.stringify({ 
+            error: "Failed to fetch Wahoo profile", 
+            status: profileRes.status,
+            details: errorText
+          }), 
+          { status: 502, headers: corsHeaders }
+        );
+      }
+    } catch (err) {
+      console.error("Exception fetching Wahoo profile:", err);
+      return new Response(
+        JSON.stringify({ 
+          error: "Connection error with Wahoo API", 
+          details: err.message || "Network error" 
+        }), 
+        { status: 502, headers: corsHeaders }
+      );
     }
+    
+    const profile = await profileRes.json();
+    console.log("Successfully fetched Wahoo profile");
+
+    // 2. Fetch Wahoo routes (recent activities) with timeout
+    let activitiesRes;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      activitiesRes = await fetch("https://api.wahooligan.com/v1/activities", {
+        headers: { 
+          "Authorization": `Bearer ${access_token}`,
+          "Accept": "application/json"
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!activitiesRes.ok) {
+        const errorText = await activitiesRes.text();
+        console.error("Wahoo activities fetch error:", activitiesRes.status, errorText);
+        return new Response(
+          JSON.stringify({ 
+            error: "Failed to fetch Wahoo activities", 
+            status: activitiesRes.status,
+            details: errorText
+          }), 
+          { status: 502, headers: corsHeaders }
+        );
+      }
+    } catch (err) {
+      console.error("Exception fetching Wahoo activities:", err);
+      return new Response(
+        JSON.stringify({ 
+          error: "Connection error with Wahoo API", 
+          details: err.message || "Network error" 
+        }), 
+        { status: 502, headers: corsHeaders }
+      );
+    }
+    
     const activities = await activitiesRes.json();
+    console.log("Successfully fetched Wahoo activities:", Array.isArray(activities) ? activities.length : "none");
 
     // 3. Insert/update profile and upsert routes
     const client = require("supabase-js").createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    
     // (a) Upsert profile
     await client.from("wahoo_profiles").upsert([{
       id: user_id,
@@ -84,15 +153,30 @@ Deno.serve(async (req) => {
       gpx_data: act.gpx_data ?? null,
       updated_at: new Date().toISOString()
     })) : [];
+    
+    console.log(`Processing ${routeRows.length} activities for storage`);
+    
     for (const row of routeRows) {
       await client.from("routes").upsert([row], { onConflict: ["user_id", "wahoo_route_id"] });
     }
 
-    // You could also trigger background weather enrichment here if needed.
-
-    return new Response(JSON.stringify({ ok: true, profile, routeCount: routeRows.length }), { status: 200, headers: corsHeaders });
+    console.log("Sync operation completed successfully");
+    return new Response(
+      JSON.stringify({ 
+        ok: true, 
+        profile, 
+        routeCount: routeRows.length 
+      }), 
+      { status: 200, headers: corsHeaders }
+    );
   } catch (err) {
     console.error("wahoo-sync error:", err);
-    return new Response(JSON.stringify({ error: "Internal error", details: err.message }), { status: 500, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ 
+        error: "Internal error", 
+        details: err.message || "Unknown error"
+      }), 
+      { status: 500, headers: corsHeaders }
+    );
   }
 });
