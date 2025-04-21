@@ -8,21 +8,18 @@ import { Star, Map, Utensils, LineChart } from "lucide-react";
 const featureList = [
   {
     title: "Route Planning",
-    desc: "Find and create the best cycling routes with intelligent suggestions.",
+    desc: "Create and discover optimal cycling routes with helpful suggestions.",
     icon: Map,
-    color: "from-route-300 to-route-100",
   },
   {
     title: "Personalized Nutrition",
-    desc: "Track your nutrition for peak performance before, during, and after your rides.",
+    desc: "Plan your fuel for every ride, before, during, and after.",
     icon: Utensils,
-    color: "from-nutrition-200 to-nutrition-50",
   },
   {
     title: "Progress Tracking",
-    desc: "See your cycling stats & improvements over time with beautiful charts.",
+    desc: "Effortlessly visualize your cycling stats and improvements.",
     icon: LineChart,
-    color: "from-pedalplate-200 to-pedalplate-50",
   },
 ];
 
@@ -31,65 +28,57 @@ const Index = () => {
 
   return (
     <Layout>
-      {/* Hero Section */}
-      <section className="relative flex flex-col-reverse md:flex-row items-center justify-between px-4 py-16 md:py-28 bg-gradient-to-br from-pedalplate-50 via-pedalplate-100 to-pedalplate-300 dark:from-background dark:via-muted/70 dark:to-background transition-colors duration-700">
-        {/* Text Box */}
-        <div className="w-full md:w-1/2 z-10 text-left md:pr-12 fade-in">
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-5 leading-tight">
-            Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-pedalplate-500 to-route-500">PedalPlate</span>
+      {/* Minimalist Soft Background */}
+      <section className="min-h-[60vh] flex flex-col items-center justify-center px-4 py-20 md:py-32 relative bg-gradient-to-br from-pedalplate-50 via-white to-route-50">
+        {/* Hero Box */}
+        <div className="w-full md:w-[36rem] flex flex-col items-center text-center gap-7 z-10">
+          <span className="mb-2 inline-block px-3 py-1 rounded-full bg-pedalplate-100/80 text-xs font-medium text-pedalplate-700 uppercase tracking-widest shadow-sm">
+            Cyclist wellbeing, reimagined
+          </span>
+          <h1 className="text-4xl md:text-5xl font-extrabold font-serif leading-tight text-transparent bg-clip-text bg-gradient-to-r from-pedalplate-600 to-route-500">
+            PedalPlate
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-xl">
-            <span className="inline-block font-semibold text-primary">Your ultimate cycling companion,</span> combining smart route planning, nutrition, and performance tools — all in one beautifully simple app.
+          <p className="text-base md:text-lg text-gray-500 max-w-xl mb-1">
+            The <span className="font-semibold text-primary">simple companion</span> for planning, fueling, and progressing on every ride. Refreshingly minimal, designed for focus.
           </p>
-          <div className="flex gap-4">
+          <div className="flex gap-3 justify-center mt-4">
             {user ? (
               <Link to="/dashboard">
-                <Button size="lg" className="animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite] shadow-lg">
+                <Button size="lg" className="rounded-full bg-pedalplate-500/90 hover:bg-pedalplate-600/80 shadow-sm px-7">
                   Go to Dashboard
                 </Button>
               </Link>
             ) : (
               <Link to="/auth">
-                <Button size="lg" className="bg-pedalplate-500 hover:bg-pedalplate-600 animate-fade-in shadow-lg">
+                <Button size="lg" className="rounded-full bg-pedalplate-500/90 hover:bg-pedalplate-600/80 shadow-sm px-7">
                   Get Started
                 </Button>
               </Link>
             )}
           </div>
         </div>
-        {/* Image */}
-        <div className="w-full md:w-1/2 mb-8 md:mb-0 flex items-center justify-center relative">
-          <img
-            src="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80"
-            alt="Cyclist hero"
-            className="rounded-xl shadow-xl w-full max-w-md object-cover border-4 border-white/60 dark:border-muted/50 animate-fade-in"
-            loading="lazy"
-          />
-          <Star className="absolute top-2 right-8 text-yellow-400 opacity-80 animate-pulse" size={34} />
-        </div>
-        {/* Decorative Blob */}
-        <div className="absolute left-0 top-0 w-[380px] h-[380px] blur-3xl rounded-full bg-pedalplate-200 opacity-40 -z-10" />
-        <div className="absolute right-0 bottom-0 w-[220px] h-[220px] blur-2xl rounded-full bg-route-100 opacity-30 -z-10" />
+        {/* Decorative Star */}
+        <Star className="absolute top-8 right-10 text-pedalplate-200 opacity-70" size={36} />
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 md:px-8 py-14 md:py-18">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 animate-fade-in">
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-pedalplate-500 to-nutrition-500">Features</span> built for cyclists
+      <section className="container mx-auto px-4 md:px-8 py-16 flex flex-col items-center">
+        <h2 className="text-2xl md:text-3xl font-bold font-serif text-center mb-10 relative">
+          <span className="inline-block pb-1 border-b-2 border-pedalplate-300/60">
+            Features built for cyclists
+          </span>
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-7 max-w-5xl mx-auto">
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 max-w-4xl mx-auto">
           {featureList.map((feature) => (
             <div
               key={feature.title}
-              className={`card-gradient p-6 rounded-xl shadow-md hover:scale-105 transition-transform duration-200 bg-gradient-to-br ${feature.color} dark:bg-card animate-scale-in`}
+              className="flex flex-col items-center justify-start h-full bg-white/80 dark:bg-background border border-pedalplate-100 dark:border-muted rounded-2xl shadow-sm px-7 py-9 transition hover:shadow-md"
             >
-              <div className="flex items-center mb-4">
-                <feature.icon className="h-7 w-7 text-primary mr-2" />
-                <span className="text-lg font-semibold">{feature.title}</span>
+              <div className="flex items-center justify-center w-12 h-12 rounded-full mb-3 bg-pedalplate-100 text-pedalplate-600">
+                <feature.icon className="h-7 w-7" aria-hidden />
               </div>
-              <p className="text-gray-600 dark:text-gray-400 text-base">
-                {feature.desc}
-              </p>
+              <div className="text-lg font-semibold font-serif mb-2 text-pedalplate-700 dark:text-pedalplate-200">{feature.title}</div>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{feature.desc}</p>
             </div>
           ))}
         </div>
