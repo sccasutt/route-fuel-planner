@@ -7,7 +7,7 @@ import { fetchWahooClientId } from "./WahooApi";
 import { useWahooAuthPopup } from "./WahooAuthPopupHook";
 import { syncWahooProfileAndRoutes } from "./WahooSyncApi";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react"; // Using lucide-react instead of radix-ui
+import { AlertTriangle } from "lucide-react";
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 const REDIRECT_URI = `${window.location.origin}/wahoo-callback`;
@@ -73,7 +73,7 @@ export function WahooConnectButton() {
       console.error("Error initiating Wahoo connection:", error);
       
       // Check for connection errors and set appropriate message
-      const errorMsg = error?.message || "";
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
       if (errorMsg.includes("connection") ||
           errorMsg.includes("timeout") ||
           errorMsg.includes("refused")) {
@@ -122,7 +122,7 @@ export function WahooConnectButton() {
       console.error("Error during Wahoo resync:", error);
       
       // Enhanced error handling for connection issues
-      const errorMsg = error?.message || "";
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
       let description = "Please reconnect to Wahoo.";
       let clearToken = false;
       

@@ -25,6 +25,13 @@ export default function WahooCallback() {
         const state = searchParams.get("state");
         const storedState = localStorage.getItem("wahoo_auth_state");
 
+        console.log("WahooCallback: Processing callback with params:", { 
+          hasCode: !!code, 
+          hasError: !!authError, 
+          state, 
+          storedState
+        });
+
         if (authError) {
           console.error("Wahoo authorization error:", authError, errorDesc);
           setStatus("Authorization failed.");
@@ -38,7 +45,7 @@ export default function WahooCallback() {
           return;
         }
 
-        if (state !== storedState) {
+        if (!storedState || state !== storedState) {
           console.error("Wahoo callback state mismatch:", { state, storedState });
           setStatus("Invalid authorization state.");
           setError("Security error: Authorization validation failed");
@@ -71,6 +78,8 @@ export default function WahooCallback() {
           const redirectUri = `${window.location.origin}/wahoo-callback`;
           const tokenData = await exchangeCodeForToken(code, redirectUri);
 
+          console.log("WahooCallback: Token received successfully");
+          
           const saveObj = {
             access_token: tokenData.access_token,
             refresh_token: tokenData.refresh_token,
@@ -78,6 +87,7 @@ export default function WahooCallback() {
           };
 
           localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
+          console.log("WahooCallback: Token saved to localStorage");
 
           setStatus("Synchronizing your rides...");
           try {
@@ -87,7 +97,7 @@ export default function WahooCallback() {
             console.error("Error syncing rides:", err);
 
             // Special handling for connection issues
-            const errMsg = err?.message || "";
+            const errMsg = err instanceof Error ? err.message : "Unknown error";
             if (errMsg.includes("connection") || 
                 errMsg.includes("refused") ||
                 errMsg.includes("unavailable") ||
@@ -111,6 +121,7 @@ export default function WahooCallback() {
           }
 
           window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+          console.log("WahooCallback: Dispatched connection changed event");
 
           if (!error) {
             toast({ 
@@ -126,7 +137,7 @@ export default function WahooCallback() {
           console.error("Token exchange error:", tokenError);
 
           // Enhanced error handling for connection issues during token exchange
-          const tokenErrorMsg = tokenError?.message || "";
+          const tokenErrorMsg = tokenError instanceof Error ? tokenError.message : "Unknown error";
           let errorTitle = "Connection error";
           let errorDescription = "Failed to connect to Wahoo. Please try again.";
 

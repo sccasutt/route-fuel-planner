@@ -34,6 +34,7 @@ export function useWahooData() {
           if (wahooToken && !isTokenValid) {
             console.log("useWahooData: Removing invalid token");
             localStorage.removeItem("wahoo_token");
+            window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
           }
           setIsLoading(false);
           setActivities([]);
@@ -93,7 +94,7 @@ export function useWahooData() {
         throw error;
       }
       
-      if (!data) {
+      if (!data || data.length === 0) {
         console.log("useWahooData: No activities found");
         setActivities([]);
       } else {
@@ -101,12 +102,12 @@ export function useWahooData() {
         setActivities(
           data.map((r) => ({
             id: r.id,
-            name: r.name,
-            date: r.date,
-            distance: r.distance,
-            elevation: r.elevation,
-            duration: r.duration,
-            calories: r.calories ?? 0,
+            name: r.name || "Unnamed Activity",
+            date: r.date || new Date().toISOString(),
+            distance: r.distance || 0,
+            elevation: r.elevation || 0,
+            duration: r.duration || "0h 0m",
+            calories: r.calories || 0,
           }))
         );
       }

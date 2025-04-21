@@ -27,18 +27,28 @@ export function useWahooAuthPopup({
         const isValid = token && token.access_token && (!token.expires_at || token.expires_at > Date.now());
         
         console.log("Wahoo token validation:", isValid ? "valid" : "invalid or expired");
-        setIsConnected(isValid);
+        
+        if (isValid) {
+          setIsConnected(true);
+          onConnect();
+        } else {
+          setIsConnected(false);
+          localStorage.removeItem("wahoo_token");
+          onError("Wahoo token is invalid or expired");
+        }
+        
         return isValid;
       } catch (error) {
         console.error("Error checking Wahoo token:", error);
         setIsConnected(false);
+        onError("Error validating Wahoo connection");
         return false;
       }
     };
     
     // Run initial check
     checkToken();
-  }, []);
+  }, [onConnect, onError]);
 
   // Listen for events that indicate connection changes
   useEffect(() => {
@@ -54,7 +64,7 @@ export function useWahooAuthPopup({
         if (hasToken && onConnect) {
           onConnect();
         } else if (!hasToken && onError) {
-          onError("Wahoo-Verbindung getrennt");
+          onError("Wahoo connection disconnected");
         }
       }
     };

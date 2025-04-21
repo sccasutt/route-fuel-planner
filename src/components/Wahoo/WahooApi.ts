@@ -22,7 +22,14 @@ export async function fetchWahooClientId() {
     return data.clientId;
   } catch (err) {
     console.error("Exception fetching Wahoo client ID:", err);
-    throw err;
+    const message = err instanceof Error ? err.message : "Unknown error occurred";
+    
+    // Provide more descriptive error messages for common connection issues
+    if (message.includes("fetch") || message.includes("network") || message.includes("connection")) {
+      throw new Error("Network connection error. Please check your internet connection and try again.");
+    }
+    
+    throw new Error(`Failed to get Wahoo client ID: ${message}`);
   }
 }
 
@@ -48,6 +55,13 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     return data;
   } catch (err) {
     console.error("Exception exchanging code for token:", err);
-    throw err;
+    const message = err instanceof Error ? err.message : "Unknown error occurred";
+    
+    // Provide more descriptive error messages for common issues
+    if (message.includes("fetch") || message.includes("network") || message.includes("connection")) {
+      throw new Error("Network connection error. Please check your internet connection and try again.");
+    }
+    
+    throw new Error(`Failed to exchange code for token: ${message}`);
   }
 }
