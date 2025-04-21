@@ -29,7 +29,8 @@ export function WahooConnectButton() {
       toast({
         title: "Wahoo Connected",
         description: "Your Wahoo account was successfully connected!",
-        variant: "success",
+        // Changed from 'success' to 'default' since 'success' is not a valid variant
+        variant: "default",
       });
       
       // Clean up the URL by removing the success parameter
@@ -115,7 +116,8 @@ export function WahooConnectButton() {
               toast({
                 title: "Wahoo Connected",
                 description: "Your Wahoo account was successfully connected!",
-                variant: "success",
+                // Changed from 'success' to 'default' since 'success' is not a valid variant
+                variant: "default",
               });
             }
           });
