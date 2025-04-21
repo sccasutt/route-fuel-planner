@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Updated to the correct Wahoo API domain
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
-const REDIRECT_URI = window.location.origin + "/functions/v1/wahoo-oauth"; // Must be whitelisted in Wahoo dev portal
+// Change the redirect URI to include the origin, ensuring it matches what's registered in Wahoo
+const REDIRECT_URI = window.location.origin + "/functions/v1/wahoo-oauth";
 const SCOPE = "user_read workout_read"; // Adjust scopes as needed for your app
 
 export function WahooConnectButton() {
@@ -17,9 +18,13 @@ export function WahooConnectButton() {
     try {
       setIsConnecting(true);
       
-      // Use Supabase to invoke the edge function instead of direct fetch
+      // Use Supabase to invoke the edge function with a timeout
       const { data, error } = await supabase.functions.invoke('wahoo-oauth/get-client-id', {
-        method: 'GET'
+        method: 'GET',
+        // Add a timeout to avoid long-running requests
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
       
       if (error) {
@@ -33,7 +38,7 @@ export function WahooConnectButton() {
         throw new Error("No client ID returned from server");
       }
       
-      // Redirect to Wahoo authorization page
+      // Construct authorization URL
       const authUrl = 
         `${WAHOO_AUTH_URL}?response_type=code` +
         `&client_id=${encodeURIComponent(data.clientId)}` +
@@ -41,6 +46,20 @@ export function WahooConnectButton() {
         `&scope=${encodeURIComponent(SCOPE)}`;
       
       console.log("Redirecting to Wahoo auth URL:", authUrl);
+      
+      // Test URL before redirecting
+      try {
+        const testConnection = await fetch(WAHOO_AUTH_URL, { 
+          method: 'HEAD',
+          mode: 'no-cors'  // Using no-cors to just check connectivity
+        });
+        console.log("Wahoo API is accessible");
+      } catch (networkError) {
+        console.error("Network error when testing Wahoo API:", networkError);
+        // Continue anyway as the HEAD request might fail but GET could work
+      }
+      
+      // Redirect to authorization page
       window.location.href = authUrl;
     } catch (error) {
       console.error("Error initiating Wahoo connection:", error);

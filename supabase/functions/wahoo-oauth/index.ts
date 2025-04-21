@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.split('/').pop();
   
-  console.log("Request to wahoo-oauth edge function:", { path, method: req.method });
+  console.log("Request to wahoo-oauth edge function:", { path, method: req.method, url: url.toString() });
   
   // Route to get the client ID (keeps it secure)
   if (path === "get-client-id") {
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
         );
       }
       
-      console.log("Successfully retrieved client ID");
+      console.log("Successfully retrieved client ID:", clientId.substring(0, 5) + "...");
       return new Response(
         JSON.stringify({ clientId }),
         { 
@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
 
   try {
     console.log("Exchanging code for token with Wahoo API");
+    console.log(`Redirect URI being used: ${redirectUri}`);
     
     // Exchange code for token (according to Wahoo API docs)
     const tokenRes = await fetch(WAHOO_TOKEN_URL, {
@@ -103,12 +104,23 @@ Deno.serve(async (req) => {
     });
 
     if (!tokenRes.ok) {
-      const error = await tokenRes.text();
-      console.error("Token exchange failed:", error);
-      return new Response(JSON.stringify({ error: "Token exchange failed", details: error }), {
-        status: 500,
-        headers: corsHeaders,
+      const errorText = await tokenRes.text();
+      console.error("Token exchange failed:", {
+        status: tokenRes.status,
+        statusText: tokenRes.statusText,
+        body: errorText
       });
+      return new Response(
+        JSON.stringify({ 
+          error: "Token exchange failed", 
+          status: tokenRes.status,
+          details: errorText 
+        }), 
+        {
+          status: 500,
+          headers: corsHeaders,
+        }
+      );
     }
 
     const tokenData = await tokenRes.json();
