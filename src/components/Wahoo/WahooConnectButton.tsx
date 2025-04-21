@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -61,9 +62,19 @@ export function WahooConnectButton() {
       
       console.log("Retrieved client ID successfully");
       
-      // Generate and store state parameter for CSRF protection
-      const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      localStorage.setItem("wahoo_auth_state", state);
+      // Generate a stronger state parameter for CSRF protection (longer and more random)
+      const stateArray = new Uint8Array(24);
+      window.crypto.getRandomValues(stateArray);
+      const state = Array.from(stateArray)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      
+      // Store state in localStorage with a timestamp for additional verification
+      const stateData = {
+        value: state,
+        created: Date.now()
+      };
+      localStorage.setItem("wahoo_auth_state", JSON.stringify(stateData));
       console.log("Stored auth state:", state);
 
       // Build the complete authorization URL 

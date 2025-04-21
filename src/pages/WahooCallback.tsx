@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +9,8 @@ import WahooCallbackError from "./WahooCallbackError";
 import WahooCallbackLoading from "./WahooCallbackLoading";
 
 const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
+// Maximum state age - 15 minutes (in milliseconds)
+const MAX_STATE_AGE = 15 * 60 * 1000;
 
 export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
@@ -23,14 +26,16 @@ export default function WahooCallback() {
         const code = searchParams.get("code");
         const authError = searchParams.get("error");
         const errorDesc = searchParams.get("error_description");
-        const state = searchParams.get("state");
-        const storedState = localStorage.getItem("wahoo_auth_state");
+        const stateFromURL = searchParams.get("state");
+        
+        // Retrieve and validate state from localStorage
+        const storedStateJSON = localStorage.getItem("wahoo_auth_state");
 
         console.log("WahooCallback: Processing callback with params:", { 
           hasCode: !!code, 
           hasError: !!authError,
-          hasState: !!state,
-          hasStoredState: !!storedState,
+          hasStateFromURL: !!stateFromURL,
+          hasStoredState: !!storedStateJSON,
           urlParams: Object.fromEntries(searchParams.entries())
         });
 
@@ -47,23 +52,72 @@ export default function WahooCallback() {
           return;
         }
 
-        if (!state || !storedState) {
-          console.error("Wahoo callback missing state parameter", { state, storedState });
-          setStatus("Missing authorization state.");
-          setError("Security error: Missing authorization state");
+        if (!stateFromURL) {
+          console.error("Wahoo callback missing state parameter in URL");
+          setStatus("Missing authorization state in response.");
+          setError("Security error: Missing authorization state in response");
           toast({
             title: "Security error",
-            description: "Missing authorization state",
+            description: "Missing authorization state in response",
             variant: "destructive",
           });
           setTimeout(() => navigate("/dashboard"), 5000);
           return;
         }
 
-        if (state !== storedState) {
+        if (!storedStateJSON) {
+          console.error("Wahoo callback missing stored state parameter");
+          setStatus("Missing local state reference.");
+          setError("Security error: Your browser session may have expired. Please try again.");
+          toast({
+            title: "Security error",
+            description: "Your browser session may have expired. Please try again.",
+            variant: "destructive",
+          });
+          setTimeout(() => navigate("/dashboard"), 5000);
+          return;
+        }
+
+        // Parse the stored state which now contains an object with value and timestamp
+        let storedState: { value: string; created: number };
+        try {
+          storedState = JSON.parse(storedStateJSON);
+        } catch (e) {
+          console.error("Failed to parse stored state:", e);
+          setStatus("Invalid local state data.");
+          setError("Security error: Invalid state data");
+          toast({
+            title: "Security error",
+            description: "Invalid state data",
+            variant: "destructive",
+          });
+          setTimeout(() => navigate("/dashboard"), 5000);
+          return;
+        }
+
+        // Check if the state is too old (potential security risk)
+        const stateAge = Date.now() - storedState.created;
+        if (stateAge > MAX_STATE_AGE) {
+          console.error("Wahoo callback state expired:", { 
+            ageMs: stateAge, 
+            maxAgeMs: MAX_STATE_AGE 
+          });
+          setStatus("Authorization state expired.");
+          setError("Security error: Authorization request expired. Please try again.");
+          toast({
+            title: "Security error",
+            description: "Authorization request expired. Please try again.",
+            variant: "destructive",
+          });
+          setTimeout(() => navigate("/dashboard"), 5000);
+          return;
+        }
+
+        // Compare the actual state values
+        if (stateFromURL !== storedState.value) {
           console.error("Wahoo callback state mismatch:", { 
-            state: state?.substring(0, 5) + "...", 
-            storedState: storedState?.substring(0, 5) + "..." 
+            stateFromURL: stateFromURL?.substring(0, 5) + "...", 
+            storedStateValue: storedState.value?.substring(0, 5) + "..." 
           });
           setStatus("Invalid authorization state.");
           setError("Security error: Authorization validation failed");
