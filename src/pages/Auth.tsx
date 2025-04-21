@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
-import { WahooConnectButton } from "@/components/WahooConnectButton";
+import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
 
 type AuthMode = "login" | "signup";
 

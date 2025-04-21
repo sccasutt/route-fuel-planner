@@ -28,7 +28,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Settings, Bell, Shield, CreditCard, LogOut } from "lucide-react";
-import { WahooConnectButton } from "@/components/WahooConnectButton";
+import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),

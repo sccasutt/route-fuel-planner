@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Bike, Calendar, Clock, LineChart, Map, Route, Utensils, ArrowRight, Droplet, BarChart, TrendingUp } from "lucide-react";
 
 // Add import for WahooConnectButton
-import { WahooConnectButton } from "@/components/WahooConnectButton";
+import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
 
 // Sample data
 const sampleRoutes = [
