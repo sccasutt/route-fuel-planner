@@ -39,12 +39,16 @@ export function useWahooAuthPopup({
         
         // Manually dispatch storage event since same-tab changes don't trigger it
         if (previousValue !== "connected") {
+          // 1. Fire regular storage event for cross-tab communication
           window.dispatchEvent(new StorageEvent('storage', {
             key: 'wahoo_token',
             newValue: 'connected',
             oldValue: previousValue,
             storageArea: localStorage
           }));
+          
+          // 2. Fire custom event for same-tab communication
+          window.dispatchEvent(new CustomEvent('wahoo_connection_changed'));
         }
         
         onConnect();
@@ -95,7 +99,20 @@ export function useWahooAuthPopup({
     };
     
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    
+    // Listen for custom event as well
+    const handleCustomEvent = () => {
+      const hasToken = !!localStorage.getItem("wahoo_token");
+      console.log("Custom wahoo connection event detected, token:", hasToken);
+      setIsConnected(hasToken);
+    };
+    
+    window.addEventListener("wahoo_connection_changed", handleCustomEvent);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("wahoo_connection_changed", handleCustomEvent);
+    };
   }, []);
 
   const disconnect = useCallback(() => {
@@ -111,6 +128,9 @@ export function useWahooAuthPopup({
       oldValue: previousValue,
       storageArea: localStorage
     }));
+    
+    // Dispatch custom event for same-tab communication
+    window.dispatchEvent(new CustomEvent('wahoo_connection_changed'));
     
     setIsConnected(false);
   }, []);

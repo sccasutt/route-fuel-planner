@@ -25,12 +25,18 @@ export function WahooConnectButton() {
     setAuthWindow,
     disconnect,
   } = useWahooAuthPopup({
-    onConnect: () =>
+    onConnect: () => {
       toast({
         title: "Wahoo Connected",
         description: "Your Wahoo account was successfully connected!",
         variant: "success",
-      }),
+      });
+      
+      // Ensure UI updates by forcing a refresh
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('wahoo_connection_changed'));
+      }, 500);
+    },
     onError: (description) =>
       toast({
         title: "Connection Failed",
