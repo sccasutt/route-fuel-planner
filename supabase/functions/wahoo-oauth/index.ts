@@ -1,3 +1,4 @@
+
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
@@ -134,18 +135,64 @@ Deno.serve(async (req) => {
     const tokenData = await tokenRes.json();
     console.log("Token successfully obtained");
 
-    // Instead of redirecting, we'll return a success response with connection status
-    // The popup will handle this response and update the UI accordingly
+    // Return a success response with HTML that will close the window automatically
+    // This approach avoids the signed out message and ensures the window closes
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Wahoo connected successfully", 
-        token_type: tokenData.token_type,
-        expires_in: tokenData.expires_in
-      }),
+      `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Connection Successful</title>
+        <style>
+          body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+          }
+          .success-message {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+          }
+          h1 {
+            color: #10b981;
+            margin-bottom: 10px;
+          }
+          p {
+            margin-bottom: 20px;
+            color: #374151;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="success-message">
+          <h1>Connection Successful!</h1>
+          <p>Your Wahoo account has been connected successfully. This window will close automatically.</p>
+        </div>
+        <script>
+          // Send message to parent window
+          window.opener.postMessage({ type: 'wahoo-connected', success: true }, '*');
+          // Close this window after a short delay
+          setTimeout(function() {
+            window.close();
+          }, 2000);
+        </script>
+      </body>
+      </html>
+      `,
       { 
         status: 200, 
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/html"
+        }
       }
     );
   } catch (error) {

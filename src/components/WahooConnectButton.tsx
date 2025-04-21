@@ -29,7 +29,6 @@ export function WahooConnectButton() {
       toast({
         title: "Wahoo Connected",
         description: "Your Wahoo account was successfully connected!",
-        // Changed from 'success' to 'default' since 'success' is not a valid variant
         variant: "default",
       });
       
@@ -38,6 +37,27 @@ export function WahooConnectButton() {
       window.history.replaceState({}, document.title, newUrl);
     }
   }, [location, toast]);
+
+  // Add event listener for message from popup
+  useEffect(() => {
+    const handleMessage = (event) => {
+      // Make sure the message is from our popup
+      if (event.data && event.data.type === 'wahoo-connected') {
+        setIsConnecting(false);
+        setStatusMessage("");
+        setIsConnected(true);
+        
+        toast({
+          title: "Wahoo Connected",
+          description: "Your Wahoo account was successfully connected!",
+          variant: "default",
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [toast]);
 
   const handleConnect = async () => {
     try {
@@ -94,46 +114,17 @@ export function WahooConnectButton() {
         throw new Error("Popup was blocked by the browser. Please allow popups for this site.");
       }
       
-      // Poll for popup closure or redirection
-      const popupCheckInterval = setInterval(async () => {
-        try {
-          // This will throw an error if the popup is redirected to a different origin
-          if (popup.closed) {
-            clearInterval(popupCheckInterval);
-            setIsConnecting(false);
-            
-            // Set connected status to true since the flow completed
-            setIsConnected(true);
-            toast({
-              title: "Wahoo Connected",
-              description: "Your Wahoo account was successfully connected!",
-              // Changed from 'success' to 'default' since 'success' is not a valid variant
-              variant: "default",
-            });
-            setStatusMessage("");
-          }
-        } catch (e) {
-          // Error checking popup - likely due to cross-origin access
-          // This is expected when the popup navigates to the Wahoo site
-          console.log("Error accessing popup - likely navigated to Wahoo site", e);
-        }
-      }, 1000);
-      
-      // Set a timeout to check the connection status after 1 minute (failsafe)
+      // Set a timeout to abort if taking too long
       setTimeout(() => {
-        if (popupCheckInterval) {
-          clearInterval(popupCheckInterval);
+        if (isConnecting) {
           setIsConnecting(false);
           setStatusMessage("");
           
-          // Verify the connection status
-          if (!isConnected) {
-            toast({
-              title: "Connection timeout",
-              description: "The connection process took too long. Please try again.",
-              variant: "destructive",
-            });
-          }
+          toast({
+            title: "Connection timeout",
+            description: "The connection process took too long. Please try again.",
+            variant: "destructive",
+          });
         }
       }, 60000);
       
