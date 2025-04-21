@@ -3,45 +3,26 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useLocation } from "react-router-dom";
 
-// For development testing, let's use the main Wahoo API URL
+// For Wahoo API integration
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 
-// Update the redirect URI to match what's registered in Wahoo's dashboard
-const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/auth/v1/callback";
-const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read"; // Updated to match your Wahoo config
+// Use the edge function URL as the redirect URI - must match what's in Wahoo's dashboard
+const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/functions/v1/wahoo-oauth";
+const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
 
 export function WahooConnectButton() {
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
-  const location = useLocation();
-
-  // Check for connection success parameter
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const wahooConnected = params.get("wahoo_connected");
-    
-    if (wahooConnected === "success") {
-      setIsConnected(true);
-      toast({
-        title: "Wahoo Connected",
-        description: "Your Wahoo account was successfully connected!",
-        variant: "success",
-      });
-      
-      // Clean up the URL by removing the success parameter
-      const newUrl = location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-    }
-  }, [location, toast]);
-
+  const [authWindow, setAuthWindow] = useState<Window | null>(null);
+  
   // Add event listener for message from popup
   useEffect(() => {
-    const handleMessage = (event) => {
-      // Make sure the message is from our popup
+    const handleMessage = (event: MessageEvent) => {
+      console.log("Received message from popup:", event.data);
+      
       if (event.data && event.data.type === 'wahoo-connected') {
         setIsConnecting(false);
         setStatusMessage("");
@@ -52,12 +33,54 @@ export function WahooConnectButton() {
           description: "Your Wahoo account was successfully connected!",
           variant: "success",
         });
+        
+        // Close the popup window if it's still open
+        if (authWindow && !authWindow.closed) {
+          authWindow.close();
+        }
+      }
+      
+      if (event.data && event.data.type === 'wahoo-error') {
+        setIsConnecting(false);
+        setStatusMessage("");
+        
+        toast({
+          title: "Connection Failed",
+          description: event.data.error || "Failed to connect to Wahoo",
+          variant: "destructive",
+        });
+        
+        // Close the popup window if it's still open
+        if (authWindow && !authWindow.closed) {
+          authWindow.close();
+        }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [toast]);
+  }, [toast, authWindow]);
+  
+  // Add a poll to check if popup was closed
+  useEffect(() => {
+    let popupCheckInterval: number | undefined;
+    
+    if (isConnecting && authWindow) {
+      popupCheckInterval = window.setInterval(() => {
+        if (authWindow.closed) {
+          setIsConnecting(false);
+          setStatusMessage("");
+          clearInterval(popupCheckInterval);
+        }
+      }, 500);
+    }
+    
+    return () => {
+      if (popupCheckInterval) {
+        clearInterval(popupCheckInterval);
+      }
+    };
+  }, [isConnecting, authWindow]);
 
   const handleConnect = async () => {
     try {
@@ -66,10 +89,7 @@ export function WahooConnectButton() {
       
       // Use Supabase to invoke the edge function
       const { data, error } = await supabase.functions.invoke('wahoo-oauth/get-client-id', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        method: 'GET'
       });
       
       if (error) {
@@ -83,7 +103,10 @@ export function WahooConnectButton() {
         throw new Error("No client ID returned from server");
       }
       
-      setStatusMessage("Redirecting to Wahoo authorization...");
+      setStatusMessage("Opening authorization window...");
+      
+      // Generate a simple state without complex encoding
+      const state = Math.random().toString(36).substring(2, 15);
       
       // Construct authorization URL
       const authUrl = 
@@ -91,13 +114,13 @@ export function WahooConnectButton() {
         `&client_id=${encodeURIComponent(data.clientId)}` +
         `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
         `&scope=${encodeURIComponent(SCOPE)}` +
-        `&state=${encodeURIComponent(btoa(JSON.stringify({ timestamp: Date.now() })))}`;
+        `&state=${encodeURIComponent(state)}`;
       
       console.log("Redirecting to Wahoo auth URL:", authUrl);
       
       // Create a popup window for the authorization
       const popupWidth = 800;
-      const popupHeight = 600;
+      const popupHeight = 700;
       const left = window.innerWidth / 2 - popupWidth / 2;
       const top = window.innerHeight / 2 - popupHeight / 2;
       
@@ -106,6 +129,8 @@ export function WahooConnectButton() {
         "WahooAuthPopup", 
         `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`
       );
+      
+      setAuthWindow(popup);
       
       // Check if popup was blocked
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
@@ -125,15 +150,19 @@ export function WahooConnectButton() {
             description: "The connection process took too long. Please try again.",
             variant: "destructive",
           });
+          
+          if (popup && !popup.closed) {
+            popup.close();
+          }
         }
-      }, 60000);
+      }, 120000); // 2 minutes timeout
       
     } catch (error) {
       console.error("Error initiating Wahoo connection:", error);
       setStatusMessage("");
       toast({
         title: "Failed to connect to Wahoo",
-        description: error.message || "Please try again later or contact support.",
+        description: error instanceof Error ? error.message : "Please try again later or contact support.",
         variant: "destructive",
       });
       setIsConnecting(false);
@@ -148,7 +177,7 @@ export function WahooConnectButton() {
         onClick={handleConnect}
         disabled={isConnecting || isConnected}
       >
-        {/* Wahoo SVG icon */}
+        {/* Wahoo logo */}
         <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none">
           <path d="M12 17.5L6 14.5V8L12 5L18 8V14.5L12 17.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

@@ -65,6 +65,71 @@ Deno.serve(async (req) => {
 
   // OAuth callback handler
   const code = url.searchParams.get("code");
+  const error = url.searchParams.get("error");
+  
+  // Handle OAuth errors
+  if (error) {
+    console.error("OAuth error:", error);
+    return new Response(
+      `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Connection Failed</title>
+        <style>
+          body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+          }
+          .error-message {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+          }
+          h1 {
+            color: #ef4444;
+            margin-bottom: 10px;
+          }
+          p {
+            margin-bottom: 20px;
+            color: #374151;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="error-message">
+          <h1>Connection Failed</h1>
+          <p>There was an error connecting to Wahoo: ${error}</p>
+          <p>This window will close automatically.</p>
+        </div>
+        <script>
+          // Send message to parent window
+          window.opener.postMessage({ type: 'wahoo-error', error: '${error}' }, '*');
+          // Close this window after a short delay
+          setTimeout(function() {
+            window.close();
+          }, 3000);
+        </script>
+      </body>
+      </html>
+      `,
+      { 
+        status: 400, 
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/html"
+        }
+      }
+    );
+  }
 
   if (!code) {
     return new Response(
@@ -80,8 +145,8 @@ Deno.serve(async (req) => {
   const clientId = Deno.env.get("WAHOO_CLIENT_ID");
   const clientSecret = Deno.env.get("WAHOO_CLIENT_SECRET");
   
-  // Update the redirect URI to match what's registered in Wahoo's dashboard
-  const redirectUri = "https://jxouzttcjpmmtclagbob.supabase.co/auth/v1/callback";
+  // Use the redirect URI that's set in Wahoo's dashboard
+  const redirectUri = "https://jxouzttcjpmmtclagbob.supabase.co/functions/v1/wahoo-oauth";
 
   if (!clientId || !clientSecret) {
     return new Response(
@@ -121,13 +186,62 @@ Deno.serve(async (req) => {
       });
       
       return new Response(
-        JSON.stringify({ 
-          error: "Failed to exchange authorization code for access token", 
-          details: errorText 
-        }), 
+        `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Connection Failed</title>
+          <style>
+            body {
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              margin: 0;
+              background-color: #f8f9fa;
+            }
+            .error-message {
+              text-align: center;
+              padding: 20px;
+              background-color: #fff;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+              max-width: 400px;
+            }
+            h1 {
+              color: #ef4444;
+              margin-bottom: 10px;
+            }
+            p {
+              margin-bottom: 20px;
+              color: #374151;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="error-message">
+            <h1>Connection Failed</h1>
+            <p>Failed to exchange authorization code for access token.</p>
+            <p>This window will close automatically.</p>
+          </div>
+          <script>
+            // Send message to parent window
+            window.opener.postMessage({ type: 'wahoo-error', error: 'Token exchange failed' }, '*');
+            // Close this window after a short delay
+            setTimeout(function() {
+              window.close();
+            }, 3000);
+          </script>
+        </body>
+        </html>
+        `, 
         {
           status: tokenRes.status,
-          headers: corsHeaders,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "text/html"
+          },
         }
       );
     }
@@ -136,7 +250,6 @@ Deno.serve(async (req) => {
     console.log("Token successfully obtained");
 
     // Return a success response with HTML that will close the window automatically
-    // This approach avoids the signed out message and ensures the window closes
     return new Response(
       `
       <!DOCTYPE html>
@@ -198,10 +311,62 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Wahoo OAuth error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: error.message }),
+      `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Connection Failed</title>
+        <style>
+          body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+          }
+          .error-message {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+          }
+          h1 {
+            color: #ef4444;
+            margin-bottom: 10px;
+          }
+          p {
+            margin-bottom: 20px;
+            color: #374151;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="error-message">
+          <h1>Connection Failed</h1>
+          <p>An unexpected error occurred: ${error.message}</p>
+          <p>This window will close automatically.</p>
+        </div>
+        <script>
+          // Send message to parent window
+          window.opener.postMessage({ type: 'wahoo-error', error: 'Unexpected error' }, '*');
+          // Close this window after a short delay
+          setTimeout(function() {
+            window.close();
+          }, 3000);
+        </script>
+      </body>
+      </html>
+      `,
       { 
         status: 500, 
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/html"
+        }
       }
     );
   }
