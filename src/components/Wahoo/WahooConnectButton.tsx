@@ -85,15 +85,24 @@ export function WahooConnectButton() {
     } catch (error) {
       console.error("Error during Wahoo resync:", error);
       
-      // Handle specific API rejection errors
+      // Enhanced error handling for connection issues
       const errorMsg = error?.message || "";
       let description = "Please re-connect to Wahoo.";
+      let clearToken = false;
       
-      if (errorMsg.includes("Connection error") || errorMsg.includes("die Verbindung abgelehnt")) {
-        description = "Connection to Wahoo API failed. Please try again later when the service is available.";
+      if (errorMsg.includes("Connection to Wahoo API failed") || 
+          errorMsg.includes("Verbindung abgelehnt") ||
+          errorMsg.includes("timeout") ||
+          errorMsg.includes("service") ||
+          errorMsg.includes("temporarily unavailable")) {
+        description = "The Wahoo service is currently unavailable. Please try again later.";
       } else if (errorMsg.includes("token")) {
         description = "Your Wahoo session has expired. Please reconnect.";
-        // Clear invalid token
+        clearToken = true;
+      }
+      
+      // Only clear token if it's an authentication issue, not for temporary connection problems
+      if (clearToken) {
         localStorage.removeItem("wahoo_token");
         window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
       }

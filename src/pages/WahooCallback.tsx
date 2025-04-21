@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -60,37 +61,77 @@ export default function WahooCallback() {
         console.log("WahooCallback: Valid authorization code received, exchanging for token");
         setStatus("Connecting to your Wahoo account...");
         
-        const redirectUri = `${window.location.origin}/wahoo-callback`;
-        const tokenData = await exchangeCodeForToken(code, redirectUri);
-        
-        const saveObj = {
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          expires_at: Date.now() + (tokenData.expires_in * 1000)
-        };
-        
-        localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
-        
-        setStatus("Syncing your rides...");
         try {
-          await syncWahooProfileAndRoutes(saveObj);
-          setStatus("Successfully synced your Wahoo data!");
-        } catch (err) {
-          setStatus("Connected, but failed to sync your rides.");
+          const redirectUri = `${window.location.origin}/wahoo-callback`;
+          const tokenData = await exchangeCodeForToken(code, redirectUri);
+          
+          const saveObj = {
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token,
+            expires_at: Date.now() + (tokenData.expires_in * 1000)
+          };
+          
+          localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
+          
+          setStatus("Syncing your rides...");
+          try {
+            await syncWahooProfileAndRoutes(saveObj);
+            setStatus("Successfully synced your Wahoo data!");
+          } catch (err) {
+            console.error("Error syncing rides:", err);
+            
+            // Special handling for connection issues
+            const errMsg = err?.message || "";
+            if (errMsg.includes("Connection to Wahoo API failed") || 
+                errMsg.includes("Verbindung abgelehnt") ||
+                errMsg.includes("temporarily unavailable")) {
+              setStatus("Connected, but Wahoo service is currently unavailable for syncing.");
+              toast({
+                title: "Partial Connection",
+                description: "Connected to Wahoo, but the service is currently unavailable for syncing. Please try to sync later.",
+                variant: "destructive",
+              });
+            } else {
+              setStatus("Connected, but failed to sync your rides.");
+              toast({
+                title: "Sync Error",
+                description: "Failed to sync your rides from Wahoo. Please try again later.",
+                variant: "destructive",
+              });
+            }
+          }
+          
+          window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+          
+          toast({ title: "Wahoo Connected", description: "Your Wahoo account has been connected." });
+          
+          localStorage.removeItem("wahoo_auth_state");
+          
+          setTimeout(() => navigate("/dashboard", { state: { wahooConnected: true }}), 1500);
+        } catch (tokenError) {
+          console.error("Token exchange error:", tokenError);
+          
+          // Enhanced error handling for connection issues during token exchange
+          const tokenErrorMsg = tokenError?.message || "";
+          let errorTitle = "Connection Error";
+          let errorDescription = "Failed to connect to Wahoo. Please try again.";
+          
+          if (tokenErrorMsg.includes("Connection") || 
+              tokenErrorMsg.includes("Verbindung abgelehnt") ||
+              tokenErrorMsg.includes("unavailable") ||
+              tokenErrorMsg.includes("timeout")) {
+            errorTitle = "Wahoo Service Unavailable";
+            errorDescription = "The Wahoo service is currently unavailable. Please try again later.";
+          }
+          
+          setStatus("An error occurred while connecting to Wahoo.");
           toast({
-            title: "Sync Error",
-            description: "Failed to sync your rides from Wahoo. Please try again later.",
+            title: errorTitle,
+            description: errorDescription,
             variant: "destructive",
           });
+          setTimeout(() => navigate("/dashboard"), 2000);
         }
-        
-        window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
-        
-        toast({ title: "Wahoo Connected", description: "Your Wahoo account and routes have been synced." });
-        
-        localStorage.removeItem("wahoo_auth_state");
-        
-        setTimeout(() => navigate("/dashboard", { state: { wahooConnected: true }}), 1500);
       } catch (error) {
         console.error("Error processing Wahoo callback:", error);
         setStatus("An error occurred while processing authorization.");
