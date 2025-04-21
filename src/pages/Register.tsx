@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +24,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import Layout from "@/components/layout/Layout";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define the form schema with Zod
 const registerSchema = z
@@ -52,6 +52,7 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 const Register = () => {
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -84,18 +85,53 @@ const Register = () => {
     setStep(1);
   };
 
-  const onSubmit = (data: RegisterForm) => {
+  const onSubmit = async (data: RegisterForm) => {
+    setLoading(true);
     console.log("Form submitted:", data);
 
-    toast({
-      title: "Account created!",
-      description: "You've successfully registered for PedalPlate.",
-    });
+    try {
+      // Sign up the user with Supabase
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            name: data.name,
+            age: data.age ? parseInt(data.age) : null,
+            weight: data.weight ? parseFloat(data.weight) : null,
+            goal_type: data.goalType || null,
+            diet_type: data.dietType || null,
+          },
+        },
+      });
 
-    // Redirect to pre-questionnaire instead of dashboard
-    setTimeout(() => {
-      navigate("/pre-questionnaire");
-    }, 1500);
+      if (error) {
+        toast({
+          title: "Registration failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      toast({
+        title: "Account created!",
+        description: "You've successfully registered for PedalPlate.",
+      });
+
+      // Redirect to dashboard instead of pre-questionnaire
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Signup error:", err);
+      toast({
+        title: "Registration error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -303,8 +339,8 @@ const Register = () => {
                     >
                       Back
                     </Button>
-                    <Button type="submit" className="w-full">
-                      Create Account
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? "Creating Account..." : "Create Account"}
                     </Button>
                   </div>
                 </>
