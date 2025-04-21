@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -54,18 +53,54 @@ const PreQuestionnaire = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check if user is authenticated
+  // Check if user is authenticated and test Supabase connection
   useEffect(() => {
+    // Test Supabase connection
+    const testConnection = async () => {
+      try {
+        console.log("Testing Supabase connection...");
+        // Simple query to test connection
+        const { data, error } = await supabase
+          .from('users')
+          .select('id')
+          .limit(1);
+        
+        if (error) {
+          console.error("Supabase connection error:", error);
+          toast({ 
+            title: "Connection Error", 
+            description: "Could not connect to database. Please try again." 
+          });
+        } else {
+          console.log("Supabase connection successful:", data);
+          toast({ 
+            title: "Connected", 
+            description: "Successfully connected to Supabase" 
+          });
+        }
+      } catch (err) {
+        console.error("Unexpected error testing Supabase connection:", err);
+        toast({ 
+          title: "Error", 
+          description: "An unexpected error occurred" 
+        });
+      }
+    };
+
+    testConnection();
+
     const checkAuth = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
         navigate("/login");
+      } else {
+        console.log("Authenticated user:", user);
       }
     };
     checkAuth();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const form = useForm<QuestionnaireForm>({
     resolver: zodResolver(questionnaireSchema),
