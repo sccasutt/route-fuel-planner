@@ -91,6 +91,15 @@ export function useProcessWahooCallback({
           throw new Error("Invalid token response from server");
           
         console.log("WahooCallback: Token received successfully");
+        
+        // Log the full token data for debugging (excluding sensitive parts)
+        console.log("WahooCallback: Token data received:", {
+          hasAccessToken: !!tokenData.access_token,
+          hasRefreshToken: !!tokenData.refresh_token,
+          expiresIn: tokenData.expires_in,
+          hasWahooUserId: !!tokenData.wahoo_user_id,
+          wahooUserId: tokenData.wahoo_user_id,
+        });
       } catch (tokenError) {
         const tokenErrorMsg =
           tokenError instanceof Error ? tokenError.message : "Unknown error";
@@ -121,6 +130,10 @@ export function useProcessWahooCallback({
         expires_at: Date.now() + tokenData.expires_in * 1000,
         wahoo_user_id: wahooUserId,
       };
+      
+      // Explicitly log the wahoo_user_id being saved
+      console.log("WahooCallback: Saving wahoo_user_id:", wahooUserId);
+      
       localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
       localStorage.removeItem("wahoo_auth_state");
       console.log("WahooCallback: Token saved to localStorage");
@@ -128,7 +141,7 @@ export function useProcessWahooCallback({
       // Check if user is authenticated before trying to sync
       if (!user) {
         setStatus("Wahoo connected but not synced. Please log in to sync your data.");
-        setError("You must be logged in to sync Wahoo data");
+        setError("Please log in to sync your Wahoo data");
         
         // Dispatch connection event even though we can't sync yet
         window.dispatchEvent(
@@ -142,6 +155,8 @@ export function useProcessWahooCallback({
           "Please log in to sync your Wahoo data"
         );
         
+        // Navigate to auth page after a short delay
+        setTimeout(() => navigate("/auth", { state: { wahooConnected: true }}), 3000);
         return;
       }
 
@@ -210,7 +225,6 @@ export function useProcessWahooCallback({
       );
       setTimeout(() => navigate("/dashboard"), 5000);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, location.search, setStatus, setError, errorToast, successToast, user]);
 
   return { processCallback };

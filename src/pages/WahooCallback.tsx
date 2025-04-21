@@ -22,14 +22,7 @@ export default function WahooCallback() {
       processingRef.current = true;
       console.log("WahooCallback: Initializing callback processing");
       
-      // Check if user is authenticated
-      if (!user) {
-        console.log("WahooCallback: No authenticated user found, storing token only");
-        setStatus("Wahoo connected, but you need to log in to sync your data");
-        setError("Please log in to your account to sync your Wahoo data");
-        return;
-      }
-      
+      // Always process the callback to store the token, even if user isn't logged in
       processCallback().catch(err => {
         console.error("Unhandled error in processCallback:", err);
         setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -37,7 +30,7 @@ export default function WahooCallback() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
 
   return (
     <Layout>

@@ -10,7 +10,8 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     console.log("Initiating Wahoo sync with token:", {
       hasAccessToken: !!tokenObj.access_token,
       hasRefreshToken: !!tokenObj.refresh_token,
-      hasWahooUserId: !!tokenObj.wahoo_user_id
+      hasWahooUserId: !!tokenObj.wahoo_user_id,
+      wahooUserId: tokenObj.wahoo_user_id
     });
     
     // First, get the current user's ID to ensure proper linking
@@ -30,7 +31,7 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     console.log("Syncing Wahoo data for user ID:", userId);
     
     if (!tokenObj.wahoo_user_id) {
-      console.warn("Warning: No Wahoo user ID provided for sync operation");
+      console.warn("Warning: No Wahoo user ID provided for sync operation. Will attempt to fetch during sync.");
     }
     
     // Create a properly formatted request body
@@ -40,6 +41,14 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
       wahoo_user_id: tokenObj.wahoo_user_id || null,
       user_id: userId
     };
+    
+    // Log the complete request body for debugging (excluding tokens)
+    console.log("Sending sync request with body:", {
+      wahoo_user_id: requestBody.wahoo_user_id,
+      user_id: requestBody.user_id,
+      hasAccessToken: !!requestBody.access_token,
+      hasRefreshToken: !!requestBody.refresh_token
+    });
     
     // Send both the user ID and Wahoo token data to the sync function
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {
@@ -70,6 +79,23 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     }
     
     console.log("Wahoo sync completed successfully:", data);
+    
+    // If the function returned the Wahoo profile, update the local storage with the user ID if missing
+    if (data.profile && data.profile.id && !tokenObj.wahoo_user_id) {
+      try {
+        const savedToken = localStorage.getItem("wahoo_token");
+        if (savedToken) {
+          const tokenData = JSON.parse(savedToken);
+          tokenData.wahoo_user_id = data.profile.id;
+          localStorage.setItem("wahoo_token", JSON.stringify(tokenData));
+          console.log("Updated local token with Wahoo user ID from profile:", data.profile.id);
+        }
+      } catch (err) {
+        console.error("Failed to update local token with Wahoo user ID:", err);
+        // Non-critical error, continue
+      }
+    }
+    
     return data;
   } catch (err) {
     console.error("Exception during Wahoo sync:", err);
