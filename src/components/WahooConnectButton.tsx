@@ -124,10 +124,11 @@ export function WahooConnectButton() {
       const left = window.innerWidth / 2 - popupWidth / 2;
       const top = window.innerHeight / 2 - popupHeight / 2;
       
+      // Create and open popup window with appropriate features
       const popup = window.open(
         authUrl, 
         "WahooAuthPopup", 
-        `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`
+        `width=${popupWidth},height=${popupHeight},left=${left},top=${top},menubar=no,toolbar=no,location=yes,status=no,resizable=yes`
       );
       
       setAuthWindow(popup);
@@ -138,6 +139,9 @@ export function WahooConnectButton() {
         setStatusMessage("");
         throw new Error("Popup was blocked by the browser. Please allow popups for this site.");
       }
+      
+      // Try to focus the popup window
+      popup.focus();
       
       // Set a timeout to abort if taking too long
       setTimeout(() => {

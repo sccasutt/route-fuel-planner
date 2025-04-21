@@ -126,14 +126,21 @@ Deno.serve(async (req) => {
         </div>
         <script>
           // Send message to parent window
-          if (window.opener) {
-            window.opener.postMessage({ type: 'wahoo-error', error: '${error}', description: '${errorDescription || ''}' }, '*');
-            // Close this window after a short delay
-            setTimeout(function() {
-              window.close();
-            }, 3000);
-          } else {
-            document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+          try {
+            console.log("Sending error message to parent window");
+            if (window.opener) {
+              window.opener.postMessage({ type: 'wahoo-error', error: '${error}', description: '${errorDescription || ''}' }, '*');
+              // Close this window after a short delay
+              setTimeout(function() {
+                window.close();
+              }, 3000);
+            } else {
+              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+              console.error("No window.opener found");
+            }
+          } catch (e) {
+            console.error("Error sending message:", e);
+            document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
           }
         </script>
       </body>
@@ -257,18 +264,25 @@ Deno.serve(async (req) => {
           </div>
           <script>
             // Send message to parent window
-            if (window.opener) {
-              window.opener.postMessage({ 
-                type: 'wahoo-error', 
-                error: 'Token exchange failed', 
-                description: '${responseData?.error_description || responseData?.error || 'Unknown error'}' 
-              }, '*');
-              // Close this window after a short delay
-              setTimeout(function() {
-                window.close();
-              }, 3000);
-            } else {
-              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+            try {
+              console.log("Sending error message to parent window");
+              if (window.opener) {
+                window.opener.postMessage({ 
+                  type: 'wahoo-error', 
+                  error: 'Token exchange failed', 
+                  description: '${responseData?.error_description || responseData?.error || 'Unknown error'}' 
+                }, '*');
+                // Close this window after a short delay
+                setTimeout(function() {
+                  window.close();
+                }, 3000);
+              } else {
+                document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+                console.error("No window.opener found");
+              }
+            } catch (e) {
+              console.error("Error sending message:", e);
+              document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
             }
           </script>
         </body>
@@ -326,14 +340,21 @@ Deno.serve(async (req) => {
         </div>
         <script>
           // Send message to parent window
-          if (window.opener) {
-            window.opener.postMessage({ type: 'wahoo-connected', success: true }, '*');
-            // Close this window after a short delay
-            setTimeout(function() {
-              window.close();
-            }, 2000);
-          } else {
-            document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+          try {
+            console.log("Sending success message to parent window");
+            if (window.opener) {
+              window.opener.postMessage({ type: 'wahoo-connected', success: true }, '*');
+              // Close this window after a short delay
+              setTimeout(function() {
+                window.close();
+              }, 2000);
+            } else {
+              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+              console.error("No window.opener found");
+            }
+          } catch (e) {
+            console.error("Error sending message:", e);
+            document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
           }
         </script>
       </body>
@@ -391,14 +412,21 @@ Deno.serve(async (req) => {
         </div>
         <script>
           // Send message to parent window
-          if (window.opener) {
-            window.opener.postMessage({ type: 'wahoo-error', error: 'Unexpected error' }, '*');
-            // Close this window after a short delay
-            setTimeout(function() {
-              window.close();
-            }, 3000);
-          } else {
-            document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+          try {
+            console.log("Sending error message to parent window");
+            if (window.opener) {
+              window.opener.postMessage({ type: 'wahoo-error', error: 'Unexpected error' }, '*');
+              // Close this window after a short delay
+              setTimeout(function() {
+                window.close();
+              }, 3000);
+            } else {
+              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+              console.error("No window.opener found");
+            }
+          } catch (e) {
+            console.error("Error sending message:", e);
+            document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
           }
         </script>
       </body>
