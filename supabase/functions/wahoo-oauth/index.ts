@@ -1,3 +1,4 @@
+
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
@@ -140,17 +141,24 @@ Deno.serve(async (req) => {
     // 2. Storing the tokens in your database
     // 3. Setting up a refresh token workflow
     
-    // For now, we'll just return success and redirect to a success page
-    const successUrl = new URL("/profile", url.origin);
-    successUrl.searchParams.set("connection", "success");
+    // Instead of redirecting to a different domain, we'll redirect to a specific route
+    // on the same domain to prevent session loss
+    const dashboardUrl = new URL("/dashboard", url.origin.replace("jxouzttcjpmmtclagbob.supabase.co", "route-fuel-planner.lovable.app"));
+    dashboardUrl.searchParams.set("wahoo_connected", "success");
     
-    return new Response(null, {
-      status: 302,
-      headers: { 
-        ...corsHeaders, 
-        "Location": successUrl.toString()
-      },
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: "Wahoo connected successfully", 
+        redirect: dashboardUrl.toString(),
+        token_type: tokenData.token_type,
+        expires_in: tokenData.expires_in
+      }),
+      { 
+        status: 200, 
+        headers: corsHeaders
+      }
+    );
   } catch (error) {
     console.error("Wahoo OAuth error:", error);
     return new Response(
