@@ -9,7 +9,7 @@ import WahooCallbackError from "./WahooCallbackError";
 import WahooCallbackLoading from "./WahooCallbackLoading";
 
 export default function WahooCallback() {
-  const [status, setStatus] = useState("Verarbeite Wahoo-Autorisierung...");
+  const [status, setStatus] = useState("Processing Wahoo authorization...");
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -27,10 +27,10 @@ export default function WahooCallback() {
 
         if (authError) {
           console.error("Wahoo authorization error:", authError, errorDesc);
-          setStatus("Autorisierung fehlgeschlagen.");
+          setStatus("Authorization failed.");
           setError(errorDesc || authError);
           toast({
-            title: "Wahoo-Verbindung fehlgeschlagen",
+            title: "Wahoo connection failed",
             description: errorDesc || authError,
             variant: "destructive",
           });
@@ -40,11 +40,11 @@ export default function WahooCallback() {
 
         if (state !== storedState) {
           console.error("Wahoo callback state mismatch:", { state, storedState });
-          setStatus("Ungültiger Autorisierungsstatus.");
-          setError("Sicherheitsfehler: Autorisierungsvalidierung fehlgeschlagen");
+          setStatus("Invalid authorization state.");
+          setError("Security error: Authorization validation failed");
           toast({
-            title: "Sicherheitsfehler",
-            description: "Autorisierungsvalidierung fehlgeschlagen",
+            title: "Security error",
+            description: "Authorization validation failed",
             variant: "destructive",
           });
           setTimeout(() => navigate("/dashboard"), 5000);
@@ -53,11 +53,11 @@ export default function WahooCallback() {
 
         if (!code) {
           console.error("No authorization code received from Wahoo");
-          setStatus("Kein Autorisierungscode erhalten.");
-          setError("Es wurde kein Autorisierungscode von Wahoo empfangen");
+          setStatus("No authorization code received.");
+          setError("No authorization code received from Wahoo");
           toast({
-            title: "Verbindungsfehler",
-            description: "Es wurde kein Autorisierungscode von Wahoo empfangen",
+            title: "Connection error",
+            description: "No authorization code received from Wahoo",
             variant: "destructive",
           });
           setTimeout(() => navigate("/dashboard"), 5000);
@@ -65,7 +65,7 @@ export default function WahooCallback() {
         }
 
         console.log("WahooCallback: Valid authorization code received, exchanging for token");
-        setStatus("Verbindung mit Ihrem Wahoo-Konto wird hergestellt...");
+        setStatus("Connecting to your Wahoo account...");
 
         try {
           const redirectUri = `${window.location.origin}/wahoo-callback`;
@@ -79,34 +79,32 @@ export default function WahooCallback() {
 
           localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
 
-          setStatus("Ihre Fahrten werden synchronisiert...");
+          setStatus("Synchronizing your rides...");
           try {
             await syncWahooProfileAndRoutes(saveObj);
-            setStatus("Ihre Wahoo-Daten wurden erfolgreich synchronisiert!");
+            setStatus("Your Wahoo data has been successfully synchronized!");
           } catch (err) {
             console.error("Error syncing rides:", err);
 
             // Special handling for connection issues
             const errMsg = err?.message || "";
-            if (errMsg.includes("Verbindung") || 
-                errMsg.includes("abgelehnt") ||
-                errMsg.includes("nicht verfügbar") ||
-                errMsg.includes("connection") ||
+            if (errMsg.includes("connection") || 
+                errMsg.includes("refused") ||
                 errMsg.includes("unavailable") ||
                 errMsg.includes("timeout")) {
-              setStatus("Verbunden, aber der Wahoo-Dienst ist derzeit für die Synchronisation nicht verfügbar.");
-              setError("Der Wahoo-Dienst ist derzeit nicht verfügbar. Ihre Verbindung wurde hergestellt, aber Ihre Fahrten konnten nicht synchronisiert werden. Bitte versuchen Sie später, die Synchronisation erneut durchzuführen.");
+              setStatus("Connected, but Wahoo service is currently unavailable for sync.");
+              setError("Wahoo service is currently unavailable. Your connection is established, but your rides couldn't be synchronized. Please try to sync later.");
               toast({
-                title: "Teilweise Verbindung",
-                description: "Mit Wahoo verbunden, aber der Dienst ist derzeit für die Synchronisation nicht verfügbar. Bitte versuchen Sie später zu synchronisieren.",
+                title: "Partial connection",
+                description: "Connected to Wahoo, but the service is temporarily unavailable for syncing. Please try again later.",
                 variant: "destructive",
               });
             } else {
-              setStatus("Verbunden, aber Ihre Fahrten konnten nicht synchronisiert werden.");
-              setError(errMsg || "Fehler bei der Synchronisation Ihrer Fahrten von Wahoo");
+              setStatus("Connected, but your rides couldn't be synchronized.");
+              setError(errMsg || "Error synchronizing your rides from Wahoo");
               toast({
-                title: "Synchronisierungsfehler",
-                description: "Fehler bei der Synchronisation Ihrer Fahrten von Wahoo. Bitte versuchen Sie es später erneut.",
+                title: "Sync error",
+                description: "Error synchronizing your rides from Wahoo. Please try again later.",
                 variant: "destructive",
               });
             }
@@ -116,8 +114,8 @@ export default function WahooCallback() {
 
           if (!error) {
             toast({ 
-              title: "Wahoo verbunden", 
-              description: "Ihr Wahoo-Konto wurde verbunden." 
+              title: "Wahoo connected", 
+              description: "Your Wahoo account is now connected." 
             });
 
             localStorage.removeItem("wahoo_auth_state");
@@ -129,20 +127,18 @@ export default function WahooCallback() {
 
           // Enhanced error handling for connection issues during token exchange
           const tokenErrorMsg = tokenError?.message || "";
-          let errorTitle = "Verbindungsfehler";
-          let errorDescription = "Verbindung zu Wahoo fehlgeschlagen. Bitte versuchen Sie es erneut.";
+          let errorTitle = "Connection error";
+          let errorDescription = "Failed to connect to Wahoo. Please try again.";
 
-          if (tokenErrorMsg.includes("Verbindung") || 
-              tokenErrorMsg.includes("abgelehnt") ||
-              tokenErrorMsg.includes("nicht verfügbar") ||
-              tokenErrorMsg.includes("connection") ||
+          if (tokenErrorMsg.includes("connection") || 
+              tokenErrorMsg.includes("refused") ||
               tokenErrorMsg.includes("unavailable") ||
               tokenErrorMsg.includes("timeout")) {
-            errorTitle = "Wahoo-Dienst nicht verfügbar";
-            errorDescription = "Der Wahoo-Dienst ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.";
+            errorTitle = "Wahoo service unavailable";
+            errorDescription = "The Wahoo service is currently unavailable. Please try again later.";
           }
 
-          setStatus("Bei der Verbindung mit Wahoo ist ein Fehler aufgetreten.");
+          setStatus("An error occurred while connecting to Wahoo.");
           setError(errorDescription);
           toast({
             title: errorTitle,
@@ -153,11 +149,11 @@ export default function WahooCallback() {
         }
       } catch (error) {
         console.error("Error processing Wahoo callback:", error);
-        setStatus("Bei der Verarbeitung der Autorisierung ist ein Fehler aufgetreten.");
-        setError("Verbindung zu Wahoo fehlgeschlagen. Bitte versuchen Sie es erneut.");
+        setStatus("An error occurred during authorization processing.");
+        setError("Failed to connect to Wahoo. Please try again.");
         toast({
-          title: "Verbindungsfehler",
-          description: "Verbindung zu Wahoo fehlgeschlagen. Bitte versuchen Sie es erneut.",
+          title: "Connection error",
+          description: "Failed to connect to Wahoo. Please try again.",
           variant: "destructive",
         });
         setTimeout(() => navigate("/dashboard"), 5000);
@@ -172,7 +168,7 @@ export default function WahooCallback() {
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
         <div className="p-6 bg-card border rounded-lg shadow-sm max-w-md w-full">
-          <h1 className="text-xl font-bold mb-4">Wahoo-Verbindung</h1>
+          <h1 className="text-xl font-bold mb-4">Wahoo Connection</h1>
           {error ? (
             <WahooCallbackError error={error} status={status} />
           ) : (
