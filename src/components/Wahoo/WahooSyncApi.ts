@@ -11,23 +11,20 @@ export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string
       headers: {
         "Content-Type": "application/json"
       }
-      // Removed invalid timeout option
     });
 
     if (error) {
       console.error("Error syncing Wahoo data:", error);
       
-      // Enhanced error detection for various connection errors including German error messages
+      // Enhanced error detection for various connection errors
       if (error.message?.includes("connection") || 
-          error.message?.includes("Verbindung") ||
-          error.message?.includes("abgelehnt") ||
           error.message?.includes("timeout") ||
           error.message?.includes("timed out") ||
           error.message?.toLowerCase().includes("unavailable")) {
-        throw new Error("Die Verbindung zum Wahoo-Dienst ist fehlgeschlagen. Der Dienst ist möglicherweise vorübergehend nicht verfügbar.");
+        throw new Error("Connection to Wahoo service failed. The service may be temporarily unavailable.");
       }
       
-      throw new Error(error.message || "Fehler bei der Synchronisation mit Wahoo");
+      throw new Error(error.message || "Error synchronizing with Wahoo");
     }
     
     console.log("Wahoo sync completed successfully:", data);
@@ -38,12 +35,10 @@ export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string
     // Enhanced error detection for the caught exception
     const errorMessage = err.message || "";
     if (errorMessage.includes("connection") || 
-        errorMessage.includes("Verbindung") ||
-        errorMessage.includes("abgelehnt") ||
         errorMessage.includes("timeout") ||
         errorMessage.includes("timed out") ||
         errorMessage.toLowerCase().includes("unavailable")) {
-      throw new Error("Die Verbindung zum Wahoo-Dienst ist fehlgeschlagen. Der Dienst ist möglicherweise vorübergehend nicht verfügbar.");
+      throw new Error("Connection to Wahoo service failed. The service may be temporarily unavailable.");
     }
     
     throw err;

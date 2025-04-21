@@ -9,6 +9,7 @@ import { syncWahooProfileAndRoutes } from "./WahooSyncApi";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
+// Using constants for URLs to ensure consistency
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 const REDIRECT_URI = `${window.location.origin}/wahoo-callback`;
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
@@ -47,6 +48,10 @@ export function WahooConnectButton() {
       setIsConnecting(true);
       setConnectionError(null);
       console.log("Initiating Wahoo connection flow");
+      
+      // Clean up any previous connection attempts
+      localStorage.removeItem("wahoo_token");
+      localStorage.removeItem("wahoo_auth_state");
       
       const clientId = await fetchWahooClientId();
       
@@ -140,6 +145,7 @@ export function WahooConnectButton() {
       // Only clear token if it's an authentication issue, not for temporary connection problems
       if (clearToken) {
         localStorage.removeItem("wahoo_token");
+        localStorage.removeItem("wahoo_auth_state");
         window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
       }
       

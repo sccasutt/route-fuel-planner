@@ -34,12 +34,15 @@ export function useWahooAuthPopup({
         } else {
           setIsConnected(false);
           localStorage.removeItem("wahoo_token");
+          localStorage.removeItem("wahoo_auth_state");
           onError("Wahoo token is invalid or expired");
         }
         
         return isValid;
       } catch (error) {
         console.error("Error checking Wahoo token:", error);
+        localStorage.removeItem("wahoo_token");
+        localStorage.removeItem("wahoo_auth_state");
         setIsConnected(false);
         onError("Error validating Wahoo connection");
         return false;
@@ -69,8 +72,8 @@ export function useWahooAuthPopup({
       }
     };
     
-    const handleCustomEvent = () => {
-      console.log("useWahooAuthPopup: Custom event detected");
+    const handleCustomEvent = (event: Event) => {
+      console.log("useWahooAuthPopup: Custom event detected", event.type);
       
       try {
         const tokenString = localStorage.getItem("wahoo_token");
@@ -84,6 +87,8 @@ export function useWahooAuthPopup({
         }
       } catch (error) {
         console.error("Error processing custom event:", error);
+        localStorage.removeItem("wahoo_token");
+        localStorage.removeItem("wahoo_auth_state");
         setIsConnected(false);
       }
     };

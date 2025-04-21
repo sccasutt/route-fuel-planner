@@ -28,8 +28,8 @@ export default function WahooCallback() {
         console.log("WahooCallback: Processing callback with params:", { 
           hasCode: !!code, 
           hasError: !!authError, 
-          state, 
-          storedState
+          state: state?.substring(0, 5) + "...", 
+          storedState: storedState?.substring(0, 5) + "..."
         });
 
         if (authError) {
@@ -45,8 +45,24 @@ export default function WahooCallback() {
           return;
         }
 
-        if (!storedState || state !== storedState) {
-          console.error("Wahoo callback state mismatch:", { state, storedState });
+        if (!state || !storedState) {
+          console.error("Wahoo callback missing state parameter", { state, storedState });
+          setStatus("Missing authorization state.");
+          setError("Security error: Missing authorization state");
+          toast({
+            title: "Security error",
+            description: "Missing authorization state",
+            variant: "destructive",
+          });
+          setTimeout(() => navigate("/dashboard"), 5000);
+          return;
+        }
+
+        if (state !== storedState) {
+          console.error("Wahoo callback state mismatch:", { 
+            state: state?.substring(0, 5) + "...", 
+            storedState: storedState?.substring(0, 5) + "..." 
+          });
           setStatus("Invalid authorization state.");
           setError("Security error: Authorization validation failed");
           toast({
@@ -88,6 +104,9 @@ export default function WahooCallback() {
 
           localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
           console.log("WahooCallback: Token saved to localStorage");
+          
+          // Clear auth state after successful token exchange
+          localStorage.removeItem("wahoo_auth_state");
 
           setStatus("Synchronizing your rides...");
           try {
@@ -128,8 +147,6 @@ export default function WahooCallback() {
               title: "Wahoo connected", 
               description: "Your Wahoo account is now connected." 
             });
-
-            localStorage.removeItem("wahoo_auth_state");
 
             setTimeout(() => navigate("/dashboard", { state: { wahooConnected: true }}), 3000);
           }
