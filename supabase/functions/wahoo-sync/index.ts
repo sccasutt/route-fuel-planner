@@ -20,8 +20,18 @@ Deno.serve(async (req) => {
     }
     const jwt = authHeader.split(" ")[1];
 
-    // Expect POST { access_token, refresh_token }
-    const body = await req.json();
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+    } catch (err) {
+      console.error("Error parsing request body:", err);
+      return new Response(
+        JSON.stringify({ error: "Invalid request body" }), 
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     const { access_token, refresh_token } = body;
     if (!access_token) {
       return new Response(JSON.stringify({ error: "Missing access_token" }), { status: 400, headers: corsHeaders });
@@ -80,8 +90,20 @@ Deno.serve(async (req) => {
       );
     }
     
-    const profile = await profileRes.json();
-    console.log("Successfully fetched Wahoo profile");
+    let profile;
+    try {
+      profile = await profileRes.json();
+      console.log("Successfully fetched Wahoo profile");
+    } catch (err) {
+      console.error("Error parsing Wahoo profile response:", err);
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid response from Wahoo API", 
+          details: err.message || "Parse error" 
+        }), 
+        { status: 502, headers: corsHeaders }
+      );
+    }
 
     // 2. Fetch Wahoo routes (recent activities) with timeout
     let activitiesRes;
@@ -122,53 +144,77 @@ Deno.serve(async (req) => {
       );
     }
     
-    const activities = await activitiesRes.json();
-    console.log("Successfully fetched Wahoo activities:", Array.isArray(activities) ? activities.length : "none");
-
-    // 3. Insert/update profile and upsert routes
-    const client = require("supabase-js").createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-    
-    // (a) Upsert profile
-    await client.from("wahoo_profiles").upsert([{
-      id: user_id,
-      wahoo_user_id: profile.id,
-      weight_kg: profile.weight_kg,
-      updated_at: new Date().toISOString(),
-      last_synced_at: new Date().toISOString()
-    }]);
-
-    // (b) Upsert activities as routes (pick relevant fields)
-    const routeRows = Array.isArray(activities) ? activities.map(act => ({
-      user_id,
-      wahoo_route_id: act.id,
-      name: act.name ?? "Wahoo Activity",
-      distance: act.distance ?? 0,
-      elevation: act.elevation_gain ?? 0,
-      duration: act.duration ?? "",
-      calories: act.calories ?? null,
-      date: act.start_time ?? new Date().toISOString(),
-      gpx_data: act.gpx_data ?? null,
-      updated_at: new Date().toISOString()
-    })) : [];
-    
-    console.log(`Processing ${routeRows.length} activities for storage`);
-    
-    for (const row of routeRows) {
-      await client.from("routes").upsert([row], { onConflict: ["user_id", "wahoo_route_id"] });
+    let activities;
+    try {
+      activities = await activitiesRes.json();
+      console.log("Successfully fetched Wahoo activities:", Array.isArray(activities) ? activities.length : "none");
+    } catch (err) {
+      console.error("Error parsing Wahoo activities response:", err);
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid response from Wahoo API", 
+          details: err.message || "Parse error" 
+        }), 
+        { status: 502, headers: corsHeaders }
+      );
     }
 
-    console.log("Sync operation completed successfully");
-    return new Response(
-      JSON.stringify({ 
-        ok: true, 
-        profile, 
-        routeCount: routeRows.length 
-      }), 
-      { status: 200, headers: corsHeaders }
-    );
+    // 3. Insert/update profile and upsert routes
+    try {
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.39.0");
+      const client = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      
+      // (a) Upsert profile
+      await client.from("wahoo_profiles").upsert([{
+        id: user_id,
+        wahoo_user_id: profile.id,
+        weight_kg: profile.weight_kg,
+        updated_at: new Date().toISOString(),
+        last_synced_at: new Date().toISOString()
+      }]);
+
+      // (b) Upsert activities as routes (pick relevant fields)
+      const routeRows = Array.isArray(activities) ? activities.map(act => ({
+        user_id,
+        wahoo_route_id: act.id,
+        name: act.name ?? "Wahoo Activity",
+        distance: act.distance ?? 0,
+        elevation: act.elevation_gain ?? 0,
+        duration: act.duration ?? "",
+        calories: act.calories ?? null,
+        date: act.start_time ?? new Date().toISOString(),
+        gpx_data: act.gpx_data ?? null,
+        updated_at: new Date().toISOString()
+      })) : [];
+      
+      console.log(`Processing ${routeRows.length} activities for storage`);
+      
+      for (const row of routeRows) {
+        await client.from("routes").upsert([row], { onConflict: ["user_id", "wahoo_route_id"] });
+      }
+
+      console.log("Sync operation completed successfully");
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          profile, 
+          routeCount: routeRows.length 
+        }), 
+        { status: 200, headers: corsHeaders }
+      );
+    } catch (err) {
+      console.error("Database operation error:", err);
+      return new Response(
+        JSON.stringify({ 
+          error: "Database operation failed", 
+          details: err.message || "Unknown database error" 
+        }), 
+        { status: 500, headers: corsHeaders }
+      );
+    }
   } catch (err) {
     console.error("wahoo-sync error:", err);
     return new Response(

@@ -30,6 +30,11 @@ export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string
       throw new Error(error.message || "Error synchronizing with Wahoo");
     }
     
+    if (!data || (data.error && typeof data.error === 'string')) {
+      console.error("Wahoo sync returned an error response:", data);
+      throw new Error(data.error || "Error in Wahoo sync response");
+    }
+    
     console.log("Wahoo sync completed successfully:", data);
     return data;
   } catch (err) {

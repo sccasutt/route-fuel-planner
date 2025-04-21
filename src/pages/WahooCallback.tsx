@@ -171,6 +171,16 @@ export default function WahooCallback() {
           try {
             await syncWahooProfileAndRoutes(saveObj);
             setStatus("Your Wahoo data has been successfully synchronized!");
+            
+            window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+            console.log("WahooCallback: Dispatched connection changed event");
+            
+            toast({ 
+              title: "Wahoo connected", 
+              description: "Your Wahoo account is now connected." 
+            });
+
+            setTimeout(() => navigate("/dashboard", { state: { wahooConnected: true }}), 3000);
           } catch (err) {
             console.error("Error syncing rides:", err);
 
@@ -181,32 +191,23 @@ export default function WahooCallback() {
                 errMsg.includes("timeout")) {
               setStatus("Connected, but Wahoo service is currently unavailable for sync.");
               setError("Wahoo service is currently unavailable. Your connection is established, but your rides couldn't be synchronized. Please try to sync later.");
-              toast({
-                title: "Partial connection",
-                description: "Connected to Wahoo, but the service is temporarily unavailable for syncing. Please try again later.",
-                variant: "destructive",
-              });
             } else {
               setStatus("Connected, but your rides couldn't be synchronized.");
               setError(errMsg || "Error synchronizing your rides from Wahoo");
-              toast({
-                title: "Sync error",
-                description: "Error synchronizing your rides from Wahoo. Please try again later.",
-                variant: "destructive",
-              });
             }
-          }
-
-          window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
-          console.log("WahooCallback: Dispatched connection changed event");
-
-          if (!error) {
-            toast({ 
-              title: "Wahoo connected", 
-              description: "Your Wahoo account is now connected." 
+            
+            // Despite sync error, we still successfully authenticated
+            window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+            console.log("WahooCallback: Dispatched connection changed event despite sync error");
+            
+            toast({
+              title: "Partial connection",
+              description: "Connected to Wahoo, but couldn't sync rides. Try again later.",
+              variant: "destructive",
             });
-
-            setTimeout(() => navigate("/dashboard", { state: { wahooConnected: true }}), 3000);
+            
+            // Still navigate to dashboard after a delay, connection was established
+            setTimeout(() => navigate("/dashboard"), 5000);
           }
         } catch (tokenError) {
           console.error("Token exchange error:", tokenError);
