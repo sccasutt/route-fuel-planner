@@ -14,19 +14,8 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export interface UserConnection {
-  id: string;
-  user_id: string;
-  provider: string;
-  access_token: string;
-  refresh_token: string | null;
-  expires_at: string | null;
-  created_at: string;
-}
-
 export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [wahooConnection, setWahooConnection] = useState<UserConnection | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
@@ -40,20 +29,18 @@ export function useUserProfile() {
         
         if (!user) {
           setProfile(null);
-          setWahooConnection(null);
           setLoading(false);
           return;
         }
         
-        // Fetch profile data
-        const { data: profileData, error: profileError } = await supabase
+        const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
           .maybeSingle();
           
-        if (profileError) {
-          console.error("Error fetching profile:", profileError);
+        if (error) {
+          console.error("Error fetching profile:", error);
           toast({
             title: "Error",
             description: "Failed to load user profile",
@@ -61,21 +48,8 @@ export function useUserProfile() {
           });
         }
         
-        // Fetch Wahoo connection if exists
-        const { data: connectionData, error: connectionError } = await supabase
-          .from("user_connections")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("provider", "wahoo")
-          .maybeSingle();
-        
-        if (connectionError && connectionError.code !== 'PGRST116') {
-          console.error("Error fetching Wahoo connection:", connectionError);
-        }
-        
         if (!ignore) {
-          setProfile(profileData ?? null);
-          setWahooConnection(connectionData ?? null);
+          setProfile(data ?? null);
           setLoading(false);
         }
       } catch (error) {
@@ -95,5 +69,5 @@ export function useUserProfile() {
     return () => { ignore = true; };
   }, [toast]);
   
-  return { profile, wahooConnection, loading };
+  return { profile, loading };
 }
