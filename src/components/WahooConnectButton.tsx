@@ -46,7 +46,7 @@ export function WahooConnectButton() {
         
         toast({
           title: "Connection Failed",
-          description: event.data.error || "Failed to connect to Wahoo",
+          description: event.data.description || event.data.error || "Failed to connect to Wahoo",
           variant: "destructive",
         });
         
@@ -105,8 +105,8 @@ export function WahooConnectButton() {
       
       setStatusMessage("Opening authorization window...");
       
-      // Generate a simple state without complex encoding
-      const state = Math.random().toString(36).substring(2, 15);
+      // Generate a simple random string for state
+      const state = Math.random().toString(36).substr(2, 10);
       
       // Construct authorization URL
       const authUrl = 

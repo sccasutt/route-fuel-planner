@@ -10,6 +10,9 @@ const corsHeaders = {
 // Only use the primary Wahoo API domain for token exchange
 const WAHOO_TOKEN_URL = "https://api.wahooligan.com/oauth/token";
 
+// The exact redirect URI that must match what's configured in Wahoo's dashboard
+const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/functions/v1/wahoo-oauth";
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -66,10 +69,20 @@ Deno.serve(async (req) => {
   // OAuth callback handler
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
+  const errorDescription = url.searchParams.get("error_description");
+  
+  // Log all parameters to help debugging
+  console.log("OAuth callback parameters:", {
+    code: code ? "present" : "missing",
+    error,
+    errorDescription,
+    state: url.searchParams.get("state"),
+    allParams: Object.fromEntries([...url.searchParams])
+  });
   
   // Handle OAuth errors
   if (error) {
-    console.error("OAuth error:", error);
+    console.error("OAuth error:", error, errorDescription);
     return new Response(
       `
       <!DOCTYPE html>
@@ -108,15 +121,20 @@ Deno.serve(async (req) => {
         <div class="error-message">
           <h1>Connection Failed</h1>
           <p>There was an error connecting to Wahoo: ${error}</p>
+          <p>${errorDescription || ''}</p>
           <p>This window will close automatically.</p>
         </div>
         <script>
           // Send message to parent window
-          window.opener.postMessage({ type: 'wahoo-error', error: '${error}' }, '*');
-          // Close this window after a short delay
-          setTimeout(function() {
-            window.close();
-          }, 3000);
+          if (window.opener) {
+            window.opener.postMessage({ type: 'wahoo-error', error: '${error}', description: '${errorDescription || ''}' }, '*');
+            // Close this window after a short delay
+            setTimeout(function() {
+              window.close();
+            }, 3000);
+          } else {
+            document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+          }
         </script>
       </body>
       </html>
@@ -144,9 +162,6 @@ Deno.serve(async (req) => {
   // Secrets are injected as env variables in Supabase Edge Functions.
   const clientId = Deno.env.get("WAHOO_CLIENT_ID");
   const clientSecret = Deno.env.get("WAHOO_CLIENT_SECRET");
-  
-  // Use the redirect URI that's set in Wahoo's dashboard
-  const redirectUri = "https://jxouzttcjpmmtclagbob.supabase.co/functions/v1/wahoo-oauth";
 
   if (!clientId || !clientSecret) {
     return new Response(
@@ -160,7 +175,7 @@ Deno.serve(async (req) => {
 
   try {
     console.log("Attempting to exchange code for token");
-    console.log(`Redirect URI being used: ${redirectUri}`);
+    console.log(`Redirect URI being used: ${REDIRECT_URI}`);
     
     // Exchange code for token
     const tokenRes = await fetch(WAHOO_TOKEN_URL, {
@@ -171,18 +186,32 @@ Deno.serve(async (req) => {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        redirect_uri: redirectUri,
+        redirect_uri: REDIRECT_URI,
         client_id: clientId,
         client_secret: clientSecret,
       }),
     });
 
+    const responseText = await tokenRes.text();
+    let responseData;
+    
+    try {
+      responseData = JSON.parse(responseText);
+      console.log("Token response status:", tokenRes.status);
+      console.log("Token response parsed:", {
+        status: responseData.status,
+        error: responseData.error,
+        error_description: responseData.error_description
+      });
+    } catch (e) {
+      console.log("Token response is not JSON:", responseText);
+    }
+
     if (!tokenRes.ok) {
-      const errorText = await tokenRes.text();
       console.error("Token exchange failed:", {
         status: tokenRes.status,
         statusText: tokenRes.statusText,
-        body: errorText
+        body: responseText
       });
       
       return new Response(
@@ -223,15 +252,24 @@ Deno.serve(async (req) => {
           <div class="error-message">
             <h1>Connection Failed</h1>
             <p>Failed to exchange authorization code for access token.</p>
+            <p>${responseData?.error_description || responseData?.error || ''}</p>
             <p>This window will close automatically.</p>
           </div>
           <script>
             // Send message to parent window
-            window.opener.postMessage({ type: 'wahoo-error', error: 'Token exchange failed' }, '*');
-            // Close this window after a short delay
-            setTimeout(function() {
-              window.close();
-            }, 3000);
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'wahoo-error', 
+                error: 'Token exchange failed', 
+                description: '${responseData?.error_description || responseData?.error || 'Unknown error'}' 
+              }, '*');
+              // Close this window after a short delay
+              setTimeout(function() {
+                window.close();
+              }, 3000);
+            } else {
+              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+            }
           </script>
         </body>
         </html>
@@ -245,9 +283,6 @@ Deno.serve(async (req) => {
         }
       );
     }
-
-    const tokenData = await tokenRes.json();
-    console.log("Token successfully obtained");
 
     // Return a success response with HTML that will close the window automatically
     return new Response(
@@ -291,11 +326,15 @@ Deno.serve(async (req) => {
         </div>
         <script>
           // Send message to parent window
-          window.opener.postMessage({ type: 'wahoo-connected', success: true }, '*');
-          // Close this window after a short delay
-          setTimeout(function() {
-            window.close();
-          }, 2000);
+          if (window.opener) {
+            window.opener.postMessage({ type: 'wahoo-connected', success: true }, '*');
+            // Close this window after a short delay
+            setTimeout(function() {
+              window.close();
+            }, 2000);
+          } else {
+            document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+          }
         </script>
       </body>
       </html>
@@ -352,11 +391,15 @@ Deno.serve(async (req) => {
         </div>
         <script>
           // Send message to parent window
-          window.opener.postMessage({ type: 'wahoo-error', error: 'Unexpected error' }, '*');
-          // Close this window after a short delay
-          setTimeout(function() {
-            window.close();
-          }, 3000);
+          if (window.opener) {
+            window.opener.postMessage({ type: 'wahoo-error', error: 'Unexpected error' }, '*');
+            // Close this window after a short delay
+            setTimeout(function() {
+              window.close();
+            }, 3000);
+          } else {
+            document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
+          }
         </script>
       </body>
       </html>
