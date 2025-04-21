@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +10,7 @@ import { AlertTriangle } from "lucide-react";
 
 // Using constants for URLs to ensure consistency
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
-const REDIRECT_URI = `${window.location.origin}/wahoo-callback`;
+const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
 
 export function WahooConnectButton() {

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +6,8 @@ import { exchangeCodeForToken } from "@/components/Wahoo/WahooApi";
 import { syncWahooProfileAndRoutes } from "@/components/Wahoo/WahooSyncApi";
 import WahooCallbackError from "./WahooCallbackError";
 import WahooCallbackLoading from "./WahooCallbackLoading";
+
+const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
 
 export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
@@ -92,9 +93,8 @@ export default function WahooCallback() {
         setStatus("Connecting to your Wahoo account...");
 
         try {
-          const redirectUri = `${window.location.origin}/wahoo-callback`;
-          console.log("Using redirect URI:", redirectUri);
-          const tokenData = await exchangeCodeForToken(code, redirectUri);
+          console.log("Using redirect URI:", REDIRECT_URI);
+          const tokenData = await exchangeCodeForToken(code, REDIRECT_URI);
 
           if (!tokenData || !tokenData.access_token) {
             throw new Error("Invalid token response from server");
@@ -111,7 +111,6 @@ export default function WahooCallback() {
           localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
           console.log("WahooCallback: Token saved to localStorage");
           
-          // Clear auth state after successful token exchange
           localStorage.removeItem("wahoo_auth_state");
 
           setStatus("Synchronizing your rides...");
@@ -121,7 +120,6 @@ export default function WahooCallback() {
           } catch (err) {
             console.error("Error syncing rides:", err);
 
-            // Special handling for connection issues
             const errMsg = err instanceof Error ? err.message : "Unknown error";
             if (errMsg.includes("connection") || 
                 errMsg.includes("refused") ||
@@ -159,7 +157,6 @@ export default function WahooCallback() {
         } catch (tokenError) {
           console.error("Token exchange error:", tokenError);
 
-          // Enhanced error handling for connection issues during token exchange
           const tokenErrorMsg = tokenError instanceof Error ? tokenError.message : "Unknown error";
           let errorTitle = "Connection error";
           let errorDescription = "Failed to connect to Wahoo. Please try again.";
