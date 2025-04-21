@@ -96,23 +96,32 @@ const Profile = () => {
   const handleConnectWahoo = async () => {
     setWahooLoading(true);
     try {
-      toast({
-        title: "Wahoo Connection",
-        description: "This would connect to the Wahoo API. This is a mock implementation.",
+      const userAccessToken = "user-oauth-access-token-placeholder"; // Replace with real token from OAuth flow
+
+      const response = await fetch("/api/wahoo-fetch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ access_token: userAccessToken }),
       });
-      
-      setTimeout(() => {
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch Wahoo profile");
+      }
+
+      const data = await response.json();
+
+      if (data.profile) {
         setIsWahooConnected(true);
-        setWahooLoading(false);
-        
-        form.setValue("weight", "72");
-        form.setValue("age", "32");
-        
-        toast({
-          title: "Connected to Wahoo",
-          description: "Successfully retrieved your data from Wahoo",
-        });
-      }, 1000);
+        form.setValue("weight", String(data.profile.weight_kg ?? ""));
+        form.setValue("age", String(data.profile.age ?? ""));
+      }
+
+      toast({
+        title: "Connected to Wahoo",
+        description: "Successfully retrieved your data from Wahoo",
+      });
     } catch (error) {
       console.error("Error connecting to Wahoo:", error);
       toast({
@@ -120,6 +129,7 @@ const Profile = () => {
         description: "Could not connect to Wahoo API",
         variant: "destructive",
       });
+    } finally {
       setWahooLoading(false);
     }
   };
