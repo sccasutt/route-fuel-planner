@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Updated to the correct Wahoo API domain
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
@@ -16,32 +17,16 @@ export function WahooConnectButton() {
     try {
       setIsConnecting(true);
       
-      // Fetch the client ID from our secure edge function with explicit content-type
-      const response = await fetch(`/functions/v1/wahoo-oauth/get-client-id`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+      // Use Supabase to invoke the edge function instead of direct fetch
+      const { data, error } = await supabase.functions.invoke('wahoo-oauth/get-client-id', {
+        method: 'GET'
       });
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch client ID: ${response.status}`);
+      if (error) {
+        throw new Error(`Failed to fetch client ID: ${error.message}`);
       }
       
-      // First check if the response is actually JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error(`Unexpected response format: ${contentType}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      if (!data.clientId) {
+      if (!data || !data.clientId) {
         throw new Error("No client ID returned from server");
       }
       
