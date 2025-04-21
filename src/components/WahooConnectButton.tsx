@@ -2,21 +2,33 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 
-const WAHOO_AUTH_URL = "https://cloud-api.wahoofitness.com/oauth2/auth";
-const CLIENT_ID = ""; // For security, do not expose your client ID here! It should come from the backend/edge function
-const REDIRECT_URI =
-  window.location.origin + "/functions/v1/wahoo-oauth"; // Must be whitelisted in Wahoo dev portal
-const SCOPE = "user_read"; // Adjust scopes as needed for your app
+// Updated to the correct Wahoo API domain
+const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
+const REDIRECT_URI = window.location.origin + "/functions/v1/wahoo-oauth"; // Must be whitelisted in Wahoo dev portal
+const SCOPE = "user_read workout_read"; // Adjust scopes as needed for your app
 
 export function WahooConnectButton() {
-  const handleConnect = () => {
-    // For superior security, obtain client_id dynamically via backend if possible
-    // Here, the client ID is omitted for demo; you should configure it using secrets and redirect via edge function.
-    window.location.href =
-      `${WAHOO_AUTH_URL}?response_type=code` +
-      `&client_id=${encodeURIComponent(CLIENT_ID)}` +
-      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&scope=${encodeURIComponent(SCOPE)}`;
+  const handleConnect = async () => {
+    try {
+      // Fetch the client ID from our secure edge function
+      const response = await fetch(`${window.location.origin}/functions/v1/wahoo-oauth/get-client-id`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch client ID");
+      }
+      
+      const { clientId } = await response.json();
+      
+      // Redirect to Wahoo authorization page
+      window.location.href =
+        `${WAHOO_AUTH_URL}?response_type=code` +
+        `&client_id=${encodeURIComponent(clientId)}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+        `&scope=${encodeURIComponent(SCOPE)}`;
+    } catch (error) {
+      console.error("Error initiating Wahoo connection:", error);
+      alert("Failed to connect to Wahoo. Please try again later.");
+    }
   };
 
   return (
@@ -29,4 +41,3 @@ export function WahooConnectButton() {
     </Button>
   );
 }
-
