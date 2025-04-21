@@ -79,6 +79,7 @@ export function WahooConnectButton() {
     if (isConnecting && authWindow) {
       popupCheckInterval = window.setInterval(() => {
         if (authWindow.closed) {
+          console.log("Popup was closed manually by user");
           setIsConnecting(false);
           setStatusMessage("");
           clearInterval(popupCheckInterval);
