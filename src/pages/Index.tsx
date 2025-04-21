@@ -30,12 +30,12 @@ const Index = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="flex flex-col items-center justify-center py-24 px-4 bg-gradient-to-br from-card via-white to-secondary/80">
+      <section className="flex flex-col items-center justify-center py-24 px-4 bg-background">
         <div className="w-full max-w-xl flex flex-col items-center text-center gap-7">
           <span className="mb-3 inline-block px-3 py-1 rounded-full bg-primary/10 text-xs font-medium text-primary uppercase tracking-wider">
             Cyclist wellbeing, reimagined
           </span>
-          <h1 className="text-4xl md:text-5xl font-extrabold font-serif leading-[1.15] text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-2">
+          <h1 className="text-4xl md:text-5xl font-extrabold leading-[1.15] mb-2">
             PedalPlate
           </h1>
           <p className="text-lg text-muted-foreground max-w-lg mb-2">
@@ -64,7 +64,7 @@ const Index = () => {
 
       {/* Features Section */}
       <section className="container mx-auto px-4 md:px-8 py-20 flex flex-col items-center">
-        <h2 className="text-2xl md:text-3xl font-bold font-serif text-center mb-12">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
           <span className="inline-block pb-1 border-b-2 border-primary/20">
             Features built for cyclists
           </span>
@@ -76,7 +76,7 @@ const Index = () => {
                 <div className="flex items-center justify-center w-12 h-12 rounded-full mb-3 bg-primary/10 text-primary">
                   <feature.icon className="h-7 w-7" aria-hidden />
                 </div>
-                <CardTitle className="text-lg font-semibold font-serif text-primary mb-1">{feature.title}</CardTitle>
+                <CardTitle className="text-lg font-semibold text-primary mb-1">{feature.title}</CardTitle>
                 <CardDescription className="text-center text-muted-foreground">{feature.desc}</CardDescription>
               </CardHeader>
               <CardContent />
@@ -89,3 +89,4 @@ const Index = () => {
 };
 
 export default Index;
+
