@@ -1,4 +1,3 @@
-
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
@@ -10,8 +9,8 @@ const corsHeaders = {
 // Only use the primary Wahoo API domain for token exchange
 const WAHOO_TOKEN_URL = "https://api.wahooligan.com/oauth/token";
 
-// The exact redirect URI that must match what's configured in Wahoo's dashboard
-const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/functions/v1/wahoo-oauth";
+// The app URL to redirect back to after OAuth process
+const APP_REDIRECT_URL = "https://lovable.dev";
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -70,100 +69,52 @@ Deno.serve(async (req) => {
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
   const errorDescription = url.searchParams.get("error_description");
+  const state = url.searchParams.get("state");
   
   // Log all parameters to help debugging
   console.log("OAuth callback parameters:", {
     code: code ? "present" : "missing",
     error,
     errorDescription,
-    state: url.searchParams.get("state"),
+    state,
     allParams: Object.fromEntries([...url.searchParams])
   });
+  
+  // Create redirect URL back to the app
+  let redirectUrl = new URL(APP_REDIRECT_URL);
+  
+  // Add path to the dashboard
+  redirectUrl.pathname = "/dashboard";
   
   // Handle OAuth errors
   if (error) {
     console.error("OAuth error:", error, errorDescription);
-    return new Response(
-      `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Connection Failed</title>
-        <style>
-          body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f8f9fa;
-          }
-          .error-message {
-            text-align: center;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-          }
-          h1 {
-            color: #ef4444;
-            margin-bottom: 10px;
-          }
-          p {
-            margin-bottom: 20px;
-            color: #374151;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="error-message">
-          <h1>Connection Failed</h1>
-          <p>There was an error connecting to Wahoo: ${error}</p>
-          <p>${errorDescription || ''}</p>
-          <p>This window will close automatically.</p>
-        </div>
-        <script>
-          // Send message to parent window
-          try {
-            console.log("Sending error message to parent window");
-            if (window.opener) {
-              window.opener.postMessage({ type: 'wahoo-error', error: '${error}', description: '${errorDescription || ''}' }, '*');
-              // Close this window after a short delay
-              setTimeout(function() {
-                window.close();
-              }, 3000);
-            } else {
-              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
-              console.error("No window.opener found");
-            }
-          } catch (e) {
-            console.error("Error sending message:", e);
-            document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
-          }
-        </script>
-      </body>
-      </html>
-      `,
-      { 
-        status: 400, 
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "text/html"
-        }
+    
+    // Add error parameters to the redirect URL
+    redirectUrl.searchParams.set("wahoo_error", errorDescription || error);
+    
+    console.log("Redirecting to app with error:", redirectUrl.toString());
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...corsHeaders,
+        "Location": redirectUrl.toString()
       }
-    );
+    });
   }
 
   if (!code) {
-    return new Response(
-      JSON.stringify({ error: "Missing OAuth code parameter" }),
-      { 
-        status: 400, 
-        headers: corsHeaders
+    console.error("Missing OAuth code parameter");
+    redirectUrl.searchParams.set("wahoo_error", "Missing authorization code");
+    
+    console.log("Redirecting to app with error:", redirectUrl.toString());
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...corsHeaders,
+        "Location": redirectUrl.toString()
       }
-    );
+    });
   }
 
   // Secrets are injected as env variables in Supabase Edge Functions.
@@ -171,18 +122,21 @@ Deno.serve(async (req) => {
   const clientSecret = Deno.env.get("WAHOO_CLIENT_SECRET");
 
   if (!clientId || !clientSecret) {
-    return new Response(
-      JSON.stringify({ error: "Wahoo client secrets not configured." }),
-      { 
-        status: 500, 
-        headers: corsHeaders
+    console.error("Wahoo client secrets not configured");
+    redirectUrl.searchParams.set("wahoo_error", "API configuration error");
+    
+    console.log("Redirecting to app with error:", redirectUrl.toString());
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...corsHeaders,
+        "Location": redirectUrl.toString()
       }
-    );
+    });
   }
 
   try {
     console.log("Attempting to exchange code for token");
-    console.log(`Redirect URI being used: ${REDIRECT_URI}`);
     
     // Exchange code for token
     const tokenRes = await fetch(WAHOO_TOKEN_URL, {
@@ -193,7 +147,7 @@ Deno.serve(async (req) => {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: url.origin + url.pathname,
         client_id: clientId,
         client_secret: clientSecret,
       }),
@@ -206,7 +160,7 @@ Deno.serve(async (req) => {
       responseData = JSON.parse(responseText);
       console.log("Token response status:", tokenRes.status);
       console.log("Token response parsed:", {
-        status: responseData.status,
+        success: tokenRes.ok,
         error: responseData.error,
         error_description: responseData.error_description
       });
@@ -221,224 +175,41 @@ Deno.serve(async (req) => {
         body: responseText
       });
       
-      return new Response(
-        `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Connection Failed</title>
-          <style>
-            body {
-              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
-              margin: 0;
-              background-color: #f8f9fa;
-            }
-            .error-message {
-              text-align: center;
-              padding: 20px;
-              background-color: #fff;
-              border-radius: 8px;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-              max-width: 400px;
-            }
-            h1 {
-              color: #ef4444;
-              margin-bottom: 10px;
-            }
-            p {
-              margin-bottom: 20px;
-              color: #374151;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="error-message">
-            <h1>Connection Failed</h1>
-            <p>Failed to exchange authorization code for access token.</p>
-            <p>${responseData?.error_description || responseData?.error || ''}</p>
-            <p>This window will close automatically.</p>
-          </div>
-          <script>
-            // Send message to parent window
-            try {
-              console.log("Sending error message to parent window");
-              if (window.opener) {
-                window.opener.postMessage({ 
-                  type: 'wahoo-error', 
-                  error: 'Token exchange failed', 
-                  description: '${responseData?.error_description || responseData?.error || 'Unknown error'}' 
-                }, '*');
-                // Close this window after a short delay
-                setTimeout(function() {
-                  window.close();
-                }, 3000);
-              } else {
-                document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
-                console.error("No window.opener found");
-              }
-            } catch (e) {
-              console.error("Error sending message:", e);
-              document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
-            }
-          </script>
-        </body>
-        </html>
-        `, 
-        {
-          status: tokenRes.status,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "text/html"
-          },
+      redirectUrl.searchParams.set("wahoo_error", (responseData?.error_description || responseData?.error || "Token exchange failed"));
+      
+      console.log("Redirecting to app with error:", redirectUrl.toString());
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          "Location": redirectUrl.toString()
         }
-      );
+      });
     }
 
-    // Return a success response with HTML that will close the window automatically
-    return new Response(
-      `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Connection Successful</title>
-        <style>
-          body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f8f9fa;
-          }
-          .success-message {
-            text-align: center;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-          }
-          h1 {
-            color: #10b981;
-            margin-bottom: 10px;
-          }
-          p {
-            margin-bottom: 20px;
-            color: #374151;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="success-message">
-          <h1>Connection Successful!</h1>
-          <p>Your Wahoo account has been connected successfully. This window will close automatically.</p>
-        </div>
-        <script>
-          // Send message to parent window
-          try {
-            console.log("Sending success message to parent window");
-            if (window.opener) {
-              window.opener.postMessage({ type: 'wahoo-connected', success: true }, '*');
-              // Close this window after a short delay
-              setTimeout(function() {
-                window.close();
-              }, 2000);
-            } else {
-              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
-              console.error("No window.opener found");
-            }
-          } catch (e) {
-            console.error("Error sending message:", e);
-            document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
-          }
-        </script>
-      </body>
-      </html>
-      `,
-      { 
-        status: 200, 
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "text/html"
-        }
+    // Success - redirect back to the app with success parameter
+    redirectUrl.searchParams.set("wahoo_success", "true");
+    
+    console.log("Auth successful, redirecting to app:", redirectUrl.toString());
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...corsHeaders,
+        "Location": redirectUrl.toString()
       }
-    );
+    });
   } catch (error) {
     console.error("Wahoo OAuth error:", error);
-    return new Response(
-      `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Connection Failed</title>
-        <style>
-          body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f8f9fa;
-          }
-          .error-message {
-            text-align: center;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-          }
-          h1 {
-            color: #ef4444;
-            margin-bottom: 10px;
-          }
-          p {
-            margin-bottom: 20px;
-            color: #374151;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="error-message">
-          <h1>Connection Failed</h1>
-          <p>An unexpected error occurred: ${error.message}</p>
-          <p>This window will close automatically.</p>
-        </div>
-        <script>
-          // Send message to parent window
-          try {
-            console.log("Sending error message to parent window");
-            if (window.opener) {
-              window.opener.postMessage({ type: 'wahoo-error', error: 'Unexpected error' }, '*');
-              // Close this window after a short delay
-              setTimeout(function() {
-                window.close();
-              }, 3000);
-            } else {
-              document.body.innerHTML += '<p>Unable to communicate with the main window. Please close this window manually.</p>';
-              console.error("No window.opener found");
-            }
-          } catch (e) {
-            console.error("Error sending message:", e);
-            document.body.innerHTML += '<p>Error communicating with the main window: ' + e.message + '</p>';
-          }
-        </script>
-      </body>
-      </html>
-      `,
-      { 
-        status: 500, 
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "text/html"
-        }
+    
+    redirectUrl.searchParams.set("wahoo_error", error.message || "Unexpected error");
+    
+    console.log("Redirecting to app with error:", redirectUrl.toString());
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...corsHeaders,
+        "Location": redirectUrl.toString()
       }
-    );
+    });
   }
 });

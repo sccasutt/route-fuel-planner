@@ -27,7 +27,14 @@ export function useWahooData() {
       const hasWahooToken = localStorage.getItem("wahoo_token");
       console.log("useWahooData: Checking connection status:", !!hasWahooToken);
       setIsConnected(!!hasWahooToken);
-      setIsLoading(false);
+      
+      // If connected, fetch activities; otherwise, set loading to false
+      if (hasWahooToken) {
+        fetchWahooActivities();
+      } else {
+        setIsLoading(false);
+        setActivities([]);
+      }
     };
 
     checkWahooConnection();
@@ -46,6 +53,7 @@ export function useWahooData() {
         } else {
           // If disconnected, clear activities
           setActivities([]);
+          setIsLoading(false);
         }
       }
     };
@@ -63,8 +71,29 @@ export function useWahooData() {
       } else {
         // If disconnected, clear activities
         setActivities([]);
+        setIsLoading(false);
       }
     };
+    
+    // URL parameter check for Wahoo connection status changes
+    const url = new URL(window.location.href);
+    const wahooSuccess = url.searchParams.get("wahoo_success");
+    
+    if (wahooSuccess === "true") {
+      console.log("useWahooData: Detected successful auth in URL parameters");
+      // This will be handled by the storage and custom event listeners
+      // But let's make sure to trigger a refresh if needed
+      const hasWahooToken = localStorage.getItem("wahoo_token");
+      if (!hasWahooToken) {
+        console.log("useWahooData: Setting token from URL success parameter");
+        localStorage.setItem("wahoo_token", "connected");
+        window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+      }
+      
+      // Clean up URL parameters
+      url.searchParams.delete("wahoo_success");
+      window.history.replaceState({}, document.title, url.toString());
+    }
     
     // Add event listeners
     window.addEventListener("storage", handleStorageEvent);
@@ -135,14 +164,6 @@ export function useWahooData() {
       setIsLoading(false);
     }
   };
-
-  // Fetch activities on initial mount if connected
-  useEffect(() => {
-    if (isConnected) {
-      console.log("useWahooData: Connected on mount, fetching activities");
-      fetchWahooActivities();
-    }
-  }, [isConnected]);
 
   return {
     isConnected,

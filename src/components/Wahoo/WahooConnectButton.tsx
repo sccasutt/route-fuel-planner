@@ -8,14 +8,14 @@ import { useWahooAuthPopup } from "./WahooAuthPopupHook";
 
 // OAuth constants
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
-const REDIRECT_URI = window.location.origin + "/wahoo-callback"; // Use app domain for callback
+// Use the Supabase Edge Function URL directly as the callback
+const REDIRECT_URI = "https://jxouzttcjpmmtclagbob.supabase.co/functions/v1/wahoo-oauth";
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
 
 export function WahooConnectButton() {
   const { toast } = useToast();
 
   const {
-    isConnecting,
     isConnected,
     disconnect,
   } = useWahooAuthPopup({
@@ -25,17 +25,25 @@ export function WahooConnectButton() {
 
   const handleConnect = async () => {
     try {
-      // No popup: redirect the user!
+      console.log("Starting Wahoo connect process");
       const clientId = await fetchWahooClientId();
       const state = Math.random().toString(36).substring(2, 10);
+      
+      // Store the state in localStorage for verification when the user returns
+      localStorage.setItem("wahoo_auth_state", state);
+      
       const authUrl =
         `${WAHOO_AUTH_URL}?response_type=code` +
         `&client_id=${encodeURIComponent(clientId)}` +
         `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
         `&scope=${encodeURIComponent(SCOPE)}` +
         `&state=${encodeURIComponent(state)}`;
+      
+      console.log("Redirecting to Wahoo authorization URL");
+      // Full page redirect to Wahoo's auth page
       window.location.href = authUrl;
-    } catch (error: any) {
+    } catch (error) {
+      console.error("Failed to connect to Wahoo:", error);
       toast({
         title: "Failed to connect to Wahoo",
         description: error?.message ?? "Please try again later or contact support.",
@@ -45,6 +53,7 @@ export function WahooConnectButton() {
   };
 
   const handleDisconnect = () => {
+    console.log("Disconnecting from Wahoo");
     disconnect();
     toast({
       title: "Wahoo Disconnected",

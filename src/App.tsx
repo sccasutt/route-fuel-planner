@@ -14,6 +14,7 @@ import RouteDetail from "./pages/RouteDetail";
 import NotFound from "./pages/NotFound";
 import PreQuestionnaire from "./pages/PreQuestionnaire";
 import AuthPage from "./pages/Auth";
+import WahooCallback from "./pages/WahooCallback";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/routes/:id" element={<RouteDetail />} />
+            <Route path="/wahoo-callback" element={<WahooCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
