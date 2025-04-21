@@ -18,12 +18,15 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.split('/').pop();
   
+  console.log("Request to wahoo-oauth edge function:", { path, method: req.method });
+  
   // Route to get the client ID (keeps it secure)
   if (path === "get-client-id") {
     try {
       const clientId = Deno.env.get("WAHOO_CLIENT_ID");
       
       if (!clientId) {
+        console.error("Wahoo client ID not configured");
         return new Response(
           JSON.stringify({ error: "Wahoo client ID not configured." }),
           { 
@@ -33,6 +36,7 @@ Deno.serve(async (req) => {
         );
       }
       
+      console.log("Successfully retrieved client ID");
       return new Response(
         JSON.stringify({ clientId }),
         { 

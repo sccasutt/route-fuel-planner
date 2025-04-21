@@ -23,19 +23,25 @@ export function WahooConnectButton() {
       });
       
       if (error) {
+        console.error("Error invoking function:", error);
         throw new Error(`Failed to fetch client ID: ${error.message}`);
       }
+      
+      console.log("Response from edge function:", data);
       
       if (!data || !data.clientId) {
         throw new Error("No client ID returned from server");
       }
       
       // Redirect to Wahoo authorization page
-      window.location.href =
+      const authUrl = 
         `${WAHOO_AUTH_URL}?response_type=code` +
         `&client_id=${encodeURIComponent(data.clientId)}` +
         `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
         `&scope=${encodeURIComponent(SCOPE)}`;
+      
+      console.log("Redirecting to Wahoo auth URL:", authUrl);
+      window.location.href = authUrl;
     } catch (error) {
       console.error("Error initiating Wahoo connection:", error);
       toast({
