@@ -6,8 +6,11 @@ const corsHeaders = {
   "Content-Type": "application/json"
 };
 
-// Updated to the correct Wahoo API domain
-const WAHOO_TOKEN_URL = "https://api.wahooligan.com/oauth/token";
+// Try both possible Wahoo API domains
+const WAHOO_TOKEN_URLS = [
+  "https://api.wahooligan.com/oauth/token",
+  "https://api.wahoofitness.com/oauth/token" // Alternative domain
+];
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -18,7 +21,12 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.split('/').pop();
   
-  console.log("Request to wahoo-oauth edge function:", { path, method: req.method, url: url.toString() });
+  console.log("Request to wahoo-oauth edge function:", { 
+    path, 
+    method: req.method, 
+    url: url.toString(),
+    headers: Object.fromEntries([...req.headers]),
+  });
   
   // Route to get the client ID (keeps it secure)
   if (path === "get-client-id") {
@@ -85,36 +93,65 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log("Exchanging code for token with Wahoo API");
+    console.log("Attempting to exchange code for token");
     console.log(`Redirect URI being used: ${redirectUri}`);
     
-    // Exchange code for token (according to Wahoo API docs)
-    const tokenRes = await fetch(WAHOO_TOKEN_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: redirectUri,
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    });
+    let tokenData = null;
+    let tokenError = null;
+    
+    // Try each token URL until one works
+    for (const tokenUrl of WAHOO_TOKEN_URLS) {
+      try {
+        console.log(`Trying to exchange token with ${tokenUrl}`);
+        
+        // Exchange code for token
+        const tokenRes = await fetch(tokenUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            grant_type: "authorization_code",
+            code,
+            redirect_uri: redirectUri,
+            client_id: clientId,
+            client_secret: clientSecret,
+          }),
+        });
 
-    if (!tokenRes.ok) {
-      const errorText = await tokenRes.text();
-      console.error("Token exchange failed:", {
-        status: tokenRes.status,
-        statusText: tokenRes.statusText,
-        body: errorText
-      });
+        if (!tokenRes.ok) {
+          const errorText = await tokenRes.text();
+          console.warn(`Token exchange failed with ${tokenUrl}:`, {
+            status: tokenRes.status,
+            statusText: tokenRes.statusText,
+            body: errorText
+          });
+          tokenError = {
+            url: tokenUrl,
+            status: tokenRes.status,
+            text: errorText
+          };
+          // Try the next URL
+          continue;
+        }
+
+        // If we got here, the exchange was successful
+        tokenData = await tokenRes.json();
+        console.log(`Token successfully obtained from ${tokenUrl}`);
+        break;
+      } catch (fetchError) {
+        console.warn(`Network error with ${tokenUrl}:`, fetchError);
+        // Try the next URL
+      }
+    }
+    
+    // If no token URL worked
+    if (!tokenData) {
+      console.error("All token URLs failed", tokenError);
       return new Response(
         JSON.stringify({ 
-          error: "Token exchange failed", 
-          status: tokenRes.status,
-          details: errorText 
+          error: "All token exchange attempts failed", 
+          details: tokenError 
         }), 
         {
           status: 500,
@@ -122,9 +159,6 @@ Deno.serve(async (req) => {
         }
       );
     }
-
-    const tokenData = await tokenRes.json();
-    console.log("Wahoo Token Received");
 
     // Store the token data in Supabase for this user
     // This step would typically involve:
