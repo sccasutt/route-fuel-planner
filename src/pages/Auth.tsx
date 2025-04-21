@@ -36,6 +36,10 @@ const AuthPage = () => {
     if (mode === "signup") {
       const { email, password, name, age, weight, goal_type, diet_type } = form;
 
+      // Get the current site URL dynamically
+      const siteUrl = window.location.origin;
+      console.log("Using redirect URL:", siteUrl + "/auth");
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -47,7 +51,7 @@ const AuthPage = () => {
             goal_type: goal_type || null,
             diet_type: diet_type || null,
           },
-          emailRedirectTo: window.location.origin + "/auth",
+          emailRedirectTo: siteUrl + "/auth",
         },
       });
 

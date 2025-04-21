@@ -16,7 +16,9 @@ export const supabase = createClient<Database>(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      storage: localStorage
+      storage: localStorage,
+      // Remove 'localhost' from the default redirect URL
+      flowType: 'pkce'
     }
   }
 );
