@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -16,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
+import { createClient } from "@supabase/supabase-js";
 
 // Pre-questionnaire schema using zod
 const questionnaireSchema = z.object({
@@ -29,9 +29,6 @@ const questionnaireSchema = z.object({
 
 type QuestionnaireForm = z.infer<typeof questionnaireSchema>;
 
-// Supabase
-import { createClient } from "@supabase/supabase-js";
-
 // Optionally use env vars, or import main Supabase client if you have one.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -43,6 +40,7 @@ const GOALS = [
   { value: "performance", label: "Performance Optimization" },
   { value: "weight", label: "Weight Management" },
 ];
+
 const DIET_TYPES = [
   { value: "none", label: "No Preference" },
   { value: "vegetarian", label: "Vegetarian" },
