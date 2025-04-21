@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +21,7 @@ const AuthPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [showWahooConnect, setShowWahooConnect] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -35,8 +35,6 @@ const AuthPage = () => {
 
     if (mode === "signup") {
       const { email, password, name, age, weight, goal_type, diet_type } = form;
-
-      // Get the current site URL dynamically
       const siteUrl = window.location.origin;
       console.log("Using redirect URL:", siteUrl + "/auth");
 
@@ -60,18 +58,15 @@ const AuthPage = () => {
       if (error) {
         toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
       } else if (data?.user?.identities?.length === 0) {
-        // User already exists but hasn't confirmed their email
         toast({ 
           title: "Account already exists", 
           description: "This email is already registered. Please check your inbox for the confirmation email or try signing in.",
           duration: 6000
         });
       } else if (data?.user?.email_confirmed_at) {
-        // Email already confirmed, user can login directly
         toast({ title: "Sign up successful", description: "You are now logged in." });
-        navigate("/dashboard");
+        setShowWahooConnect(true);
       } else {
-        // New signup, needs email confirmation
         setConfirmationSent(true);
         toast({ 
           title: "Verification email sent", 
@@ -80,7 +75,6 @@ const AuthPage = () => {
         });
       }
     } else {
-      // login
       const { email, password } = form;
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
@@ -101,6 +95,36 @@ const AuthPage = () => {
       }
     }
   };
+
+  if (showWahooConnect) {
+    return (
+      <Layout>
+        <div className="container max-w-md mx-auto py-12">
+          <div className="space-y-8 text-center">
+            <h1 className="text-3xl font-bold">Sign up successful!</h1>
+            <p className="text-muted-foreground">
+              You can connect your Wahoo account now, or do this later from your dashboard.
+            </p>
+            <div className="flex flex-col items-center gap-4">
+              <div>
+                {/** @ts-ignore */}
+                {require("../components/WahooConnectButton").WahooConnectButton 
+                  ? require("../components/WahooConnectButton").WahooConnectButton()
+                  : null}
+              </div>
+              <Button 
+                onClick={() => navigate("/dashboard")} 
+                variant="secondary"
+                className="mt-4"
+              >
+                Skip for now
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (confirmationSent) {
     return (

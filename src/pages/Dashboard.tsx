@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -7,6 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Bike, Calendar, Clock, LineChart, Map, Route, Utensils, ArrowRight, Droplet, BarChart, TrendingUp } from "lucide-react";
+
+// Add import for WahooConnectButton
+import { WahooConnectButton } from "@/components/WahooConnectButton";
 
 // Sample data
 const sampleRoutes = [
@@ -46,6 +48,30 @@ const Dashboard = () => {
     <Layout>
       <div className="container py-8">
         <h1 className="text-3xl font-bold mb-6">Your Dashboard</h1>
+
+        {/* New Connected Accounts tile */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div>
+            <div className="rounded-lg border bg-card p-6 shadow-sm">
+              <div className="mb-2 font-semibold text-lg flex items-center gap-2">
+                {/* Use lucide link icon as "connected accounts" */}
+                <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24">
+                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 1 7.072 0l1.414 1.414a5 5 0 1 1-7.072 7.072l-1.414-1.414" />
+                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M14 11a5 5 0 0 0-7.072 0l-1.414 1.414a5 5 0 1 0 7.072 7.072l1.414-1.414" />
+                </svg>
+                Connected Accounts
+              </div>
+              <p className="text-muted-foreground mb-4 text-sm">
+                Link your training platforms for easier activity and nutrition syncing.
+              </p>
+              <div className="flex gap-3 flex-wrap">
+                <WahooConnectButton />
+                {/* In the future, add more platform buttons here */}
+              </div>
+            </div>
+          </div>
+          {/* you can add other dashboard cards here if needed */}
+        </div>
 
         <Tabs defaultValue="overview" onValueChange={setSelectedTab} className="space-y-8">
           <TabsList className="grid grid-cols-3 md:w-[400px]">
