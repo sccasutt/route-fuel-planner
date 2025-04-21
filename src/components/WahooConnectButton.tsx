@@ -18,6 +18,14 @@ export function WahooConnectButton() {
   const [isConnected, setIsConnected] = useState(false);
   const [authWindow, setAuthWindow] = useState<Window | null>(null);
   
+  // Check if we already have a Wahoo access token in local storage on mount
+  useEffect(() => {
+    const hasWahooToken = localStorage.getItem("wahoo_token");
+    if (hasWahooToken) {
+      setIsConnected(true);
+    }
+  }, []);
+  
   // Add event listener for message from popup
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -27,6 +35,9 @@ export function WahooConnectButton() {
         setIsConnecting(false);
         setStatusMessage("");
         setIsConnected(true);
+        
+        // Store a flag that we're connected to Wahoo
+        localStorage.setItem("wahoo_token", "connected");
         
         toast({
           title: "Wahoo Connected",
@@ -131,14 +142,20 @@ export function WahooConnectButton() {
         `width=${popupWidth},height=${popupHeight},left=${left},top=${top},menubar=no,toolbar=no,location=yes,status=no,resizable=yes`
       );
       
-      setAuthWindow(popup);
-      
       // Check if popup was blocked
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
         setIsConnecting(false);
         setStatusMessage("");
-        throw new Error("Popup was blocked by the browser. Please allow popups for this site.");
+        
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for this site and try again.",
+          variant: "destructive",
+        });
+        return;
       }
+      
+      setAuthWindow(popup);
       
       // Try to focus the popup window
       popup.focus();
@@ -173,20 +190,56 @@ export function WahooConnectButton() {
     }
   };
 
+  const handleDisconnect = () => {
+    // Remove the Wahoo token from local storage
+    localStorage.removeItem("wahoo_token");
+    setIsConnected(false);
+    
+    toast({
+      title: "Wahoo Disconnected",
+      description: "Your Wahoo account has been disconnected.",
+    });
+  };
+
   return (
     <div className="flex flex-col gap-2">
-      <Button 
-        variant={isConnected ? "default" : "outline"}
-        className="gap-2" 
-        onClick={handleConnect}
-        disabled={isConnecting || isConnected}
-      >
-        {/* Wahoo logo */}
-        <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none">
-          <path d="M12 17.5L6 14.5V8L12 5L18 8V14.5L12 17.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {isConnecting ? "Connecting..." : isConnected ? "Wahoo Connected" : "Connect Wahoo"}
-      </Button>
+      {!isConnected ? (
+        <Button 
+          variant="outline"
+          className="gap-2" 
+          onClick={handleConnect}
+          disabled={isConnecting}
+        >
+          {/* Wahoo logo */}
+          <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none">
+            <path d="M12 17.5L6 14.5V8L12 5L18 8V14.5L12 17.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {isConnecting ? "Connecting..." : "Connect Wahoo"}
+        </Button>
+      ) : (
+        <div className="flex gap-2">
+          <Button 
+            variant="default"
+            className="gap-2" 
+            disabled
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+              <path d="M12 17.5L6 14.5V8L12 5L18 8V14.5L12 17.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Wahoo Connected
+          </Button>
+          <Button 
+            variant="outline"
+            size="icon"
+            onClick={handleDisconnect}
+            title="Disconnect Wahoo"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </Button>
+        </div>
+      )}
       {statusMessage && (
         <p className="text-xs text-muted-foreground">{statusMessage}</p>
       )}
