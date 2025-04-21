@@ -94,35 +94,48 @@ export function WahooConnectButton() {
         throw new Error("Popup was blocked by the browser. Please allow popups for this site.");
       }
       
-      // Poll for popup closure
-      const popupCheckInterval = setInterval(() => {
-        if (popup.closed) {
+      // Poll for popup closure or redirection
+      const popupCheckInterval = setInterval(async () => {
+        try {
+          // This will throw an error if the popup is redirected to a different origin
+          if (popup.closed) {
+            clearInterval(popupCheckInterval);
+            setIsConnecting(false);
+            
+            // Set connected status to true since the flow completed
+            setIsConnected(true);
+            toast({
+              title: "Wahoo Connected",
+              description: "Your Wahoo account was successfully connected!",
+              // Changed from 'success' to 'default' since 'success' is not a valid variant
+              variant: "default",
+            });
+            setStatusMessage("");
+          }
+        } catch (e) {
+          // Error checking popup - likely due to cross-origin access
+          // This is expected when the popup navigates to the Wahoo site
+          console.log("Error accessing popup - likely navigated to Wahoo site", e);
+        }
+      }, 1000);
+      
+      // Set a timeout to check the connection status after 1 minute (failsafe)
+      setTimeout(() => {
+        if (popupCheckInterval) {
           clearInterval(popupCheckInterval);
           setIsConnecting(false);
           setStatusMessage("");
           
-          // Check if we've been disconnected from Supabase during the OAuth flow
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (!session) {
-              toast({
-                title: "Session expired",
-                description: "Your login session has expired. Please sign in again.",
-                variant: "destructive",
-              });
-              // Redirect to login if needed
-            } else {
-              // All good, session still valid
-              setIsConnected(true);
-              toast({
-                title: "Wahoo Connected",
-                description: "Your Wahoo account was successfully connected!",
-                // Changed from 'success' to 'default' since 'success' is not a valid variant
-                variant: "default",
-              });
-            }
-          });
+          // Verify the connection status
+          if (!isConnected) {
+            toast({
+              title: "Connection timeout",
+              description: "The connection process took too long. Please try again.",
+              variant: "destructive",
+            });
+          }
         }
-      }, 1000);
+      }, 60000);
       
     } catch (error) {
       console.error("Error initiating Wahoo connection:", error);

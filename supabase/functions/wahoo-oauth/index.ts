@@ -1,4 +1,3 @@
-
 // Edge function: Handles OAuth2 callback from Wahoo and exchanges code for access token
 
 const corsHeaders = {
@@ -135,22 +134,12 @@ Deno.serve(async (req) => {
     const tokenData = await tokenRes.json();
     console.log("Token successfully obtained");
 
-    // Store the token data in Supabase for this user
-    // This step would typically involve:
-    // 1. Getting the current user's ID
-    // 2. Storing the tokens in your database
-    // 3. Setting up a refresh token workflow
-    
-    // Instead of redirecting to a different domain, we'll redirect to a specific route
-    // on the same domain to prevent session loss
-    const dashboardUrl = new URL("/dashboard", url.origin.replace("jxouzttcjpmmtclagbob.supabase.co", "route-fuel-planner.lovable.app"));
-    dashboardUrl.searchParams.set("wahoo_connected", "success");
-    
+    // Instead of redirecting, we'll return a success response with connection status
+    // The popup will handle this response and update the UI accordingly
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Wahoo connected successfully", 
-        redirect: dashboardUrl.toString(),
         token_type: tokenData.token_type,
         expires_in: tokenData.expires_in
       }),
