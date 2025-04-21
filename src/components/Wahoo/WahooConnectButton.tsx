@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { WahooLogoIcon, DisconnectIcon } from "./WahooIcons";
@@ -24,10 +24,23 @@ export function WahooConnectButton() {
     disconnect,
   } = useWahooAuthPopup({
     onConnect: () => {
+      console.log("WahooConnectButton: Connection successful");
       setConnectionError(null);
+      toast({
+        title: "Wahoo verbunden",
+        description: "Ihr Wahoo-Konto wurde verbunden."
+      });
     },
-    onError: () => {},
+    onError: (error) => {
+      console.error("WahooConnectButton: Connection error", error);
+      setConnectionError(error);
+    },
   });
+
+  // Debug log for connection state
+  useEffect(() => {
+    console.log("WahooConnectButton: Connection state changed:", isConnected);
+  }, [isConnected]);
 
   const handleConnect = async () => {
     try {
@@ -41,9 +54,12 @@ export function WahooConnectButton() {
         throw new Error("Die Client-ID für Wahoo konnte nicht abgerufen werden");
       }
       
+      // Generate and store state parameter for CSRF protection
       const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       localStorage.setItem("wahoo_auth_state", state);
+      console.log("Stored auth state:", state);
 
+      // Build the complete authorization URL 
       const authUrl =
         `${WAHOO_AUTH_URL}?response_type=code` +
         `&client_id=${encodeURIComponent(clientId)}` +
@@ -51,7 +67,7 @@ export function WahooConnectButton() {
         `&scope=${encodeURIComponent(SCOPE)}` +
         `&state=${encodeURIComponent(state)}`;
 
-      console.log("Redirecting to Wahoo authorization URL");
+      console.log("Redirecting to Wahoo authorization URL:", authUrl);
       window.location.href = authUrl;
     } catch (error) {
       console.error("Error initiating Wahoo connection:", error);

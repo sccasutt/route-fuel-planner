@@ -30,7 +30,7 @@ export async function syncWahooProfileAndRoutes(tokenObj: { access_token: string
       throw new Error(error.message || "Fehler bei der Synchronisation mit Wahoo");
     }
     
-    console.log("Wahoo sync completed successfully");
+    console.log("Wahoo sync completed successfully:", data);
     return data;
   } catch (err) {
     console.error("Exception during Wahoo sync:", err);

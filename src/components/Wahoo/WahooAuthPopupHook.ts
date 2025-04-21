@@ -10,67 +10,76 @@ export function useWahooAuthPopup({
 }) {
   const [isConnected, setIsConnected] = useState(false);
 
-  // Check for connection on initial load
+  // Check for connection on initial load and validate token
   useEffect(() => {
     console.log("useWahooAuthPopup: Checking initial connection state");
-    const hasWahooToken = localStorage.getItem("wahoo_token");
-    setIsConnected(!!hasWahooToken);
+    
+    const checkToken = () => {
+      try {
+        const tokenString = localStorage.getItem("wahoo_token");
+        if (!tokenString) {
+          console.log("No Wahoo token found");
+          setIsConnected(false);
+          return false;
+        }
+        
+        const token = JSON.parse(tokenString);
+        const isValid = token && token.access_token && (!token.expires_at || token.expires_at > Date.now());
+        
+        console.log("Wahoo token validation:", isValid ? "valid" : "invalid or expired");
+        setIsConnected(isValid);
+        return isValid;
+      } catch (error) {
+        console.error("Error checking Wahoo token:", error);
+        setIsConnected(false);
+        return false;
+      }
+    };
+    
+    // Run initial check
+    checkToken();
   }, []);
 
-  // Listen for storage changes (for cross-tab synchronization)
+  // Listen for events that indicate connection changes
   useEffect(() => {
     console.log("useWahooAuthPopup: Setting up event listeners");
     
     const handleStorageChange = (event: StorageEvent) => {
-      console.log("useWahooAuthPopup: Storage event detected", event.key, event.newValue);
+      console.log("useWahooAuthPopup: Storage event detected", event.key, event.newValue ? "has value" : "empty");
+      
       if (event.key === "wahoo_token") {
-        setIsConnected(!!event.newValue);
-        if (event.newValue && onConnect) {
+        const hasToken = !!event.newValue;
+        setIsConnected(hasToken);
+        
+        if (hasToken && onConnect) {
           onConnect();
+        } else if (!hasToken && onError) {
+          onError("Wahoo-Verbindung getrennt");
         }
       }
     };
     
-    const handleCustomEvent = (event: Event) => {
+    const handleCustomEvent = () => {
       console.log("useWahooAuthPopup: Custom event detected");
-      const hasToken = localStorage.getItem("wahoo_token");
-      setIsConnected(!!hasToken);
-      if (hasToken && onConnect) {
-        onConnect();
+      
+      try {
+        const tokenString = localStorage.getItem("wahoo_token");
+        const hasValidToken = tokenString && JSON.parse(tokenString).access_token;
+        
+        console.log("Custom event token check:", hasValidToken ? "valid" : "invalid or missing");
+        setIsConnected(!!hasValidToken);
+        
+        if (hasValidToken && onConnect) {
+          onConnect();
+        }
+      } catch (error) {
+        console.error("Error processing custom event:", error);
+        setIsConnected(false);
       }
     };
     
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("wahoo_connection_changed", handleCustomEvent);
-    
-    // Also check URL parameters on load for any Wahoo auth response
-    // This handles the case when redirected back from the Supabase Edge Function
-    const url = new URL(window.location.href);
-    const wahooSuccess = url.searchParams.get("wahoo_success");
-    const wahooError = url.searchParams.get("wahoo_error");
-    
-    if (wahooSuccess === "true") {
-      console.log("useWahooAuthPopup: Detected successful auth in URL");
-      localStorage.setItem("wahoo_token", "connected");
-      window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
-      
-      // Clean up URL parameters
-      url.searchParams.delete("wahoo_success");
-      window.history.replaceState({}, document.title, url.toString());
-      
-      if (onConnect) {
-        onConnect();
-      }
-    } else if (wahooError) {
-      console.error("useWahooAuthPopup: Auth error detected in URL:", wahooError);
-      if (onError) {
-        onError(wahooError);
-      }
-      
-      // Clean up URL parameters
-      url.searchParams.delete("wahoo_error");
-      window.history.replaceState({}, document.title, url.toString());
-    }
     
     return () => {
       window.removeEventListener("storage", handleStorageChange);

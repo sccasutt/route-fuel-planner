@@ -18,7 +18,7 @@ export async function fetchWahooClientId() {
       throw new Error("No client ID returned from server");
     }
     
-    console.log("Successfully fetched Wahoo client ID");
+    console.log("Successfully fetched Wahoo client ID:", data.clientId.substring(0, 5) + "...");
     return data.clientId;
   } catch (err) {
     console.error("Exception fetching Wahoo client ID:", err);
@@ -37,6 +37,11 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     if (error) {
       console.error("Error exchanging code for token:", error);
       throw new Error(error.message || "Failed to exchange code for token");
+    }
+    
+    if (!data || !data.access_token) {
+      console.error("Invalid token response:", data);
+      throw new Error("Invalid token response from server");
     }
     
     console.log("Successfully exchanged code for token");
