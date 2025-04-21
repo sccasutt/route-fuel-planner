@@ -86,15 +86,15 @@ const Register = () => {
 
   const onSubmit = (data: RegisterForm) => {
     console.log("Form submitted:", data);
-    
+
     toast({
       title: "Account created!",
       description: "You've successfully registered for PedalPlate.",
     });
 
-    // Simulate successful registration
+    // Redirect to pre-questionnaire instead of dashboard
     setTimeout(() => {
-      navigate("/dashboard");
+      navigate("/pre-questionnaire");
     }, 1500);
   };
 
