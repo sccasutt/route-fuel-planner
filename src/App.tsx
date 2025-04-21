@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import RouteDetail from "./pages/RouteDetail";
 import NotFound from "./pages/NotFound";
 import PreQuestionnaire from "./pages/PreQuestionnaire";
+import AuthPage from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<AuthPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pre-questionnaire" element={<PreQuestionnaire />} />
