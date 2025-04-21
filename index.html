@@ -17,10 +17,13 @@
     <meta name="twitter:site" content="@PedalPlate" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
+    <!-- Font preloading for better performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Removed preload links that were causing warnings -->
+    
+    <!-- Ensure the stylesheet is loaded before rendering -->
+    <link rel="stylesheet" href="/src/index.css" />
   </head>
 
   <body>

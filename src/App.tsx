@@ -16,6 +16,9 @@ import PreQuestionnaire from "./pages/PreQuestionnaire";
 import AuthPage from "./pages/Auth";
 import WahooCallback from "./pages/WahooCallback";
 
+// Import CSS to ensure styles are loaded
+import "./index.css";
+
 const queryClient = new QueryClient();
 
 const App = () => (

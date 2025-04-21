@@ -84,9 +84,25 @@ const Index = () => {
           ))}
         </div>
       </section>
+
+      {/* Call to action */}
+      <section className="bg-muted py-16">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">Start optimizing your cycling nutrition today</h2>
+          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Join PedalPlate and discover how personalized nutrition can improve your cycling performance.
+          </p>
+          {!user && (
+            <Link to="/auth">
+              <Button size="lg" className="rounded-full px-8">
+                Sign Up Now
+              </Button>
+            </Link>
+          )}
+        </div>
+      </section>
     </Layout>
   );
 };
 
 export default Index;
-
