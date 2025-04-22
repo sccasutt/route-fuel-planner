@@ -40,34 +40,49 @@ export function WahooConnectButton() {
     try {
       setIsConnecting(true);
       setConnectionError(null);
+      
+      // Clean up any existing token data to ensure fresh state
       localStorage.removeItem("wahoo_token");
       localStorage.removeItem("wahoo_auth_state");
+      
       const clientId = await fetchWahooClientId();
       if (!clientId) {
         throw new Error("Could not retrieve Wahoo Client ID");
       }
-      // More random/secure state parameter
-      const stateArray = new Uint8Array(24);
+      
+      // Generate a secure state value for CSRF protection
+      const stateArray = new Uint8Array(16);
       window.crypto.getRandomValues(stateArray);
       const state = Array.from(stateArray)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
+      // Store the state with timestamp
       const stateData = {
         value: state,
         created: Date.now()
       };
       localStorage.setItem("wahoo_auth_state", JSON.stringify(stateData));
-      const authUrl =
-        `${WAHOO_AUTH_URL}?response_type=code` +
-        `&client_id=${encodeURIComponent(clientId)}` +
-        `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-        `&scope=${encodeURIComponent(SCOPE)}` +
-        `&state=${encodeURIComponent(state)}`;
-
-      window.location.href = authUrl;
+      
+      // Log the redirect URI for debugging
+      console.log(`[${instanceId}] Constructing auth URL with redirect URI:`, REDIRECT_URI);
+      
+      // Properly encode all parts of the URL
+      const authUrl = new URL(WAHOO_AUTH_URL);
+      authUrl.searchParams.append("response_type", "code");
+      authUrl.searchParams.append("client_id", clientId);
+      authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
+      authUrl.searchParams.append("scope", SCOPE);
+      authUrl.searchParams.append("state", state);
+      
+      console.log(`[${instanceId}] Redirecting to Wahoo auth URL:`, authUrl.toString());
+      
+      // Redirect to the authorization URL
+      window.location.href = authUrl.toString();
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[${instanceId}] Wahoo connection error:`, errorMsg);
+      
       if (
         errorMsg.includes("connection") ||
         errorMsg.includes("timeout") ||
@@ -77,11 +92,13 @@ export function WahooConnectButton() {
       } else {
         setConnectionError(errorMsg || "Failed to connect to Wahoo");
       }
+      
       toast({
         title: "Failed to connect to Wahoo",
         description: errorMsg || "Please try again later.",
         variant: "destructive",
       });
+      
       setIsConnecting(false);
     }
   };
