@@ -1,3 +1,4 @@
+
 import { useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { exchangeCodeForToken } from "@/components/Wahoo/WahooApi";
@@ -6,8 +7,13 @@ import { validateWahooAuthState } from "./validateWahooAuthState";
 import { useWahooCallbackToasts } from "./wahooCallbackToasts";
 import { useAuth } from "@/hooks/useAuth";
 
-// Constants - make sure this matches exactly what's configured in Wahoo
-const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
+// Get the redirect URI by checking the current environment
+function getRedirectUri() {
+  // In a real deployment, use window.location.origin
+  const baseUrl = window.location.origin;
+  const path = "/wahoo-callback";
+  return `${baseUrl}${path}`;
+}
 
 interface UseProcessWahooCallbackOptions {
   setStatus: (s: string) => void;
@@ -22,7 +28,7 @@ export function useProcessWahooCallback({
   const location = useLocation();
   const { errorToast, successToast } = useWahooCallbackToasts();
   const { user } = useAuth();
-
+  
   const processCallback = useCallback(async () => {
     try {
       const searchParams = new URLSearchParams(location.search);
@@ -31,6 +37,7 @@ export function useProcessWahooCallback({
       const errorDesc = searchParams.get("error_description");
       const stateFromURL = searchParams.get("state");
       const storedStateJSON = localStorage.getItem("wahoo_auth_state");
+      const redirectUri = getRedirectUri();
 
       // Debug info
       console.log("WahooCallback: Callback params:", {
@@ -38,6 +45,7 @@ export function useProcessWahooCallback({
         hasError: !!authError,
         hasStateFromURL: !!stateFromURL,
         hasStoredState: !!storedStateJSON,
+        redirectUri,
         urlParams: Object.fromEntries(searchParams.entries()),
       });
 
@@ -82,10 +90,10 @@ export function useProcessWahooCallback({
       // 4. Exchange code for token and store token
       setStatus("Connecting to your Wahoo account...");
       console.log("WahooCallback: Valid authorization code received, exchanging for token");
-      console.log("Using redirect URI:", REDIRECT_URI);
+      console.log("Using redirect URI:", redirectUri);
       let tokenData;
       try {
-        tokenData = await exchangeCodeForToken(code, REDIRECT_URI);
+        tokenData = await exchangeCodeForToken(code, redirectUri);
         if (!tokenData || !tokenData.access_token)
           throw new Error("Invalid token response from server");
           

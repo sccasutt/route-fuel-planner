@@ -1,5 +1,5 @@
 
-export const MAX_STATE_AGE = 15 * 60 * 1000;
+export const MAX_STATE_AGE = 15 * 60 * 1000; // 15 minutes
 
 export interface WahooStateData {
   value: string;
@@ -17,15 +17,17 @@ export function validateWahooAuthState(
   stateFromURL: string | null,
   storedStateJSON: string | null
 ): StateValidationResult {
+  // No state in URL - this could be a direct page access
   if (!stateFromURL) {
     return {
       valid: false,
       reason: "missing-url-state",
-      title: "Security error",
-      description: "Missing authorization state in response",
+      title: "Missing state parameter",
+      description: "No authorization state was provided in the response",
     };
   }
 
+  // No stored state - could be expired or first time access
   if (!storedStateJSON) {
     return {
       valid: false,
@@ -36,6 +38,7 @@ export function validateWahooAuthState(
     };
   }
 
+  // Validate stored state format
   let storedState: WahooStateData;
   try {
     storedState = JSON.parse(storedStateJSON);
@@ -44,29 +47,30 @@ export function validateWahooAuthState(
       valid: false,
       reason: "parse-fail",
       title: "Security error",
-      description: "Invalid state data",
+      description: "Invalid state data in browser session",
     };
   }
 
+  // Check if state is expired
   const stateAge = Date.now() - storedState.created;
   if (stateAge > MAX_STATE_AGE) {
     return {
       valid: false,
       reason: "expired",
-      title: "Security error",
-      description: "Authorization request expired. Please try again.",
+      title: "Session expired",
+      description: "Your authorization session has expired. Please try again.",
     };
   }
 
+  // Check if state matches
   if (stateFromURL !== storedState.value) {
     return {
       valid: false,
       reason: "state-mismatch",
       title: "Security error",
-      description: "Authorization validation failed",
+      description: "Authorization state validation failed",
     };
   }
 
   return { valid: true };
 }
-

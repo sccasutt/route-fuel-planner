@@ -9,15 +9,22 @@ import { WahooErrorAlert } from "./WahooErrorAlert";
 import { WahooResyncButton } from "./WahooResyncButton";
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
-// Make sure this exactly matches what's configured in Wahoo
-const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
+
+// Get the redirect URI by checking the current environment
+function getRedirectUri() {
+  // In a real deployment, use window.location.origin
+  const baseUrl = window.location.origin;
+  const path = "/wahoo-callback";
+  return `${baseUrl}${path}`;
+}
 
 export function WahooConnectButton() {
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [instanceId] = useState(`connect-btn-${Math.random().toString(36).substring(2, 9)}`);
+  const [redirectUri] = useState(getRedirectUri());
 
   const {
     isConnected,
@@ -66,13 +73,13 @@ export function WahooConnectButton() {
       localStorage.setItem("wahoo_auth_state", JSON.stringify(stateData));
       
       // Print actual redirect URI for debugging
-      console.log(`[${instanceId}] Configured redirect URI:`, REDIRECT_URI);
+      console.log(`[${instanceId}] Using redirect URI:`, redirectUri);
       
       // Construct authentication URL with proper encoding
       const authUrl = new URL(WAHOO_AUTH_URL);
       authUrl.searchParams.append("response_type", "code");
       authUrl.searchParams.append("client_id", clientId);
-      authUrl.searchParams.append("redirect_uri", REDIRECT_URI);
+      authUrl.searchParams.append("redirect_uri", redirectUri);
       authUrl.searchParams.append("scope", SCOPE);
       authUrl.searchParams.append("state", state);
       
