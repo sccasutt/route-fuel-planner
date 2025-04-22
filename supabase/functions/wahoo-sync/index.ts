@@ -15,16 +15,32 @@ function parseJwt(token) {
 
 async function parseRequestJson(req) {
   try {
+    // FIXED: Improved request body parsing
+    if (req.bodyUsed) {
+      // If the body has already been used, we can't read it again
+      console.error("Request body has already been read");
+      throw new Error("Request body has already been read");
+    }
+
+    // Check if there's content type and length
+    const contentType = req.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      console.warn("Request content-type is not application/json:", contentType);
+    }
+
+    // Get the raw body as text
     const text = await req.text();
+    console.log("Request body raw length:", text ? text.length : 0);
+    
     if (!text || text.trim() === '') {
       throw new Error("Empty request body");
     }
     
-    console.log("Request body content length:", text.length);
     try {
+      // Try to parse as JSON
       return JSON.parse(text);
     } catch (jsonError) {
-      console.error("JSON parse error:", jsonError);
+      console.error("JSON parse error:", jsonError, "Raw body:", text);
       throw new Error("Invalid JSON in request body");
     }
   } catch (err) {

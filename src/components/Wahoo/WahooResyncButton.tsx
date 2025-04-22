@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { syncWahooProfileAndRoutes } from "./WahooSyncApi";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WahooResyncButtonProps {
   setConnectionError: (v: string | null) => void;
@@ -11,17 +12,25 @@ interface WahooResyncButtonProps {
 export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth(); // Added user check
 
   const handleResync = async () => {
     setIsSyncing(true);
     setConnectionError(null);
     try {
+      // First check if user is logged in
+      if (!user) {
+        throw new Error("You must be logged in to sync Wahoo data");
+      }
+
       const wahooTokenString = localStorage.getItem("wahoo_token");
       if (!wahooTokenString) throw new Error("No Wahoo token found");
       
       const token = JSON.parse(wahooTokenString);
       
-      // Check if we have an auth session before syncing
+      // Explicitly log we have an auth session before syncing
+      console.log("Starting Wahoo sync with authenticated user:", user.id);
+
       await syncWahooProfileAndRoutes(token);
 
       toast({ 
