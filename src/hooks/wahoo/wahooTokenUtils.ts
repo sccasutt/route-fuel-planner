@@ -5,6 +5,8 @@ export async function exchangeAndSaveToken(
   code: string,
   redirectUri: string
 ) {
+  console.log("Exchanging code for token with redirect URI:", redirectUri);
+  
   let tokenData;
   tokenData = await exchangeCodeForToken(code, redirectUri);
 

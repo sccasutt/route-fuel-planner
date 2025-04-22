@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -7,24 +6,17 @@ import { fetchWahooClientId } from "./WahooApi";
 import { useWahooAuthPopup } from "./WahooAuthPopupHook";
 import { WahooErrorAlert } from "./WahooErrorAlert";
 import { WahooResyncButton } from "./WahooResyncButton";
+import { useWahooRedirectUri } from "@/hooks/wahoo/useWahooRedirectUri";
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
-
-// Get the redirect URI by checking the current environment
-function getRedirectUri() {
-  // In a real deployment, use window.location.origin
-  const baseUrl = window.location.origin;
-  const path = "/wahoo-callback";
-  return `${baseUrl}${path}`;
-}
 
 export function WahooConnectButton() {
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [instanceId] = useState(`connect-btn-${Math.random().toString(36).substring(2, 9)}`);
-  const [redirectUri] = useState(getRedirectUri());
+  const redirectUri = useWahooRedirectUri();
 
   const {
     isConnected,
