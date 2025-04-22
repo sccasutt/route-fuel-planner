@@ -46,36 +46,12 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     };
     console.log("Debug - Request body before sending:", debugBody);
 
-    // Get access token for auth header
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-      console.error("Failed to get session for access token:", sessionError);
-      throw new Error("Could not get access token for sync.");
-    }
-    const accessToken = sessionData?.session?.access_token;
-    if (!accessToken) {
-      console.error("No access token available for function Authorization header");
-      throw new Error("No access token for authenticated request");
-    }
-
-    // CRITICAL FIX: Add Authorization header AND use correct types
-    const requestOptions = {
-      method: "POST" as const,
-      body: JSON.stringify(requestBody),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`
-      }
-    };
-
-    console.log("Invoking wahoo-sync function with options:", {
-      method: requestOptions.method,
-      bodyLength: JSON.stringify(requestBody).length,
-      contentType: requestOptions.headers["Content-Type"],
-      hasAuthorization: !!requestOptions.headers["Authorization"]
+    // No need to manually create authorization headers or serialize body!
+    // Supabase SDK will handle Content-Type, Authorization, and JSON.stringify.
+    console.log("Invoking wahoo-sync function via supabase.functions.invoke, letting SDK manage body and headers");
+    const { data, error } = await supabase.functions.invoke("wahoo-sync", {
+      body: requestBody
     });
-
-    const { data, error } = await supabase.functions.invoke("wahoo-sync", requestOptions);
 
     if (error) {
       console.error("Error syncing Wahoo data:", error);
