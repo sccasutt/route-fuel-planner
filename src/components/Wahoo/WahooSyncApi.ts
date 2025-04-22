@@ -39,27 +39,40 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     };
 
     // Log the complete request body for debugging (excluding tokens)
-    console.log("Debug - Request body before sending:", {
-      user_id: requestBody.user_id,
-      wahoo_user_id: requestBody.wahoo_user_id,
-      hasAccessToken: !!requestBody.access_token,
-      hasRefreshToken: !!requestBody.refresh_token
-    });
+    const debugBody = {
+      ...requestBody,
+      access_token: !!requestBody.access_token,
+      refresh_token: !!requestBody.refresh_token
+    };
+    console.log("Debug - Request body before sending:", debugBody);
 
-    // CRITICAL FIX: Ensure the body is properly stringified and has the correct content type
-    // Fix the TypeScript error by using the literal type "POST" instead of string
+    // Get access token for auth header
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.error("Failed to get session for access token:", sessionError);
+      throw new Error("Could not get access token for sync.");
+    }
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      console.error("No access token available for function Authorization header");
+      throw new Error("No access token for authenticated request");
+    }
+
+    // CRITICAL FIX: Add Authorization header AND use correct types
     const requestOptions = {
-      method: "POST" as const, // Use a type assertion to fix the error
+      method: "POST" as const,
       body: JSON.stringify(requestBody),
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`
       }
     };
-    
+
     console.log("Invoking wahoo-sync function with options:", {
       method: requestOptions.method,
       bodyLength: JSON.stringify(requestBody).length,
-      headers: requestOptions.headers
+      contentType: requestOptions.headers["Content-Type"],
+      hasAuthorization: !!requestOptions.headers["Authorization"]
     });
 
     const { data, error } = await supabase.functions.invoke("wahoo-sync", requestOptions);
