@@ -188,6 +188,9 @@ export function useProcessWahooCallback({
           setError(
             "Wahoo service is currently unavailable. Your connection is established, but your rides couldn't be synchronized. Please try to sync later."
           );
+        } else if (errMsg.includes("must be logged in")) {
+          setStatus("Connected, but you need to be logged in to sync your data.");
+          setError("Please log in to sync your Wahoo data.");
         } else {
           setStatus("Connected, but your rides couldn't be synchronized.");
           setError(errMsg || "Error synchronizing your rides from Wahoo");

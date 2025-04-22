@@ -20,6 +20,8 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
       if (!wahooTokenString) throw new Error("No Wahoo token found");
       
       const token = JSON.parse(wahooTokenString);
+      
+      // Check if we have an auth session before syncing
       await syncWahooProfileAndRoutes(token);
 
       toast({ 
@@ -44,6 +46,9 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
       } else if (errorMsg.includes("token")) {
         description = "Your Wahoo session has expired. Please reconnect.";
         clearToken = true;
+      } else if (errorMsg.includes("must be logged in")) {
+        description = "You need to log in to sync your Wahoo data.";
+        setConnectionError("Please log in to sync your Wahoo data.");
       }
 
       if (clearToken) {
