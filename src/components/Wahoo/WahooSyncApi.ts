@@ -30,30 +30,26 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     const userId = authData.user.id;
     console.log("Syncing Wahoo data for user ID:", userId);
     
-    if (!tokenObj.wahoo_user_id) {
-      console.warn("Warning: No Wahoo user ID provided for sync operation. Will attempt to fetch during sync.");
-    }
-    
-    // Create a properly formatted request body
+    // Create request body and log it for debugging
     const requestBody = {
       access_token: tokenObj.access_token,
       refresh_token: tokenObj.refresh_token,
       wahoo_user_id: tokenObj.wahoo_user_id || null,
       user_id: userId
     };
-    
+
     // Log the complete request body for debugging (excluding tokens)
-    console.log("Sending sync request with body:", {
-      wahoo_user_id: requestBody.wahoo_user_id,
+    console.log("Debug - Request body before sending:", {
       user_id: requestBody.user_id,
+      wahoo_user_id: requestBody.wahoo_user_id,
       hasAccessToken: !!requestBody.access_token,
       hasRefreshToken: !!requestBody.refresh_token
     });
-    
-    // FIXED: Ensure we're properly sending a JSON stringified body
+
+    // Ensure request body is properly stringified and content type is set
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {
       method: "POST",
-      body: JSON.stringify(requestBody), // Fix: Stringify the body explicitly
+      body: JSON.stringify(requestBody),
       headers: {
         "Content-Type": "application/json"
       }
@@ -61,16 +57,7 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
 
     if (error) {
       console.error("Error syncing Wahoo data:", error);
-      
-      // Enhanced error detection for various connection errors
-      if (error.message?.includes("connection") || 
-          error.message?.includes("timeout") ||
-          error.message?.includes("timed out") ||
-          error.message?.toLowerCase().includes("unavailable")) {
-        throw new Error("Connection to Wahoo service failed. The service may be temporarily unavailable.");
-      }
-      
-      throw new Error(error.message || "Error synchronizing with Wahoo");
+      throw error;
     }
     
     if (!data || (data.error && typeof data.error === 'string')) {
@@ -99,16 +86,6 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     return data;
   } catch (err) {
     console.error("Exception during Wahoo sync:", err);
-    
-    // Enhanced error detection for the caught exception
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    if (errorMessage.includes("connection") || 
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("timed out") ||
-        errorMessage.toLowerCase().includes("unavailable")) {
-      throw new Error("Connection to Wahoo service failed. The service may be temporarily unavailable.");
-    }
-    
     throw err;
   }
 }
