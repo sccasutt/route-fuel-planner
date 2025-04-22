@@ -1,4 +1,3 @@
-
 import { useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { exchangeCodeForToken } from "@/components/Wahoo/WahooApi";
@@ -7,8 +6,8 @@ import { validateWahooAuthState } from "./validateWahooAuthState";
 import { useWahooCallbackToasts } from "./wahooCallbackToasts";
 import { useAuth } from "@/hooks/useAuth";
 
-// Constants
-const REDIRECT_URI = window.location.origin + "/wahoo-callback";
+// Constants - make sure this matches exactly what's configured in Wahoo
+const REDIRECT_URI = "https://www.pedalplate.food/wahoo-callback";
 
 interface UseProcessWahooCallbackOptions {
   setStatus: (s: string) => void;
