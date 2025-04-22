@@ -12,7 +12,7 @@ interface WahooResyncButtonProps {
 export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth(); // Added user check
+  const { user } = useAuth();
 
   const handleResync = async () => {
     setIsSyncing(true);
@@ -30,7 +30,13 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
       
       // Explicitly log we have an auth session before syncing
       console.log("Starting Wahoo sync with authenticated user:", user.id);
+      console.log("Token data for sync:", {
+        hasAccessToken: !!token.access_token,
+        hasRefreshToken: !!token.refresh_token,
+        hasWahooUserId: !!token.wahoo_user_id
+      });
 
+      // Sync with Wahoo
       await syncWahooProfileAndRoutes(token);
 
       toast({ 
@@ -38,10 +44,14 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
         description: "Your rides and profile have been updated." 
       });
 
-      window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+      // Notify other components that connection status may have changed
+      window.dispatchEvent(new CustomEvent("wahoo_connection_changed", {
+        detail: { timestamp: Date.now() }
+      }));
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       console.error("Wahoo sync error:", errorMsg);
+      console.error("Full error:", error);
       
       let description = "Please reconnect to Wahoo.";
       let clearToken = false;

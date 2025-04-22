@@ -3,7 +3,13 @@ import { syncWahooProfileAndRoutes } from "@/components/Wahoo/WahooSyncApi";
 
 export async function syncWahooWithProfile(tokenObj: any) {
   try {
-    console.log("Starting Wahoo sync with profile...");
+    console.log("Starting Wahoo sync with profile...", {
+      hasAccessToken: !!tokenObj.access_token,
+      hasRefreshToken: !!tokenObj.refresh_token,
+      hasWahooUserId: !!tokenObj.wahoo_user_id,
+      expiresAt: tokenObj.expires_at
+    });
+    
     const result = await syncWahooProfileAndRoutes(tokenObj);
     console.log("Wahoo sync completed successfully");
     return result;

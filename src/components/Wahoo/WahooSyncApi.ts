@@ -46,14 +46,22 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
       hasRefreshToken: !!requestBody.refresh_token
     });
 
-    // Ensure request body is properly stringified and content type is set
-    const { data, error } = await supabase.functions.invoke("wahoo-sync", {
+    // CRITICAL FIX: Ensure the body is properly stringified and has the correct content type
+    const requestOptions = {
       method: "POST",
       body: JSON.stringify(requestBody),
       headers: {
         "Content-Type": "application/json"
       }
+    };
+    
+    console.log("Invoking wahoo-sync function with options:", {
+      method: requestOptions.method,
+      bodyLength: JSON.stringify(requestBody).length,
+      headers: requestOptions.headers
     });
+
+    const { data, error } = await supabase.functions.invoke("wahoo-sync", requestOptions);
 
     if (error) {
       console.error("Error syncing Wahoo data:", error);
