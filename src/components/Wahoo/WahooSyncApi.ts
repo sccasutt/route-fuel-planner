@@ -47,8 +47,9 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     });
 
     // CRITICAL FIX: Ensure the body is properly stringified and has the correct content type
+    // Fix the TypeScript error by using the literal type "POST" instead of string
     const requestOptions = {
-      method: "POST",
+      method: "POST" as const, // Use a type assertion to fix the error
       body: JSON.stringify(requestBody),
       headers: {
         "Content-Type": "application/json"
