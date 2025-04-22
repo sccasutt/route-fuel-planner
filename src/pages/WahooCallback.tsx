@@ -7,16 +7,33 @@ import { useProcessWahooCallback } from "@/hooks/wahoo/useProcessWahooCallback";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
   const [error, setError] = useState<string | null>(null);
   const processingRef = useRef(false);
   const authCheckedRef = useRef(false);
+  const sessionCheckRef = useRef(false);
   const { processCallback } = useProcessWahooCallback({ setStatus, setError });
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
+  // Check for session first to ensure we have authenticated access
+  useEffect(() => {
+    if (!sessionCheckRef.current) {
+      sessionCheckRef.current = true;
+      
+      supabase.auth.getSession().then(({ data, error }) => {
+        if (error) {
+          console.error("Error retrieving session in WahooCallback:", error);
+        }
+        console.log("WahooCallback: Session check:", data.session ? "session found" : "no session");
+      });
+    }
+  }, []);
+
+  // Process callback
   useEffect(() => {
     // Only process the callback once using ref to track state across re-renders
     if (!processingRef.current) {

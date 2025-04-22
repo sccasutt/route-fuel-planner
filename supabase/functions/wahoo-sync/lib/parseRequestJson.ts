@@ -15,21 +15,6 @@ export async function parseRequestJson(req: Request): Promise<any> {
     const text = await req.text();
     console.log("Request body raw length:", text ? text.length : 0);
     
-    // Log a snippet of the body for debugging (be careful not to log sensitive data)
-    if (text && text.length > 0) {
-      const safeSnippet = text.substring(0, Math.min(50, text.length)) + (text.length > 50 ? "..." : "");
-      console.log("Request body snippet (first 50 chars):", safeSnippet);
-      
-      // Check if it looks like a valid JSON
-      if (text.trim().startsWith('{') && text.trim().endsWith('}')) {
-        console.log("Request body appears to be JSON");
-      } else {
-        console.warn("Request body doesn't appear to be valid JSON");
-      }
-    } else {
-      console.warn("Empty or missing request body");
-    }
-
     if (!text || text.trim() === '') {
       console.error("Empty request body received");
       throw new Error("Empty request body");
@@ -37,10 +22,14 @@ export async function parseRequestJson(req: Request): Promise<any> {
 
     try {
       const parsedBody = JSON.parse(text);
-      console.log("JSON parsed successfully with keys:", Object.keys(parsedBody));
+      
+      // Log safely (without tokens)
+      const safeKeys = Object.keys(parsedBody).filter(key => !key.includes('token'));
+      console.log("JSON parsed successfully with keys:", safeKeys);
+      
       return parsedBody;
     } catch (jsonError) {
-      console.error("JSON parse error:", jsonError, "Raw body first 100 chars:", text.substring(0, 100));
+      console.error("JSON parse error:", jsonError);
       throw new Error("Invalid JSON in request body");
     }
   } catch (err: any) {

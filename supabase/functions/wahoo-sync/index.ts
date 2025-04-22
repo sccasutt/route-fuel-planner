@@ -5,6 +5,7 @@ import { parseRequestJson } from './lib/parseRequestJson.ts';
 import { parseJwt, extractUserIdFromJwt } from './lib/jwtHelpers.ts';
 import { fetchWahooProfile, fetchWahooActivities } from './lib/wahooApi.ts';
 import { upsertWahooProfile, upsertRoutes } from './lib/upsertHelpers.ts';
+import { validateRequestBody } from './lib/validateRequestBody.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,14 +13,18 @@ const corsHeaders = {
   "Content-Type": "application/json"
 };
 
+const isDev = Deno.env.get("ENVIRONMENT") === "development";
+
 Deno.serve(async (req) => {
-  console.log("Received request:", {
-    method: req.method,
-    url: req.url,
-    hasAuthHeader: !!req.headers.get("authorization"),
-    contentType: req.headers.get("content-type"),
-    contentLength: req.headers.get("content-length")
-  });
+  if (isDev) {
+    console.log("Received request:", {
+      method: req.method,
+      url: req.url,
+      hasAuthHeader: !!req.headers.get("authorization"),
+      contentType: req.headers.get("content-type"),
+      contentLength: req.headers.get("content-length")
+    });
+  }
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -30,7 +35,10 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       console.error("Missing or invalid authorization header");
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        error: "Unauthorized", 
+        details: "Missing or invalid authorization header" 
+      }), { status: 401, headers: corsHeaders });
     }
     const jwt = authHeader.split(" ")[1];
 
@@ -38,31 +46,44 @@ Deno.serve(async (req) => {
     let body;
     try {
       body = await parseRequestJson(req);
-      console.log("Request body parsed successfully:", {
-        hasAccessToken: !!body.access_token,
-        hasRefreshToken: !!body.refresh_token,
-        hasWahooUserId: !!body.wahoo_user_id,
-        hasUserId: !!body.user_id
-      });
+      if (isDev) {
+        console.log("Request body parsed successfully:", {
+          hasAccessToken: !!body.access_token,
+          hasRefreshToken: !!body.refresh_token,
+          hasWahooUserId: !!body.wahoo_user_id,
+          hasUserId: !!body.user_id
+        });
+      }
     } catch (err) {
       console.error("Error parsing request body:", err);
       return new Response(JSON.stringify({
         error: err.message || "Invalid request body",
-        details: "Could not parse request JSON"
+        details: "Could not parse request JSON",
+        status: 400
       }), { status: err.status || 400, headers: corsHeaders });
     }
 
-    const { access_token, refresh_token, wahoo_user_id, user_id: clientProvidedUserId } = body;
-    if (!access_token) {
-      console.error("Missing access_token in request");
-      return new Response(JSON.stringify({ error: "Missing access_token" }), { status: 400, headers: corsHeaders });
+    // Validate request body fields
+    const validationResult = validateRequestBody(body);
+    if (!validationResult.valid) {
+      console.error("Request validation failed:", validationResult.error);
+      return new Response(JSON.stringify({
+        error: "Invalid request data",
+        details: validationResult.error,
+        status: 400
+      }), { status: 400, headers: corsHeaders });
     }
+
+    const { access_token, refresh_token, wahoo_user_id, user_id: clientProvidedUserId } = body;
 
     // Extract user_id from JWT and use it as the primary identifier
     const jwtUserId = extractUserIdFromJwt(jwt);
     if (!jwtUserId) {
       console.error("Could not extract user ID from JWT");
-      return new Response(JSON.stringify({ error: "Invalid user JWT" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        error: "Invalid user JWT",
+        details: "Could not extract user ID from JWT"
+      }), { status: 401, headers: corsHeaders });
     }
 
     // For security, ensure we use the JWT user_id, not the client-provided one
@@ -80,8 +101,8 @@ Deno.serve(async (req) => {
     } catch (err: any) {
       console.error("Wahoo profile fetch failed:", err.message);
       return new Response(JSON.stringify({
-        error: err.message,
-        details: err.details,
+        error: err.message || "Failed to fetch Wahoo profile",
+        details: err.details || "Wahoo API error",
         status: err.httpStatus || 502
       }), { status: err.status || 502, headers: corsHeaders });
     }
@@ -103,8 +124,8 @@ Deno.serve(async (req) => {
     } catch (err: any) {
       console.error("Wahoo activities fetch failed:", err.message);
       return new Response(JSON.stringify({
-        error: err.message,
-        details: err.details,
+        error: err.message || "Failed to fetch Wahoo activities",
+        details: err.details || "Wahoo API error",
         status: err.httpStatus || 502
       }), { status: err.status || 502, headers: corsHeaders });
     }

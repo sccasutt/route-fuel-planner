@@ -28,16 +28,32 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
       
       const token = JSON.parse(wahooTokenString);
       
+      // Validate token
+      if (!token.access_token || !token.refresh_token) {
+        throw new Error("Invalid Wahoo token structure");
+      }
+      
       // Explicitly log we have an auth session before syncing
       console.log("Starting Wahoo sync with authenticated user:", user.id);
       console.log("Token data for sync:", {
         hasAccessToken: !!token.access_token,
         hasRefreshToken: !!token.refresh_token,
-        hasWahooUserId: !!token.wahoo_user_id
+        hasWahooUserId: !!token.wahoo_user_id,
+        expiresAt: token.expires_at ? new Date(token.expires_at).toISOString() : 'none'
       });
 
+      // Check token expiration
+      if (token.expires_at && token.expires_at < Date.now()) {
+        console.warn("Wahoo token has expired, consider refreshing");
+        // Continue anyway as the token might still work or the server might refresh it
+      }
+
       // Sync with Wahoo
-      await syncWahooProfileAndRoutes(token);
+      const result = await syncWahooProfileAndRoutes(token);
+      
+      if (!result) {
+        throw new Error("No response from Wahoo sync");
+      }
 
       toast({ 
         title: "Wahoo Synced", 

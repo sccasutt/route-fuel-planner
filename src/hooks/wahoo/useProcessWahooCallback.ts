@@ -1,13 +1,13 @@
 
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { validateWahooAuthState } from "./validateWahooAuthState";
 import { useWahooCallbackToasts } from "./wahooCallbackToasts";
 import { useAuth } from "@/hooks/useAuth";
 import { useWahooRedirectUri } from "./useWahooRedirectUri";
 import { useWahooCallbackParams } from "./useWahooCallbackParams";
-import { exchangeAndSaveToken } from "./wahooTokenUtils";
-import { syncWahooWithProfile } from "./wahooSyncUtils";
+import { useWahooTokenExchange } from "./useWahooTokenExchange";
+import { useWahooAuthState } from "./useWahooAuthState";
+import { useWahooSyncHandler } from "./useWahooSyncHandler";
 
 interface UseProcessWahooCallbackOptions {
   setStatus: (s: string) => void;
@@ -23,6 +23,9 @@ export function useProcessWahooCallback({
   const { user } = useAuth();
   const redirectUri = useWahooRedirectUri();
   const params = useWahooCallbackParams();
+  const { exchangeToken } = useWahooTokenExchange();
+  const { validateState } = useWahooAuthState();
+  const { syncWahooData } = useWahooSyncHandler();
 
   const processCallback = useCallback(async () => {
     try {
@@ -50,7 +53,7 @@ export function useProcessWahooCallback({
       }
 
       // 2. Validate state parameter for CSRF protection
-      const stateResult = validateWahooAuthState(stateFromURL, storedStateJSON);
+      const stateResult = validateState(stateFromURL, storedStateJSON);
       if (!stateResult.valid) {
         setStatus(
           stateResult.reason === "parse-fail"
@@ -85,17 +88,9 @@ export function useProcessWahooCallback({
 
       let tokenData;
       try {
-        const exchangeResult = await exchangeAndSaveToken(code, redirectUri);
+        const exchangeResult = await exchangeToken(code, redirectUri);
         tokenData = exchangeResult.tokenData;
         console.log("WahooCallback: Token received successfully");
-        // Log the full token data for debugging (excluding sensitive parts)
-        console.log("WahooCallback: Token data received:", {
-          hasAccessToken: !!tokenData.access_token,
-          hasRefreshToken: !!tokenData.refresh_token,
-          expiresIn: tokenData.expires_in,
-          hasWahooUserId: !!tokenData.wahoo_user_id,
-          wahooUserId: tokenData.wahoo_user_id,
-        });
       } catch (tokenError) {
         const tokenErrorMsg =
           tokenError instanceof Error ? tokenError.message : "Unknown error";
@@ -154,23 +149,28 @@ export function useProcessWahooCallback({
       // 6. Sync profile and rides
       setStatus("Synchronizing your rides...");
       try {
-        await syncWahooWithProfile({
+        const syncResult = await syncWahooData({
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
           expires_at: Date.now() + tokenData.expires_in * 1000,
           wahoo_user_id: wahooUserId,
         });
-        setStatus("Your Wahoo data has been successfully synchronized!");
         
-        console.log("WahooCallback: Sync successful, navigating to dashboard");
-        successToast(
-          "Wahoo connected",
-          "Your Wahoo account is now connected."
-        );
-        setTimeout(
-          () => navigate("/dashboard", { state: { wahooConnected: true } }),
-          3000
-        );
+        if (syncResult.success) {
+          setStatus("Your Wahoo data has been successfully synchronized!");
+          
+          console.log("WahooCallback: Sync successful, navigating to dashboard");
+          successToast(
+            "Wahoo connected",
+            "Your Wahoo account is now connected."
+          );
+          setTimeout(
+            () => navigate("/dashboard", { state: { wahooConnected: true } }),
+            3000
+          );
+        } else {
+          throw syncResult.error;
+        }
       } catch (err) {
         const errMsg =
           err instanceof Error ? err.message : "Error synchronizing rides";
@@ -220,7 +220,7 @@ export function useProcessWahooCallback({
       setTimeout(() => navigate("/dashboard"), 5000);
     }
   // dependencies:
-  }, [navigate, params, setStatus, setError, errorToast, successToast, user, redirectUri]);
+  }, [navigate, params, setStatus, setError, errorToast, successToast, user, redirectUri, exchangeToken, validateState, syncWahooData]);
 
   return { processCallback };
 }

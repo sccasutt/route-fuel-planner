@@ -7,8 +7,13 @@ export async function syncWahooWithProfile(tokenObj: any) {
       hasAccessToken: !!tokenObj.access_token,
       hasRefreshToken: !!tokenObj.refresh_token,
       hasWahooUserId: !!tokenObj.wahoo_user_id,
-      expiresAt: tokenObj.expires_at
+      expiresAt: tokenObj.expires_at ? new Date(tokenObj.expires_at).toISOString() : 'none'
     });
+    
+    // Validate token object
+    if (!tokenObj.access_token || !tokenObj.refresh_token) {
+      throw new Error("Invalid token structure for Wahoo sync");
+    }
     
     const result = await syncWahooProfileAndRoutes(tokenObj);
     console.log("Wahoo sync completed successfully");
