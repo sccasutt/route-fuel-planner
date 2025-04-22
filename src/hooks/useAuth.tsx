@@ -22,9 +22,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up the auth state change listener
+    console.log("Auth provider initializing");
+    
+    // Set up the auth state change listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
+        console.log("Auth state changed:", event);
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
@@ -42,8 +45,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Check for existing session
+    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log("Initial auth session check:", initialSession ? "session found" : "no session");
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);

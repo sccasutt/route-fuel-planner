@@ -125,6 +125,7 @@ export function useWahooAuthPopup({
         }
       } catch (error) {
         console.error(`[${componentIdRef.current}] Error processing custom event:`, error);
+        // Don't clear the token on processing errors
       }
     };
     

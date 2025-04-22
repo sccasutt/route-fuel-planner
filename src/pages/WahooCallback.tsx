@@ -12,8 +12,9 @@ export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
   const [error, setError] = useState<string | null>(null);
   const processingRef = useRef(false);
+  const authCheckedRef = useRef(false);
   const { processCallback } = useProcessWahooCallback({ setStatus, setError });
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,6 +33,14 @@ export default function WahooCallback() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Separate effect to check auth state after callback is processed
+  useEffect(() => {
+    if (!loading && !authCheckedRef.current) {
+      authCheckedRef.current = true;
+      console.log("WahooCallback: Auth state check:", user ? "logged in" : "not logged in");
+    }
+  }, [loading, user]);
+
   return (
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
@@ -42,7 +51,7 @@ export default function WahooCallback() {
           ) : (
             <WahooCallbackLoading status={status} />
           )}
-          {!user && (
+          {!user && !loading && (
             <div className="mt-4 flex flex-col gap-2">
               <p className="text-sm text-muted-foreground">You need to log in to sync your Wahoo data</p>
               <Button onClick={() => navigate("/auth")} variant="default">

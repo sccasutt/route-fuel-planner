@@ -138,7 +138,16 @@ export function useProcessWahooCallback({
           "Please log in to sync your Wahoo data"
         );
 
-        setTimeout(() => navigate("/auth", { state: { wahooConnected: true }}), 3000);
+        // We'll wait a bit longer and check session status one more time
+        setTimeout(() => {
+          // Double check if user session became available (sometimes auth can be slow to initialize)
+          if (!user) {
+            navigate("/auth", { state: { wahooConnected: true }});
+          } else {
+            // If user became available, redirect to dashboard
+            navigate("/dashboard", { state: { wahooConnected: true }});
+          }
+        }, 3000);
         return;
       }
 

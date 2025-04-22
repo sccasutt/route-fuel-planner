@@ -21,8 +21,21 @@ export async function exchangeAndSaveToken(
     wahoo_user_id: wahooUserId,
   };
 
-  localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
-  localStorage.removeItem("wahoo_auth_state");
+  try {
+    // Store in localStorage properly
+    localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
+    // After successful storage, remove the state that's no longer needed
+    localStorage.removeItem("wahoo_auth_state");
+    
+    console.log("Token and user ID saved successfully", {
+      hasToken: true,
+      hasWahooUserId: !!wahooUserId,
+      expiresIn: tokenData.expires_in
+    });
+  } catch (error) {
+    console.error("Error saving token to localStorage:", error);
+    // Continue even if storage fails - the token data will still be returned
+  }
 
   return {
     tokenData,
