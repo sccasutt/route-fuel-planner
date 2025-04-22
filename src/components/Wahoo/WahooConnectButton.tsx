@@ -24,7 +24,6 @@ export function WahooConnectButton() {
   } = useWahooAuthPopup({
     onConnect: () => {
       setConnectionError(null);
-      // Do not show toast here, it causes duplicate toasts due to event handling
     },
     onError: (error) => {
       setConnectionError(error);
@@ -32,7 +31,6 @@ export function WahooConnectButton() {
   });
 
   useEffect(() => {
-    // Debug log for connection state
     console.log(`[${instanceId}] Connection state changed:`, isConnected);
   }, [isConnected, instanceId]);
 
@@ -41,7 +39,6 @@ export function WahooConnectButton() {
       setIsConnecting(true);
       setConnectionError(null);
       
-      // Clean up any existing token data to ensure fresh state
       localStorage.removeItem("wahoo_token");
       localStorage.removeItem("wahoo_auth_state");
       
@@ -50,24 +47,20 @@ export function WahooConnectButton() {
         throw new Error("Could not retrieve Wahoo Client ID");
       }
       
-      // Generate a secure state value for CSRF protection
       const stateArray = new Uint8Array(16);
       window.crypto.getRandomValues(stateArray);
       const state = Array.from(stateArray)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
-      // Store the state with timestamp
       const stateData = {
         value: state,
         created: Date.now()
       };
       localStorage.setItem("wahoo_auth_state", JSON.stringify(stateData));
       
-      // Print actual redirect URI for debugging
       console.log(`[${instanceId}] Using redirect URI:`, redirectUri);
       
-      // Construct authentication URL with proper encoding
       const authUrl = new URL(WAHOO_AUTH_URL);
       authUrl.searchParams.append("response_type", "code");
       authUrl.searchParams.append("client_id", clientId);
@@ -75,10 +68,8 @@ export function WahooConnectButton() {
       authUrl.searchParams.append("scope", SCOPE);
       authUrl.searchParams.append("state", state);
       
-      // Print final constructed URL for debugging
       console.log(`[${instanceId}] Redirecting to Wahoo auth URL:`, authUrl.toString());
       
-      // Redirect to the authorization URL
       window.location.href = authUrl.toString();
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
