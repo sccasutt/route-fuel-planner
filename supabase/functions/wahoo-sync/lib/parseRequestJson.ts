@@ -11,17 +11,26 @@ export async function parseRequestJson(req: Request): Promise<any> {
       console.warn("Request content-type is not application/json:", contentType);
     }
 
+    // Get the raw text from the request
     const text = await req.text();
     console.log("Request body raw length:", text ? text.length : 0);
+    
+    // Log a snippet of the body for debugging (be careful not to log sensitive data)
+    if (text && text.length > 0) {
+      console.log("Request body snippet:", text.substring(0, Math.min(50, text.length)) + (text.length > 50 ? "..." : ""));
+    } else {
+      console.warn("Empty or missing request body");
+    }
 
     if (!text || text.trim() === '') {
+      console.error("Empty request body received");
       throw new Error("Empty request body");
     }
 
     try {
       return JSON.parse(text);
     } catch (jsonError) {
-      console.error("JSON parse error:", jsonError, "Raw body:", text);
+      console.error("JSON parse error:", jsonError, "Raw body first 100 chars:", text.substring(0, 100));
       throw new Error("Invalid JSON in request body");
     }
   } catch (err: any) {

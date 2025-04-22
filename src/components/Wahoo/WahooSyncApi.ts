@@ -50,10 +50,10 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
       hasRefreshToken: !!requestBody.refresh_token
     });
     
-    // FIXED: Ensure we're properly sending the stringified body
+    // FIXED: Ensure we're properly sending a JSON stringified body
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {
       method: "POST",
-      body: requestBody, // This was the issue - not stringifying the body
+      body: JSON.stringify(requestBody), // Fix: Stringify the body explicitly
       headers: {
         "Content-Type": "application/json"
       }

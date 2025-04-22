@@ -41,6 +41,8 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
       window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Wahoo sync error:", errorMsg);
+      
       let description = "Please reconnect to Wahoo.";
       let clearToken = false;
 
@@ -58,6 +60,9 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
       } else if (errorMsg.includes("must be logged in")) {
         description = "You need to log in to sync your Wahoo data.";
         setConnectionError("Please log in to sync your Wahoo data.");
+      } else {
+        // Generic error
+        setConnectionError(errorMsg || "Failed to sync with Wahoo. Please try reconnecting.");
       }
 
       if (clearToken) {
