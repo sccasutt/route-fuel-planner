@@ -37,6 +37,7 @@ export function useProcessWahooCallback({
         hasStoredState: !!storedStateJSON,
         redirectUri,
         urlParams,
+        isUserLoggedIn: !!user
       });
 
       // 1. Handle authorization error in callback
@@ -122,18 +123,16 @@ export function useProcessWahooCallback({
 
       console.log("WahooCallback: Saving wahoo_user_id:", wahooUserId);
 
+      // Dispatch connection event regardless of login state
+      window.dispatchEvent(
+        new CustomEvent("wahoo_connection_changed", {
+          detail: { timestamp: Date.now() },
+        })
+      );
+
       // Check if user is authenticated before trying to sync
       if (!user) {
         setStatus("Wahoo connected but not synced. Please log in to sync your data.");
-        setError("Please log in to sync your Wahoo data");
-
-        // Dispatch connection event even though we can't sync yet
-        window.dispatchEvent(
-          new CustomEvent("wahoo_connection_changed", {
-            detail: { timestamp: Date.now() },
-          })
-        );
-
         successToast(
           "Wahoo connected",
           "Please log in to sync your Wahoo data"
@@ -153,11 +152,7 @@ export function useProcessWahooCallback({
           wahoo_user_id: wahooUserId,
         });
         setStatus("Your Wahoo data has been successfully synchronized!");
-        window.dispatchEvent(
-          new CustomEvent("wahoo_connection_changed", {
-            detail: { timestamp: Date.now() },
-          })
-        );
+        
         console.log("WahooCallback: Sync successful, navigating to dashboard");
         successToast(
           "Wahoo connected",
@@ -189,14 +184,13 @@ export function useProcessWahooCallback({
           setError(errMsg || "Error synchronizing your rides from Wahoo");
         }
 
-        // Even though sync failed, we still have a valid token, so dispatch the connection event
+        // Even though sync failed, we still have a valid token, so dispatch the connection event again
         window.dispatchEvent(
           new CustomEvent("wahoo_connection_changed", {
             detail: { timestamp: Date.now() },
           })
         );
-        console.log("WahooCallback: Dispatched connection changed event despite sync error");
-
+        
         errorToast(
           "Partial connection",
           "Connected to Wahoo, but couldn't sync rides. Try again later."

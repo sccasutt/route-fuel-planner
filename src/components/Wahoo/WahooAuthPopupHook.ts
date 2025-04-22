@@ -125,10 +125,6 @@ export function useWahooAuthPopup({
         }
       } catch (error) {
         console.error(`[${componentIdRef.current}] Error processing custom event:`, error);
-        localStorage.removeItem("wahoo_token");
-        localStorage.removeItem("wahoo_auth_state");
-        setIsConnected(false);
-        globalConnectionState = false;
       }
     };
     
