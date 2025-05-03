@@ -42,19 +42,22 @@ export async function fetchWahooProfile(access_token: string) {
 
 export async function fetchWahooActivities(access_token: string) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // Longer timeout for activities
   try {
     console.log("Fetching Wahoo activities with access token...");
     
-    // Try these endpoints in order, if one fails try the next
+    // Define multiple endpoints to try in sequence
+    // Add the 'ignore_cache=true' parameter to force fresh data
     const endpoints = [
-      "https://api.wahooligan.com/v1/workouts?limit=50",
-      "https://api.wahooligan.com/v1/rides?limit=50", 
-      "https://api.wahooligan.com/v1/routes?limit=50"
+      "https://api.wahooligan.com/v1/workouts?limit=100&ignore_cache=true",
+      "https://api.wahooligan.com/v1/rides?limit=100&ignore_cache=true", 
+      "https://api.wahooligan.com/v1/routes?limit=100&ignore_cache=true",
+      "https://api.wahooligan.com/v1/activities?limit=100&ignore_cache=true"
     ];
     
     let activitiesRes = null;
     let usedEndpoint = "";
+    let responseText = "";
     
     // Try each endpoint until we get a successful response
     for (const endpoint of endpoints) {
@@ -69,11 +72,15 @@ export async function fetchWahooActivities(access_token: string) {
         });
         
         console.log(`Endpoint ${endpoint} response status:`, res.status);
+        responseText = await res.text(); // We'll parse this as JSON if successful
         
         if (res.ok) {
-          activitiesRes = res;
+          console.log(`Endpoint ${endpoint} response body first 200 chars:`, responseText.substring(0, 200));
+          activitiesRes = responseText;
           usedEndpoint = endpoint;
           break;
+        } else {
+          console.warn(`Error response from endpoint ${endpoint}:`, responseText.substring(0, 200));
         }
       } catch (endpointErr) {
         console.warn(`Error with endpoint ${endpoint}:`, endpointErr);
@@ -93,12 +100,27 @@ export async function fetchWahooActivities(access_token: string) {
     }
 
     console.log(`Successfully connected to Wahoo API using endpoint: ${usedEndpoint}`);
-    const activitiesData = await activitiesRes.json();
+    
+    // Parse the response text as JSON
+    let activitiesData;
+    try {
+      activitiesData = JSON.parse(activitiesRes);
+    } catch (parseErr) {
+      console.error("Failed to parse Wahoo API response:", parseErr);
+      console.error("Response excerpt:", activitiesRes.substring(0, 500));
+      throw {
+        message: "Invalid JSON response from Wahoo API",
+        status: 502,
+        details: String(parseErr),
+        httpStatus: 500
+      };
+    }
     
     // Debug log to see the exact structure of the response
     console.log("Wahoo API response type:", typeof activitiesData);
     console.log("Is array:", Array.isArray(activitiesData));
     console.log("Response structure:", Object.keys(activitiesData));
+    console.log("Response sample:", JSON.stringify(activitiesData).substring(0, 300));
     
     // Handle different response formats
     let activities = [];
@@ -107,21 +129,34 @@ export async function fetchWahooActivities(access_token: string) {
       // Direct array response
       activities = activitiesData;
     } else if (activitiesData && typeof activitiesData === 'object') {
-      // Check if there's a 'results' or 'data' property that might contain the activities
+      // Check if there's a 'results', 'data', or other arrays that might contain the activities
       if (Array.isArray(activitiesData.results)) {
         activities = activitiesData.results;
+        console.log("Found activities in 'results' property, count:", activities.length);
       } else if (Array.isArray(activitiesData.data)) {
         activities = activitiesData.data;
+        console.log("Found activities in 'data' property, count:", activities.length);
       } else if (activitiesData.workouts && Array.isArray(activitiesData.workouts)) {
         activities = activitiesData.workouts;
+        console.log("Found activities in 'workouts' property, count:", activities.length);
       } else {
-        // Log the structure to help debug
-        console.log("Unexpected response structure:", Object.keys(activitiesData));
-        // Try to extract any array from the object
-        const possibleArrays = Object.values(activitiesData).filter(val => Array.isArray(val));
-        if (possibleArrays.length > 0) {
-          activities = possibleArrays[0];
-          console.log("Found an array in response with", activities.length, "items");
+        // Log all top-level keys to help debug
+        console.log("All top-level keys in response:", Object.keys(activitiesData));
+        
+        // Try to find any array in the object that might contain activities
+        for (const key of Object.keys(activitiesData)) {
+          if (Array.isArray(activitiesData[key])) {
+            console.log(`Found array in '${key}' property with ${activitiesData[key].length} items`);
+            if (activitiesData[key].length > 0) {
+              activities = activitiesData[key];
+              console.log(`Using '${key}' as activities source, first item keys:`, Object.keys(activities[0]));
+              break;
+            }
+          }
+        }
+        
+        if (activities.length === 0) {
+          console.warn("Could not find activities array in response structure");
         }
       }
     }
@@ -130,16 +165,19 @@ export async function fetchWahooActivities(access_token: string) {
     console.log(`Processing ${activities.length} Wahoo activities`);
     
     if (activities.length > 0) {
-      console.log("Sample activity:", JSON.stringify(activities[0]).substring(0, 1000));
+      console.log("Sample activity:", JSON.stringify(activities[0]));
+      console.log("Sample activity keys:", Object.keys(activities[0]));
+    } else {
+      console.warn("No activities found in Wahoo response");
     }
     
     // Transform activity data to match our expected format
     const formattedActivities = activities.map(activity => {
       // Extract key fields with fallbacks
-      return {
-        id: activity.id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      const formattedActivity = {
+        id: activity.id || activity.workout_id || activity.route_id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         name: activity.name || activity.title || "Unnamed Activity",
-        date: activity.start_time || activity.created_at || new Date().toISOString(),
+        date: activity.start_time || activity.created_at || activity.timestamp || new Date().toISOString(),
         distance: typeof activity.distance === 'number' 
           ? activity.distance 
           : typeof activity.distance === 'string'
@@ -147,9 +185,13 @@ export async function fetchWahooActivities(access_token: string) {
             : 0,
         elevation: activity.elevation_gain || activity.elevation || 0,
         duration: activity.duration || "0:00:00",
-        calories: activity.calories || 0,
-        gpx_data: activity.gpx_data || null
+        calories: activity.calories || activity.energy || 0,
+        gpx_data: activity.gpx_data || null,
+        type: activity.type || activity.workout_type || "activity"
       };
+      
+      console.log("Transformed activity:", formattedActivity.id, formattedActivity.name);
+      return formattedActivity;
     });
     
     console.log(`Successfully formatted ${formattedActivities.length} Wahoo activities`);

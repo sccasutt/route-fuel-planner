@@ -14,8 +14,10 @@ import { NutritionTabContent } from "@/components/Dashboard/NutritionTabContent"
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Bike } from "lucide-react";
+import { RefreshCcw, Bike, AlertCircle, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { WahooResyncButton } from "@/components/Wahoo/WahooResyncButton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Define a type that matches what RecentRoutesSection and RoutesTabContent expect
 interface RouteType {
@@ -30,10 +32,12 @@ interface RouteType {
 
 const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
-  const { isConnected, activities, isLoading, refresh } = useWahooData();
+  const { isConnected, activities, isLoading, refresh, syncStatus } = useWahooData();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [syncComplete, setSyncComplete] = useState(false);
 
   // Check authentication and redirect if not logged in
   useEffect(() => {
@@ -45,10 +49,17 @@ const Dashboard = () => {
   // Handle manual refresh
   const handleRefresh = () => {
     refresh();
+    setSyncComplete(false);
     toast({
       title: "Refreshing data",
       description: "Fetching your latest activity data..."
     });
+    
+    // Show success message after refresh
+    setTimeout(() => {
+      setSyncComplete(true);
+      setTimeout(() => setSyncComplete(false), 3000);
+    }, 1500);
   };
 
   // Convert WahooActivityData to RouteType (since they're compatible)
@@ -64,11 +75,27 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold">Your Dashboard</h1>
           {isConnected && (
             <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-              <RefreshCcw className="h-4 w-4" />
-              Refresh Data
+              <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              {isLoading ? "Refreshing..." : "Refresh Data"}
             </Button>
           )}
         </div>
+
+        {connectionError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Connection Error</AlertTitle>
+            <AlertDescription>{connectionError}</AlertDescription>
+          </Alert>
+        )}
+
+        {syncComplete && (
+          <Alert variant="default" className="mb-6 bg-green-50 border-green-200">
+            <Check className="h-4 w-4 text-green-500" />
+            <AlertTitle>Sync Complete</AlertTitle>
+            <AlertDescription>Your Wahoo data has been refreshed.</AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div>
@@ -114,10 +141,17 @@ const Dashboard = () => {
                     Connect Wahoo
                   </Button>
                 ) : (
-                  <Button variant="default" size="sm" className="gap-2" onClick={handleRefresh}>
-                    <Bike className="h-4 w-4" />
-                    Sync Activities
-                  </Button>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Make sure you have activities in your Wahoo account and click the button below to sync them.
+                    </p>
+                    <WahooResyncButton 
+                      setConnectionError={setConnectionError}
+                      variant="default"
+                      size="default"
+                      label="Sync Wahoo Activities"
+                    />
+                  </div>
                 )}
               </div>
             )}

@@ -4,12 +4,23 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { syncWahooProfileAndRoutes } from "./WahooSyncApi";
 import { useAuth } from "@/hooks/useAuth";
+import { RefreshCw, Bike } from "lucide-react";
 
 interface WahooResyncButtonProps {
   setConnectionError: (v: string | null) => void;
+  variant?: "default" | "secondary" | "outline";
+  size?: "default" | "sm" | "lg" | "icon";
+  showIcon?: boolean;
+  label?: string;
 }
 
-export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps) {
+export function WahooResyncButton({ 
+  setConnectionError, 
+  variant = "secondary", 
+  size = "sm", 
+  showIcon = true,
+  label = "Resync"
+}: WahooResyncButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -64,6 +75,9 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
       window.dispatchEvent(new CustomEvent("wahoo_connection_changed", {
         detail: { timestamp: Date.now() }
       }));
+      
+      // Force reload to make sure we see the latest data
+      setTimeout(() => window.location.reload(), 1500);
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       console.error("Wahoo sync error:", errorMsg);
@@ -108,8 +122,15 @@ export function WahooResyncButton({ setConnectionError }: WahooResyncButtonProps
   };
 
   return (
-    <Button variant="secondary" size="sm" onClick={handleResync} disabled={isSyncing}>
-      {isSyncing ? "Syncing..." : "Resync"}
+    <Button 
+      variant={variant} 
+      size={size} 
+      onClick={handleResync} 
+      disabled={isSyncing}
+      className={showIcon ? "gap-2" : ""}
+    >
+      {showIcon && (isSyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bike className="h-4 w-4" />)}
+      {isSyncing ? "Syncing..." : label}
     </Button>
   );
 }

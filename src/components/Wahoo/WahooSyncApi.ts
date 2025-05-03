@@ -86,6 +86,26 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
       }
     }
     
+    // Force refresh to verify data is available in the database
+    setTimeout(async () => {
+      try {
+        console.log("Running post-sync verification check...");
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('routes')
+          .select('count')
+          .eq('user_id', userId)
+          .single();
+          
+        if (verifyError) {
+          console.error("Post-sync verification error:", verifyError);
+        } else {
+          console.log("Post-sync verification: Found", verifyData?.count || 0, "routes");
+        }
+      } catch (e) {
+        console.error("Error in post-sync verification:", e);
+      }
+    }, 1000);
+    
     return data;
   } catch (err) {
     console.error("Exception during Wahoo sync:", err);
