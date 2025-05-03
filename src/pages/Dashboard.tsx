@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useWahooData } from "@/hooks/useWahooData";
+import { useWahooData, WahooActivityData } from "@/hooks/useWahooData";
 import { ConnectedAccountsCard } from "@/components/Dashboard/ConnectedAccountsCard";
 import { WahooActivitySummaryCard } from "@/components/Dashboard/WahooActivitySummaryCard";
 import { RecentActivityCard } from "@/components/Dashboard/RecentActivityCard";
@@ -15,6 +15,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw } from "lucide-react";
+
+// Define a type that matches what RecentRoutesSection and RoutesTabContent expect
+interface RouteType {
+  id: string;
+  name: string;
+  date: string;
+  distance: number;
+  elevation: number;
+  duration: string;
+  calories: number;
+}
 
 const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
@@ -33,6 +44,12 @@ const Dashboard = () => {
   const handleRefresh = () => {
     refresh();
   };
+
+  // Convert WahooActivityData to RouteType (since they're compatible)
+  const routesData: RouteType[] = activities.map(activity => ({
+    ...activity,
+    id: activity.id
+  }));
 
   return (
     <Layout>
@@ -72,7 +89,7 @@ const Dashboard = () => {
               <UpcomingRideCard />
             </div>
             {activities.length > 0 ? (
-              <RecentRoutesSection routes={activities} />
+              <RecentRoutesSection routes={routesData} />
             ) : (
               <div className="p-6 bg-muted rounded-lg border text-center">
                 <h2 className="text-xl font-bold mb-2">No Routes Yet</h2>
@@ -80,7 +97,12 @@ const Dashboard = () => {
                   Connect your Wahoo account to see your routes here
                 </p>
                 {!isConnected && (
-                  <Button onClick={() => document.querySelector('.wahoo-connect-button')?.click()}>
+                  <Button onClick={() => {
+                    const connectButton = document.querySelector('.wahoo-connect-button');
+                    if (connectButton) {
+                      (connectButton as HTMLElement).click();
+                    }
+                  }}>
                     Connect Wahoo
                   </Button>
                 )}
@@ -89,7 +111,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="routes">
-            <RoutesTabContent routes={activities} />
+            <RoutesTabContent routes={routesData} />
           </TabsContent>
 
           <TabsContent value="nutrition">

@@ -39,17 +39,19 @@ export function useWahooActivityFetcher() {
         setActivities([]);
       } else {
         console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
-        setActivities(
-          data.map((r: any) => ({
-            id: r.id,
-            name: r.name || "Unnamed Activity",
-            date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
-            distance: r.distance ? parseFloat(r.distance).toFixed(1) : 0,
-            elevation: r.elevation || 0,
-            duration: r.duration || "0h 0m",
-            calories: r.calories || 0,
-          }))
-        );
+        
+        // Convert the data to the correct type to match WahooActivityData
+        const typedActivities: WahooActivityData[] = data.map((r: any) => ({
+          id: r.id,
+          name: r.name || "Unnamed Activity",
+          date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
+          distance: typeof r.distance === 'string' ? parseFloat(r.distance) : r.distance || 0,
+          elevation: typeof r.elevation === 'string' ? parseFloat(r.elevation) : r.elevation || 0,
+          duration: r.duration || "0h 0m",
+          calories: r.calories || 0,
+        }));
+        
+        setActivities(typedActivities);
       }
     } catch (error) {
       console.error(`[${hookId}] Error fetching Wahoo activities:`, error);
