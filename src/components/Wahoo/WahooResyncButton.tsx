@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { syncWahooProfileAndRoutes } from "./WahooSyncApi";
+import { syncWahooProfileAndRoutes, disconnectWahooAccount } from "./WahooSyncApi";
 import { useAuth } from "@/hooks/useAuth";
 import { RefreshCw, Bike } from "lucide-react";
 
@@ -12,6 +12,7 @@ interface WahooResyncButtonProps {
   size?: "default" | "sm" | "lg" | "icon";
   showIcon?: boolean;
   label?: string;
+  forceDisconnect?: boolean;
 }
 
 export function WahooResyncButton({ 
@@ -19,7 +20,8 @@ export function WahooResyncButton({
   variant = "secondary", 
   size = "sm", 
   showIcon = true,
-  label = "Resync"
+  label = "Resync",
+  forceDisconnect = false
 }: WahooResyncButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
@@ -32,6 +34,25 @@ export function WahooResyncButton({
       // First check if user is logged in
       if (!user) {
         throw new Error("You must be logged in to sync Wahoo data");
+      }
+
+      // If force disconnect is enabled, disconnect first
+      if (forceDisconnect) {
+        try {
+          console.log("Force disconnect enabled - disconnecting Wahoo account first");
+          await disconnectWahooAccount();
+          toast({ 
+            title: "Wahoo Disconnected", 
+            description: "Please reconnect your Wahoo account." 
+          });
+          
+          // End here since we need the user to reconnect
+          setIsSyncing(false);
+          return;
+        } catch (disconnectError) {
+          console.error("Failed to disconnect Wahoo account:", disconnectError);
+          // Continue with sync attempt despite disconnect error
+        }
       }
 
       const wahooTokenString = localStorage.getItem("wahoo_token");
@@ -130,7 +151,7 @@ export function WahooResyncButton({
       className={showIcon ? "gap-2" : ""}
     >
       {showIcon && (isSyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bike className="h-4 w-4" />)}
-      {isSyncing ? "Syncing..." : label}
+      {isSyncing ? "Syncing..." : forceDisconnect ? "Disconnect & Reconnect" : label}
     </Button>
   );
 }

@@ -23,6 +23,9 @@ export async function exchangeAndSaveToken(
   };
 
   try {
+    // Before saving new token, clear any existing token data to ensure a fresh start
+    localStorage.removeItem("wahoo_token");
+    
     // Store in localStorage properly
     localStorage.setItem("wahoo_token", JSON.stringify(saveObj));
     // After successful storage, remove the state that's no longer needed
@@ -33,6 +36,11 @@ export async function exchangeAndSaveToken(
       hasWahooUserId: !!wahooUserId,
       expiresIn: tokenData.expires_in
     });
+    
+    // Notify other components about the change
+    window.dispatchEvent(new CustomEvent("wahoo_connection_changed", { 
+      detail: { timestamp: Date.now() } 
+    }));
   } catch (error) {
     console.error("Error saving token to localStorage:", error);
     // Continue even if storage fails - the token data will still be returned
@@ -55,6 +63,23 @@ export function isWahooTokenValid(tokenString: string): boolean {
     return isValid;
   } catch (error) {
     console.error("Error validating Wahoo token:", error);
+    return false;
+  }
+}
+
+export function clearWahooTokenData() {
+  try {
+    console.log("Clearing all Wahoo token data from local storage");
+    localStorage.removeItem("wahoo_token");
+    localStorage.removeItem("wahoo_auth_state");
+    
+    window.dispatchEvent(new CustomEvent("wahoo_connection_changed", { 
+      detail: { timestamp: Date.now() } 
+    }));
+    
+    return true;
+  } catch (error) {
+    console.error("Error clearing Wahoo token data:", error);
     return false;
   }
 }

@@ -10,6 +10,7 @@ import { WahooResyncButton } from "./WahooResyncButton";
 import { useWahooRedirectUri } from "@/hooks/wahoo/useWahooRedirectUri";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { disconnectWahooAccount } from "./WahooSyncApi";
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
@@ -53,6 +54,9 @@ export function WahooConnectButton() {
     try {
       setIsConnecting(true);
       setConnectionError(null);
+      
+      // First clean any existing token
+      await disconnect();
       
       localStorage.removeItem("wahoo_token");
       localStorage.removeItem("wahoo_auth_state");
@@ -110,13 +114,29 @@ export function WahooConnectButton() {
     }
   };
 
-  const handleDisconnect = () => {
-    disconnect();
-    setConnectionError(null);
-    toast({
-      title: "Wahoo Disconnected",
-      description: "Your Wahoo connection has been disconnected.",
-    });
+  const handleDisconnect = async () => {
+    try {
+      // Use our new server-side disconnection function
+      await disconnectWahooAccount();
+      
+      // Also call the UI-side disconnect
+      disconnect();
+      
+      setConnectionError(null);
+      toast({
+        title: "Wahoo Disconnected",
+        description: "Your Wahoo connection has been disconnected.",
+      });
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[${instanceId}] Error disconnecting Wahoo:`, errorMsg);
+      
+      toast({
+        title: "Disconnect Error",
+        description: "There was a problem disconnecting your Wahoo account. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -140,6 +160,12 @@ export function WahooConnectButton() {
             Connected to Wahoo
           </Button>
           <WahooResyncButton setConnectionError={setConnectionError} />
+          <WahooResyncButton 
+            setConnectionError={setConnectionError} 
+            variant="outline"
+            label="Reconnect"
+            forceDisconnect={true}
+          />
           <Button
             variant="outline"
             size="icon"

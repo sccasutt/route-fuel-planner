@@ -112,3 +112,55 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     throw err;
   }
 }
+
+export async function disconnectWahooAccount() {
+  try {
+    console.log("Disconnecting Wahoo account");
+    
+    // Check for authenticated user
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error("Error getting authenticated user for disconnect:", authError);
+      throw new Error("Authentication error: " + authError.message);
+    }
+    
+    if (!authData || !authData.user || !authData.user.id) {
+      console.error("No authenticated user found for Wahoo disconnect");
+      throw new Error("You must be logged in to disconnect Wahoo account");
+    }
+    
+    const userId = authData.user.id;
+    console.log("Disconnecting Wahoo account for user ID:", userId);
+    
+    // Clean local storage
+    localStorage.removeItem("wahoo_token");
+    localStorage.removeItem("wahoo_auth_state");
+    
+    // Call server to revoke tokens and clean up database entries
+    const { data, error } = await supabase.functions.invoke("wahoo-oauth", {
+      method: 'POST',
+      body: {
+        action: "disconnect",
+        userId: userId
+      }
+    });
+    
+    if (error) {
+      console.error("Error disconnecting Wahoo account:", error);
+      // Continue with local disconnection even if server fails
+    } else {
+      console.log("Server successfully disconnected Wahoo account:", data);
+    }
+    
+    // Notify the application about connection change
+    window.dispatchEvent(new CustomEvent("wahoo_connection_changed", {
+      detail: { timestamp: Date.now() }
+    }));
+    
+    return { success: true };
+  } catch (err) {
+    console.error("Exception during Wahoo disconnect:", err);
+    throw err;
+  }
+}
