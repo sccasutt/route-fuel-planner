@@ -34,33 +34,39 @@ export function useWahooData() {
   }, []);
 
   useEffect(() => {
-    // Only initialize once per user session
-    if (user && !hasInitializedRef.current && !wahooGlobalState.isInitialized) {
-      hasInitializedRef.current = true;
-      wahooGlobalState.isInitialized = true;
+    // Initialize when user is available
+    if (user && !hasInitializedRef.current) {
       console.log(`[${hookIdRef.current}] Initializing Wahoo data hook for user:`, user.id);
       
       const connected = checkConnectionStatus();
+      console.log(`[${hookIdRef.current}] Connection check result:`, connected ? "connected" : "disconnected");
       
-      if (connected) {
-        // Only fetch if we haven't fetched recently (throttle API calls)
-        const now = Date.now();
-        if (now - wahooGlobalState.lastFetchTimestamp > 30000) { // 30 second throttle
-          wahooGlobalState.lastFetchTimestamp = now;
-          fetchWahooActivities(user.id, hookIdRef.current);
-        } else {
-          console.log(`[${hookIdRef.current}] Skipping fetch, last fetch was ${(now - wahooGlobalState.lastFetchTimestamp)/1000}s ago`);
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-      }
-    } else if (user && hasInitializedRef.current) {
-      // We're already initialized, just update our state
-      console.log(`[${hookIdRef.current}] Already initialized, updating state only for user:`, user.id);
-      setIsLoading(false);
+      // Always try to fetch data if we have a user, regardless of connection status
+      // This helps catch cases where the data exists but the connection check fails
+      fetchWahooActivities(user.id, hookIdRef.current);
+      
+      hasInitializedRef.current = true;
+      wahooGlobalState.isInitialized = true;
+      wahooGlobalState.lastFetchTimestamp = Date.now();
     }
   }, [user, checkConnectionStatus, fetchWahooActivities]);
+
+  // Listen for connection status changes
+  useEffect(() => {
+    const handleConnectionChange = () => {
+      console.log(`[${hookIdRef.current}] Connection status changed, refreshing data`);
+      if (user) {
+        fetchWahooActivities(user.id, hookIdRef.current);
+      }
+    };
+
+    window.addEventListener("wahoo_connection_changed", handleConnectionChange);
+    
+    return () => {
+      console.log(`[${hookIdRef.current}] Removing connection event listener`);
+      window.removeEventListener("wahoo_connection_changed", handleConnectionChange);
+    };
+  }, [user, fetchWahooActivities]);
 
   // Update loading state when activities loading changes
   useEffect(() => {
@@ -69,12 +75,12 @@ export function useWahooData() {
 
   // Refresh function for manual data fetch
   const refresh = () => {
-    if (user && isConnected) {
+    if (user) {
       console.log(`[${hookIdRef.current}] Manually refreshing data for user:`, user.id);
       wahooGlobalState.lastFetchTimestamp = Date.now();
       fetchWahooActivities(user.id, hookIdRef.current);
     } else {
-      console.log(`[${hookIdRef.current}] Cannot refresh: user=${!!user}, isConnected=${isConnected}`);
+      console.log(`[${hookIdRef.current}] Cannot refresh: user not found`);
     }
   };
 

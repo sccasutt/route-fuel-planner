@@ -42,8 +42,9 @@ export async function fetchWahooActivities(access_token: string) {
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
     console.log("Fetching Wahoo activities with access token...");
-    // Use the correct endpoint for Wahoo workouts/activities
-    const activitiesRes = await fetch("https://api.wahooligan.com/v1/workouts", {
+    
+    // First try the workouts endpoint
+    const activitiesRes = await fetch("https://api.wahooligan.com/v1/workouts?limit=50", {
       headers: {
         "Authorization": `Bearer ${access_token}`,
         "Accept": "application/json"
@@ -63,30 +64,66 @@ export async function fetchWahooActivities(access_token: string) {
       };
     }
 
-    const activities = await activitiesRes.json();
+    const activitiesData = await activitiesRes.json();
     
-    // Improved logging to help with debugging
-    if (Array.isArray(activities)) {
-      console.log(`Successfully fetched ${activities.length} Wahoo activities`);
+    // Debug log to see the exact structure of the response
+    console.log("Wahoo API response type:", typeof activitiesData);
+    console.log("Is array:", Array.isArray(activitiesData));
+    
+    // Handle different response formats
+    let activities = [];
+    
+    if (Array.isArray(activitiesData)) {
+      // Direct array response
+      activities = activitiesData;
+    } else if (activitiesData && typeof activitiesData === 'object') {
+      // Check if there's a 'results' or 'data' property that might contain the activities
+      if (Array.isArray(activitiesData.results)) {
+        activities = activitiesData.results;
+      } else if (Array.isArray(activitiesData.data)) {
+        activities = activitiesData.data;
+      } else if (activitiesData.workouts && Array.isArray(activitiesData.workouts)) {
+        activities = activitiesData.workouts;
+      } else {
+        // Log the structure to help debug
+        console.log("Unexpected response structure:", Object.keys(activitiesData));
+        // Try to extract any array from the object
+        const possibleArrays = Object.values(activitiesData).filter(val => Array.isArray(val));
+        if (possibleArrays.length > 0) {
+          activities = possibleArrays[0];
+          console.log("Found an array in response with", activities.length, "items");
+        }
+      }
+    }
+    
+    // Log the available activities
+    console.log(`Processing ${activities.length} Wahoo activities`);
+    
+    // Transform activity data to match our expected format
+    const formattedActivities = activities.map(activity => {
+      // Log a sample activity to debug its structure
+      if (activities.indexOf(activity) === 0) {
+        console.log("Sample activity structure:", JSON.stringify(activity).substring(0, 500) + "...");
+      }
       
-      // Transform activity data to match our expected format
-      const formattedActivities = activities.map(activity => ({
+      return {
         id: activity.id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        name: activity.name || "Unnamed Activity",
-        date: activity.start_time || new Date().toISOString(),
-        distance: typeof activity.distance === 'number' ? activity.distance : 0,
-        elevation: activity.elevation_gain || 0,
+        name: activity.name || activity.title || "Unnamed Activity",
+        date: activity.start_time || activity.created_at || new Date().toISOString(),
+        distance: typeof activity.distance === 'number' 
+          ? activity.distance 
+          : typeof activity.distance === 'string'
+            ? parseFloat(activity.distance)
+            : 0,
+        elevation: activity.elevation_gain || activity.elevation || 0,
         duration: activity.duration || "0:00:00",
         calories: activity.calories || 0,
         gpx_data: activity.gpx_data || null
-      }));
-      
-      return formattedActivities;
-    } else {
-      console.log("Wahoo activities response is not an array:", typeof activities);
-      // Return empty array if we don't get a proper response
-      return [];
-    }
+      };
+    });
+    
+    console.log(`Successfully formatted ${formattedActivities.length} Wahoo activities`);
+    return formattedActivities;
   } catch (err: any) {
     console.error("Error in fetchWahooActivities:", err);
     throw {

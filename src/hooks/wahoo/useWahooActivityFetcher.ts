@@ -27,12 +27,14 @@ export function useWahooActivityFetcher() {
         .select('*')
         .eq("user_id", userId)
         .order("date", { ascending: false })
-        .limit(10);
+        .limit(50);
 
       if (error) {
         console.error(`[${hookId}] Error fetching routes:`, error);
         throw error;
       }
+      
+      console.log(`[${hookId}] Database response:`, data ? `${data.length} records` : 'No data');
       
       if (!data || data.length === 0) {
         console.log(`[${hookId}] No activities found for user`, userId);
@@ -41,16 +43,24 @@ export function useWahooActivityFetcher() {
         console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
         
         // Convert the data to the correct type to match WahooActivityData
-        const typedActivities: WahooActivityData[] = data.map((r: any) => ({
-          id: r.id || r.wahoo_route_id || `route-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          name: r.name || "Unnamed Activity",
-          date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
-          distance: parseFloat(typeof r.distance === 'string' ? r.distance : r.distance?.toString() || '0'),
-          elevation: parseFloat(typeof r.elevation === 'string' ? r.elevation : r.elevation?.toString() || '0'),
-          duration: r.duration || "0h 0m",
-          calories: r.calories || 0,
-        }));
+        const typedActivities: WahooActivityData[] = data.map((r: any) => {
+          // Debug log the first item to see its structure
+          if (data.indexOf(r) === 0) {
+            console.log(`[${hookId}] Sample route data:`, r);
+          }
+          
+          return {
+            id: r.id || r.wahoo_route_id || `route-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            name: r.name || "Unnamed Activity",
+            date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
+            distance: parseFloat(typeof r.distance === 'string' ? r.distance : r.distance?.toString() || '0'),
+            elevation: parseFloat(typeof r.elevation === 'string' ? r.elevation : r.elevation?.toString() || '0'),
+            duration: r.duration || "0h 0m",
+            calories: r.calories || 0,
+          };
+        });
         
+        console.log(`[${hookId}] Processed ${typedActivities.length} activities`);
         setActivities(typedActivities);
       }
     } catch (error) {
