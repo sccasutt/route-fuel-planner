@@ -1,7 +1,7 @@
 
 // Function that handles inserting or updating profile and routes
 
-import { SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 /**
  * Upserts the Wahoo profile for a user
