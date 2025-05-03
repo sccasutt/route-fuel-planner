@@ -33,10 +33,11 @@ export function useUserProfile() {
           return;
         }
 
+        // Using type assertion to fix the TypeScript error
         const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
           .maybeSingle();
 
         if (error) {
@@ -49,7 +50,7 @@ export function useUserProfile() {
         }
 
         if (!ignore) {
-          setProfile(data ?? null);
+          setProfile(data as UserProfile | null);
           setLoading(false);
         }
       } catch (error) {

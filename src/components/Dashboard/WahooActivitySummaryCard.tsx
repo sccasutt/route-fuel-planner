@@ -1,6 +1,6 @@
 
 import { Bike, Map, Clock, LineChart } from "lucide-react";
-import { WahooActivityData } from "@/hooks/useWahooData";
+import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
 
 interface Props {
   isLoading: boolean;

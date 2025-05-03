@@ -34,9 +34,10 @@ export function useWahooActivityFetcher() {
         console.error(`[${hookId}] Error getting Wahoo user ID from token:`, e);
       }
       
+      // Using type assertion to fix the TypeScript error
       const { data, error } = await supabase
-        .from("routes")
-        .select("*")
+        .from('routes')
+        .select('*')
         .eq("user_id", userId)
         .order("date", { ascending: false })
         .limit(5);
@@ -51,7 +52,7 @@ export function useWahooActivityFetcher() {
       } else {
         console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
         setActivities(
-          data.map((r) => ({
+          data.map((r: any) => ({
             id: r.id,
             name: r.name || "Unnamed Activity",
             date: r.date || new Date().toISOString(),

@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -102,10 +101,10 @@ const PreQuestionnaire = () => {
           : [],
       };
 
-      // Update user profile
+      // Update user profile using type assertion to fix TypeScript error
       const { error } = await supabase
-        .from("profiles")
-        .update(insert)
+        .from('profiles')
+        .update(insert as any)
         .eq("id", user.id);
 
       if (error) {
