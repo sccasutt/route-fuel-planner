@@ -1,4 +1,5 @@
 
+// This file exists but we'll add a function to check token validity
 import { exchangeCodeForToken } from "@/components/Wahoo/WahooApi";
 
 export async function exchangeAndSaveToken(
@@ -42,4 +43,18 @@ export async function exchangeAndSaveToken(
     saved: saveObj,
     wahooUserId,
   };
+}
+
+export function isWahooTokenValid(tokenString: string): boolean {
+  try {
+    const tokenData = JSON.parse(tokenString);
+    const isValid = tokenData && 
+                    tokenData.access_token && 
+                    (!tokenData.expires_at || tokenData.expires_at > Date.now());
+    
+    return isValid;
+  } catch (error) {
+    console.error("Error validating Wahoo token:", error);
+    return false;
+  }
 }
