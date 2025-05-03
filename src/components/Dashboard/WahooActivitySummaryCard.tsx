@@ -10,9 +10,31 @@ interface Props {
 }
 
 export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
-  // Calculate summary statistics
-  const totalDistance = activities.reduce((sum, act) => sum + parseFloat(act.distance.toString()), 0).toFixed(1);
-  const totalCalories = activities.reduce((sum, act) => sum + (act.calories || 0), 0);
+  // Calculate summary statistics - ensure we're parsing numbers correctly
+  const totalDistance = activities.reduce((sum, act) => {
+    // Make sure distance is treated as a number
+    const distance = typeof act.distance === 'number' 
+      ? act.distance 
+      : typeof act.distance === 'string'
+        ? parseFloat(act.distance)
+        : 0;
+    return sum + distance;
+  }, 0).toFixed(1);
+  
+  const totalCalories = activities.reduce((sum, act) => {
+    // Make sure calories are treated as numbers
+    const calories = typeof act.calories === 'number'
+      ? act.calories
+      : typeof act.calories === 'string'
+        ? parseInt(act.calories, 10)
+        : 0;
+    return sum + calories;
+  }, 0);
+  
+  // Debug logged data
+  console.log("WahooActivitySummaryCard activities:", activities.slice(0, 2));
+  console.log("Calculated total distance:", totalDistance);
+  console.log("Calculated total calories:", totalCalories);
   
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
@@ -78,7 +100,7 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="flex items-center text-xs">
                     <Map className="w-3 h-3 mr-1 text-muted-foreground" />
-                    <span>{activity.distance} km</span>
+                    <span>{typeof activity.distance === 'number' ? activity.distance.toFixed(1) : parseFloat(String(activity.distance || 0)).toFixed(1)} km</span>
                   </div>
                   <div className="flex items-center text-xs">
                     <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
