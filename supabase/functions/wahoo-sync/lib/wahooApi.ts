@@ -64,8 +64,29 @@ export async function fetchWahooActivities(access_token: string) {
     }
 
     const activities = await activitiesRes.json();
-    console.log("Successfully fetched Wahoo activities:", Array.isArray(activities) ? activities.length : "none");
-    return activities;
+    
+    // Improved logging to help with debugging
+    if (Array.isArray(activities)) {
+      console.log(`Successfully fetched ${activities.length} Wahoo activities`);
+      
+      // Transform activity data to match our expected format
+      const formattedActivities = activities.map(activity => ({
+        id: activity.id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        name: activity.name || "Unnamed Activity",
+        date: activity.start_time || new Date().toISOString(),
+        distance: typeof activity.distance === 'number' ? activity.distance : 0,
+        elevation: activity.elevation_gain || 0,
+        duration: activity.duration || "0:00:00",
+        calories: activity.calories || 0,
+        gpx_data: activity.gpx_data || null
+      }));
+      
+      return formattedActivities;
+    } else {
+      console.log("Wahoo activities response is not an array:", typeof activities);
+      // Return empty array if we don't get a proper response
+      return [];
+    }
   } catch (err: any) {
     console.error("Error in fetchWahooActivities:", err);
     throw {

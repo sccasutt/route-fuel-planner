@@ -42,11 +42,11 @@ export function useWahooActivityFetcher() {
         
         // Convert the data to the correct type to match WahooActivityData
         const typedActivities: WahooActivityData[] = data.map((r: any) => ({
-          id: r.id,
+          id: r.id || r.wahoo_route_id || `route-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           name: r.name || "Unnamed Activity",
           date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
-          distance: typeof r.distance === 'string' ? parseFloat(r.distance) : r.distance || 0,
-          elevation: typeof r.elevation === 'string' ? parseFloat(r.elevation) : r.elevation || 0,
+          distance: parseFloat(typeof r.distance === 'string' ? r.distance : r.distance?.toString() || '0'),
+          elevation: parseFloat(typeof r.elevation === 'string' ? r.elevation : r.elevation?.toString() || '0'),
           duration: r.duration || "0h 0m",
           calories: r.calories || 0,
         }));

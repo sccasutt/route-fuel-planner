@@ -14,7 +14,8 @@ import { NutritionTabContent } from "@/components/Dashboard/NutritionTabContent"
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw } from "lucide-react";
+import { RefreshCcw, Bike } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Define a type that matches what RecentRoutesSection and RoutesTabContent expect
 interface RouteType {
@@ -32,6 +33,7 @@ const Dashboard = () => {
   const { isConnected, activities, isLoading, refresh } = useWahooData();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Check authentication and redirect if not logged in
   useEffect(() => {
@@ -43,6 +45,10 @@ const Dashboard = () => {
   // Handle manual refresh
   const handleRefresh = () => {
     refresh();
+    toast({
+      title: "Refreshing data",
+      description: "Fetching your latest activity data..."
+    });
   };
 
   // Convert WahooActivityData to RouteType (since they're compatible)
@@ -94,16 +100,23 @@ const Dashboard = () => {
               <div className="p-6 bg-muted rounded-lg border text-center">
                 <h2 className="text-xl font-bold mb-2">No Routes Yet</h2>
                 <p className="text-muted-foreground mb-4">
-                  Connect your Wahoo account to see your routes here
+                  {isConnected 
+                    ? "Your Wahoo account is connected but no activities were found. Try syncing your activities." 
+                    : "Connect your Wahoo account to see your routes here"}
                 </p>
-                {!isConnected && (
+                {!isConnected ? (
                   <Button onClick={() => {
                     const connectButton = document.querySelector('.wahoo-connect-button');
                     if (connectButton) {
-                      (connectButton as HTMLElement).click();
+                      (connectButton as HTMLButtonElement).click();
                     }
                   }}>
                     Connect Wahoo
+                  </Button>
+                ) : (
+                  <Button variant="default" size="sm" className="gap-2" onClick={handleRefresh}>
+                    <Bike className="h-4 w-4" />
+                    Sync Activities
                   </Button>
                 )}
               </div>
