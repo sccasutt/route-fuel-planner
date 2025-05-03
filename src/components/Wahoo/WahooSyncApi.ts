@@ -30,7 +30,7 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     const userId = authData.user.id;
     console.log("Syncing Wahoo data for user ID:", userId);
     
-    // Create request body and log it for debugging
+    // Create request body with all required fields
     const requestBody = {
       access_token: tokenObj.access_token,
       refresh_token: tokenObj.refresh_token,
@@ -41,26 +41,31 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
     // Log the complete request body for debugging (excluding tokens)
     const debugBody = {
       ...requestBody,
-      access_token: !!requestBody.access_token,
-      refresh_token: !!requestBody.refresh_token
+      access_token: !!requestBody.access_token ? "present" : "missing",
+      refresh_token: !!requestBody.refresh_token ? "present" : "missing"
     };
     console.log("Debug - Request body before sending:", debugBody);
 
-    // No need to manually create authorization headers or serialize body!
-    // Supabase SDK will handle Content-Type, Authorization, and JSON.stringify.
-    console.log("Invoking wahoo-sync function via supabase.functions.invoke, letting SDK manage body and headers");
+    // Call the Supabase Edge Function
+    console.log("Invoking wahoo-sync function");
     const { data, error } = await supabase.functions.invoke("wahoo-sync", {
+      method: 'POST',
       body: requestBody
     });
 
     if (error) {
-      console.error("Error syncing Wahoo data:", error);
-      throw error;
+      console.error("Error from Supabase Edge Function:", error);
+      throw new Error(`Supabase function error: ${error.message}`);
     }
     
-    if (!data || (data.error && typeof data.error === 'string')) {
-      console.error("Wahoo sync returned an error response:", data);
-      throw new Error(data.error || "Error in Wahoo sync response");
+    if (!data) {
+      console.error("No data returned from wahoo-sync function");
+      throw new Error("No response data from Wahoo sync");
+    }
+    
+    if (data.error) {
+      console.error("Error in wahoo-sync response:", data.error, data.details || "No details provided");
+      throw new Error(typeof data.error === 'string' ? data.error : "Error in Wahoo sync response");
     }
     
     console.log("Wahoo sync completed successfully:", data);

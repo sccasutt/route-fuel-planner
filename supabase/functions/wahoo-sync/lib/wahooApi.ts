@@ -13,6 +13,9 @@ export async function fetchWahooProfile(access_token: string) {
     });
     clearTimeout(timeoutId);
 
+    // Log the HTTP status and response headers for debugging
+    console.log("Wahoo profile API response status:", profileRes.status);
+    
     if (!profileRes.ok) {
       const errorText = await profileRes.text();
       console.error("Failed to fetch Wahoo profile:", profileRes.status, errorText);
@@ -43,32 +46,59 @@ export async function fetchWahooActivities(access_token: string) {
   try {
     console.log("Fetching Wahoo activities with access token...");
     
-    // First try the workouts endpoint
-    const activitiesRes = await fetch("https://api.wahooligan.com/v1/workouts?limit=50", {
-      headers: {
-        "Authorization": `Bearer ${access_token}`,
-        "Accept": "application/json"
-      },
-      signal: controller.signal,
-    });
+    // Try these endpoints in order, if one fails try the next
+    const endpoints = [
+      "https://api.wahooligan.com/v1/workouts?limit=50",
+      "https://api.wahooligan.com/v1/rides?limit=50", 
+      "https://api.wahooligan.com/v1/routes?limit=50"
+    ];
+    
+    let activitiesRes = null;
+    let usedEndpoint = "";
+    
+    // Try each endpoint until we get a successful response
+    for (const endpoint of endpoints) {
+      console.log(`Trying Wahoo endpoint: ${endpoint}`);
+      try {
+        const res = await fetch(endpoint, {
+          headers: {
+            "Authorization": `Bearer ${access_token}`,
+            "Accept": "application/json"
+          },
+          signal: controller.signal,
+        });
+        
+        console.log(`Endpoint ${endpoint} response status:`, res.status);
+        
+        if (res.ok) {
+          activitiesRes = res;
+          usedEndpoint = endpoint;
+          break;
+        }
+      } catch (endpointErr) {
+        console.warn(`Error with endpoint ${endpoint}:`, endpointErr);
+        // Continue to next endpoint
+      }
+    }
+    
     clearTimeout(timeoutId);
 
-    if (!activitiesRes.ok) {
-      const errorText = await activitiesRes.text();
-      console.error("Failed to fetch Wahoo activities:", activitiesRes.status, errorText);
+    if (!activitiesRes) {
       throw {
-        message: "Failed to fetch Wahoo activities",
+        message: "Failed to fetch Wahoo activities from all endpoints",
         status: 502,
-        details: errorText,
-        httpStatus: activitiesRes.status
+        details: "All API endpoints returned errors",
+        httpStatus: 502
       };
     }
 
+    console.log(`Successfully connected to Wahoo API using endpoint: ${usedEndpoint}`);
     const activitiesData = await activitiesRes.json();
     
     // Debug log to see the exact structure of the response
     console.log("Wahoo API response type:", typeof activitiesData);
     console.log("Is array:", Array.isArray(activitiesData));
+    console.log("Response structure:", Object.keys(activitiesData));
     
     // Handle different response formats
     let activities = [];
@@ -99,13 +129,13 @@ export async function fetchWahooActivities(access_token: string) {
     // Log the available activities
     console.log(`Processing ${activities.length} Wahoo activities`);
     
+    if (activities.length > 0) {
+      console.log("Sample activity:", JSON.stringify(activities[0]).substring(0, 1000));
+    }
+    
     // Transform activity data to match our expected format
     const formattedActivities = activities.map(activity => {
-      // Log a sample activity to debug its structure
-      if (activities.indexOf(activity) === 0) {
-        console.log("Sample activity structure:", JSON.stringify(activity).substring(0, 500) + "...");
-      }
-      
+      // Extract key fields with fallbacks
       return {
         id: activity.id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         name: activity.name || activity.title || "Unnamed Activity",

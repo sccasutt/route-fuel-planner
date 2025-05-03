@@ -38,6 +38,19 @@ export function useWahooActivityFetcher() {
       
       if (!data || data.length === 0) {
         console.log(`[${hookId}] No activities found for user`, userId);
+        // Try to diagnose why no data is found
+        const { data: diagnosticData } = await supabase.from('routes').select('count').single();
+        console.log(`[${hookId}] Total routes in database:`, diagnosticData ? diagnosticData.count : 'Unknown');
+        
+        // Also check wahoo_profiles to see if there's any record of this user
+        const { data: wahooProfile } = await supabase
+          .from('wahoo_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        console.log(`[${hookId}] Wahoo profile for user:`, wahooProfile || 'Not found');
+        
         setActivities([]);
       } else {
         console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
