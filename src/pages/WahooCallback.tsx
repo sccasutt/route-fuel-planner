@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function WahooCallback() {
   const [status, setStatus] = useState("Processing Wahoo authorization...");
@@ -18,6 +19,7 @@ export default function WahooCallback() {
   const { processCallback } = useProcessWahooCallback({ setStatus, setError });
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Check for session first to ensure we have authenticated access
   useEffect(() => {
@@ -29,18 +31,42 @@ export default function WahooCallback() {
           console.error("Error retrieving session in WahooCallback:", error);
         }
         console.log("WahooCallback: Session check:", data.session ? "session found" : "no session");
+        
+        // If no session is found, redirect to login immediately
+        if (!data.session) {
+          setError("You must be logged in to connect your Wahoo account.");
+          toast({
+            title: "Authentication required",
+            description: "Please log in before connecting your Wahoo account.",
+          });
+          setTimeout(() => navigate("/auth"), 2000);
+        }
       });
     }
-  }, []);
+  }, [navigate, toast]);
 
-  // Process callback
+  // Process callback only if user is logged in
   useEffect(() => {
+    // Wait for auth state to be checked
+    if (loading) return;
+    
+    // If user is not logged in, don't process the callback
+    if (!user) {
+      if (!authCheckedRef.current) {
+        authCheckedRef.current = true;
+        console.log("WahooCallback: User not logged in, redirecting to login");
+        setStatus("Authentication required");
+        setError("You must be logged in to connect your Wahoo account.");
+      }
+      return;
+    }
+
     // Only process the callback once using ref to track state across re-renders
     if (!processingRef.current) {
       processingRef.current = true;
       console.log("WahooCallback: Initializing callback processing");
       
-      // Always process the callback to store the token, even if user isn't logged in
+      // Process the callback now that we know user is logged in
       processCallback().catch(err => {
         console.error("Unhandled error in processCallback:", err);
         setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -48,20 +74,7 @@ export default function WahooCallback() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Separate effect to check auth state after callback is processed
-  useEffect(() => {
-    if (!loading && !authCheckedRef.current) {
-      authCheckedRef.current = true;
-      console.log("WahooCallback: Auth state check:", user ? "logged in" : "not logged in");
-      
-      // Auto-navigate to dashboard if the user is logged in
-      if (user) {
-        navigate("/dashboard", { state: { wahooConnected: true }});
-      }
-    }
-  }, [loading, user, navigate]);
+  }, [loading, user]);
 
   return (
     <Layout>
@@ -75,9 +88,9 @@ export default function WahooCallback() {
           )}
           {!user && !loading && (
             <div className="mt-4 flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">You need to log in to sync your Wahoo data</p>
+              <p className="text-sm text-muted-foreground">You need to log in to connect your Wahoo account</p>
               <Button onClick={() => navigate("/auth")} variant="default">
-                Log in to sync
+                Log in to connect
               </Button>
               <Button onClick={() => navigate("/dashboard")} variant="outline">
                 Back to Dashboard

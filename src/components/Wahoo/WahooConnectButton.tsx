@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +8,8 @@ import { useWahooAuthPopup } from "./WahooAuthPopupHook";
 import { WahooErrorAlert } from "./WahooErrorAlert";
 import { WahooResyncButton } from "./WahooResyncButton";
 import { useWahooRedirectUri } from "@/hooks/wahoo/useWahooRedirectUri";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 const WAHOO_AUTH_URL = "https://api.wahooligan.com/oauth/authorize";
 const SCOPE = "email power_zones_read workouts_read plans_read routes_read user_read";
@@ -17,6 +20,8 @@ export function WahooConnectButton() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [instanceId] = useState(`connect-btn-${Math.random().toString(36).substring(2, 9)}`);
   const redirectUri = useWahooRedirectUri();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const {
     isConnected,
@@ -35,6 +40,16 @@ export function WahooConnectButton() {
   }, [isConnected, instanceId]);
 
   const handleConnect = async () => {
+    // Check if user is logged in first
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in before connecting your Wahoo account.",
+      });
+      navigate("/auth");
+      return;
+    }
+
     try {
       setIsConnecting(true);
       setConnectionError(null);
