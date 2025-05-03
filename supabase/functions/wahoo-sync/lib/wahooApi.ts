@@ -42,7 +42,8 @@ export async function fetchWahooActivities(access_token: string) {
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
     console.log("Fetching Wahoo activities with access token...");
-    const activitiesRes = await fetch("https://api.wahooligan.com/v1/activities", {
+    // Use the correct endpoint for Wahoo workouts/activities
+    const activitiesRes = await fetch("https://api.wahooligan.com/v1/workouts", {
       headers: {
         "Authorization": `Bearer ${access_token}`,
         "Accept": "application/json"
