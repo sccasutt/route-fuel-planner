@@ -58,15 +58,9 @@ export function useWahooActivityFetcher() {
         setActivities([]);
       } else {
         console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
-        console.log(`[${hookId}] Sample activity:`, data[0]);
         
         // Convert the data to the correct type to match WahooActivityData
         const typedActivities: WahooActivityData[] = data.map((r: any) => {
-          // Debug log the structure of the first few items
-          if (data.indexOf(r) < 3) {
-            console.log(`[${hookId}] Activity ${data.indexOf(r)} raw data:`, r);
-          }
-          
           // Handle numeric data properly
           let distance = 0;
           try {

@@ -31,11 +31,6 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
     return sum + calories;
   }, 0);
   
-  // Debug logged data
-  console.log("WahooActivitySummaryCard activities:", activities.slice(0, 2));
-  console.log("Calculated total distance:", totalDistance);
-  console.log("Calculated total calories:", totalCalories);
-  
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
       <div className="mb-4 font-semibold text-lg flex items-center justify-between">
