@@ -62,40 +62,69 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
   for (let i = 0; i < activities.length; i += batchSize) {
     const batch = activities.slice(i, i + batchSize);
     
+    // Log sample activity for debugging
+    if (i === 0 && batch.length > 0) {
+      console.log(`Sample activity for insertion:`, {
+        id: batch[0].id,
+        name: batch[0].name,
+        distance: batch[0].distance,
+        elevation: batch[0].elevation,
+        calories: batch[0].calories,
+        type: typeof batch[0].distance
+      });
+    }
+    
     // Transform the activities into the routes schema
     const routes = batch.map(activity => {
-      // Parse numeric values properly
+      // Improved parsing for numeric values
+      
+      // Parse distance
       let distance = 0;
-      try {
-        distance = typeof activity.distance === 'number' 
-          ? activity.distance 
-          : parseFloat(String(activity.distance || '0'));
-      } catch (err) {
-        console.error("Error parsing distance:", err, "for activity:", activity.id);
+      if (typeof activity.distance === 'number' && !isNaN(activity.distance)) {
+        distance = activity.distance;
+      } else if (typeof activity.distance === 'string') {
+        try {
+          const parsed = parseFloat(activity.distance);
+          distance = !isNaN(parsed) ? parsed : 0;
+        } catch (err) {
+          console.error("Error parsing distance:", err, "for activity:", activity.id);
+        }
       }
       
+      // Parse elevation
       let elevation = 0;
-      try {
-        elevation = typeof activity.elevation === 'number' 
-          ? activity.elevation 
-          : parseFloat(String(activity.elevation || '0'));
-      } catch (err) {
-        console.error("Error parsing elevation:", err, "for activity:", activity.id);
+      if (typeof activity.elevation === 'number' && !isNaN(activity.elevation)) {
+        elevation = activity.elevation;
+      } else if (typeof activity.elevation === 'string') {
+        try {
+          const parsed = parseFloat(activity.elevation);
+          elevation = !isNaN(parsed) ? parsed : 0;
+        } catch (err) {
+          console.error("Error parsing elevation:", err, "for activity:", activity.id);
+        }
       }
       
+      // Parse calories
       let calories = 0;
-      try {
-        calories = typeof activity.calories === 'number' 
-          ? activity.calories 
-          : parseInt(String(activity.calories || '0'), 10);
-      } catch (err) {
-        console.error("Error parsing calories:", err, "for activity:", activity.id);
+      if (typeof activity.calories === 'number' && !isNaN(activity.calories)) {
+        calories = activity.calories;
+      } else if (typeof activity.calories === 'string') {
+        try {
+          const parsed = parseInt(activity.calories, 10);
+          calories = !isNaN(parsed) ? parsed : 0;
+        } catch (err) {
+          console.error("Error parsing calories:", err, "for activity:", activity.id);
+        }
       }
       
       // Format the date consistently
       let dateObj;
       try {
         dateObj = new Date(activity.date);
+        if (isNaN(dateObj.getTime())) {
+          console.warn("Invalid date detected:", activity.date);
+          dateObj = new Date(); // Fallback to current date
+        }
       } catch (err) {
         console.error("Error parsing date:", err, "for activity:", activity.id);
         dateObj = new Date();
@@ -110,10 +139,20 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         duration = `${hours}:${minutes.toString().padStart(2, '0')}:00`;
       }
       
+      // Log the processed values for the first activity
+      if (i === 0 && activity === batch[0]) {
+        console.log("Processed numeric values:", {
+          distance: distance,
+          elevation: elevation,
+          calories: calories,
+          date: dateObj.toISOString()
+        });
+      }
+      
       return {
         user_id: userId,
         wahoo_route_id: activity.id.toString(),
-        name: activity.name,
+        name: activity.name || "Unnamed Activity",
         date: dateObj.toISOString(),
         distance: distance,
         elevation: elevation,

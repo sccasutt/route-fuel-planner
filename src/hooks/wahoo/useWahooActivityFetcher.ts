@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,60 +57,64 @@ export function useWahooActivityFetcher() {
         setActivities([]);
       } else {
         console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
+        console.log(`[${hookId}] Sample raw data:`, data[0]);
         
-        // Convert the data to the correct type to match WahooActivityData
+        // Improved conversion logic with more robust parsing
         const typedActivities: WahooActivityData[] = data.map((r: any) => {
-          // Handle numeric data properly
+          // Handle distance with better numeric parsing
           let distance = 0;
-          try {
-            distance = typeof r.distance === 'number' 
-              ? r.distance 
-              : typeof r.distance === 'string' 
-                ? parseFloat(r.distance) 
-                : 0;
-
-            // Ensure it's a valid number
-            if (isNaN(distance)) distance = 0;
-          } catch (e) {
-            console.error(`[${hookId}] Error parsing distance:`, e);
+          if (typeof r.distance === 'number') {
+            distance = r.distance;
+          } else if (typeof r.distance === 'string') {
+            const parsed = parseFloat(r.distance);
+            distance = !isNaN(parsed) ? parsed : 0;
           }
           
+          // Handle elevation with better numeric parsing
           let elevation = 0;
-          try {
-            elevation = typeof r.elevation === 'number' 
-              ? r.elevation 
-              : typeof r.elevation === 'string' 
-                ? parseFloat(r.elevation) 
-                : 0;
-                
-            // Ensure it's a valid number
-            if (isNaN(elevation)) elevation = 0;
-          } catch (e) {
-            console.error(`[${hookId}] Error parsing elevation:`, e);
+          if (typeof r.elevation === 'number') {
+            elevation = r.elevation;
+          } else if (typeof r.elevation === 'string') {
+            const parsed = parseFloat(r.elevation);
+            elevation = !isNaN(parsed) ? parsed : 0;
           }
           
+          // Handle calories with better numeric parsing
           let calories = 0;
-          try {
-            calories = typeof r.calories === 'number' 
-              ? r.calories 
-              : typeof r.calories === 'string' 
-                ? parseInt(r.calories, 10) 
-                : 0;
-                
-            // Ensure it's a valid number
-            if (isNaN(calories)) calories = 0;
-          } catch (e) {
-            console.error(`[${hookId}] Error parsing calories:`, e);
+          if (typeof r.calories === 'number') {
+            calories = r.calories;
+          } else if (typeof r.calories === 'string') {
+            const parsed = parseInt(r.calories, 10);
+            calories = !isNaN(parsed) ? parsed : 0;
           }
           
-          // Create properly typed activity object
+          // Format duration properly
+          let duration = r.duration || "0:00:00";
+          
+          // Ensure we have a valid date
+          let dateStr = r.date;
+          if (!(dateStr instanceof Date) && typeof dateStr === 'string') {
+            try {
+              // Try to parse as ISO date
+              const dateObj = new Date(dateStr);
+              if (!isNaN(dateObj.getTime())) {
+                // Valid date, keep as is
+                dateStr = dateObj.toISOString().split('T')[0];
+              }
+            } catch (e) {
+              console.error(`[${hookId}] Error parsing date:`, e);
+              dateStr = new Date().toISOString().split('T')[0];
+            }
+          }
+          
+          // Create properly typed activity object with sanitized data
           const activity: WahooActivityData = {
             id: r.id || r.wahoo_route_id || `route-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             name: r.name || "Unnamed Activity",
-            date: r.date ? new Date(r.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            date: dateStr,
             distance: distance,
             elevation: elevation,
-            duration: r.duration || "0h 0m",
+            duration: duration,
             calories: calories,
           };
           

@@ -10,30 +10,29 @@ interface Props {
 }
 
 export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
-  // Calculate summary statistics - ensure we're parsing numbers correctly
+  // Calculate summary statistics with improved numeric handling
   const totalDistance = activities.reduce((sum, act) => {
-    // Make sure distance is treated as a number
     const distance = typeof act.distance === 'number' 
       ? act.distance 
       : typeof act.distance === 'string'
         ? parseFloat(act.distance)
         : 0;
     
-    // Ensure it's a valid number
     return sum + (isNaN(distance) ? 0 : distance);
-  }, 0).toFixed(1);
+  }, 0);
   
   const totalCalories = activities.reduce((sum, act) => {
-    // Make sure calories are treated as numbers
     const calories = typeof act.calories === 'number'
       ? act.calories
       : typeof act.calories === 'string'
         ? parseInt(act.calories, 10)
         : 0;
     
-    // Ensure it's a valid number
     return sum + (isNaN(calories) ? 0 : calories);
   }, 0);
+  
+  // Format numbers for display
+  const formattedDistance = totalDistance.toFixed(1);
   
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
@@ -65,7 +64,7 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
               <div className="text-muted-foreground text-xs mb-1 flex items-center">
                 <Map className="w-3 h-3 mr-1" /> Total Distance
               </div>
-              <div className="text-xl font-semibold">{totalDistance} km</div>
+              <div className="text-xl font-semibold">{formattedDistance} km</div>
             </div>
             <div className="bg-muted/50 p-3 rounded-lg">
               <div className="text-muted-foreground text-xs mb-1 flex items-center">
@@ -90,36 +89,44 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
           <h3 className="text-sm font-semibold mb-2">Recent Activities</h3>
           
           <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-            {activities.slice(0, 5).map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
-                <div>
-                  <p className="font-medium text-sm">{activity.name}</p>
-                  <p className="text-xs text-muted-foreground">{activity.date}</p>
+            {activities.slice(0, 5).map((activity) => {
+              // Parse distance for each activity
+              const displayDistance = typeof activity.distance === 'number' 
+                ? !isNaN(activity.distance) ? activity.distance.toFixed(1) : '0.0'
+                : typeof activity.distance === 'string' 
+                  ? parseFloat(activity.distance).toFixed(1)
+                  : '0.0';
+              
+              // Parse calories for each activity  
+              const displayCalories = typeof activity.calories === 'number' 
+                ? !isNaN(activity.calories) ? activity.calories : 0 
+                : typeof activity.calories === 'string'
+                  ? parseInt(activity.calories, 10) || 0
+                  : 0;
+              
+              return (
+                <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
+                  <div>
+                    <p className="font-medium text-sm">{activity.name}</p>
+                    <p className="text-xs text-muted-foreground">{activity.date}</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="flex items-center text-xs">
+                      <Map className="w-3 h-3 mr-1 text-muted-foreground" />
+                      <span>{displayDistance} km</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
+                      <span>{activity.duration || "0:00"}</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />
+                      <span>{displayCalories} kcal</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="flex items-center text-xs">
-                    <Map className="w-3 h-3 mr-1 text-muted-foreground" />
-                    <span>
-                      {typeof activity.distance === 'number' 
-                        ? !isNaN(activity.distance) ? activity.distance.toFixed(1) : '0.0'
-                        : parseFloat(String(activity.distance || 0)).toFixed(1)} km
-                    </span>
-                  </div>
-                  <div className="flex items-center text-xs">
-                    <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                    <span>{activity.duration || "0:00"}</span>
-                  </div>
-                  <div className="flex items-center text-xs">
-                    <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />
-                    <span>
-                      {typeof activity.calories === 'number' 
-                        ? !isNaN(activity.calories) ? activity.calories : 0 
-                        : parseInt(String(activity.calories || 0), 10) || 0} kcal
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           
           {activities.length > 5 && (
