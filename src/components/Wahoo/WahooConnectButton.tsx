@@ -124,7 +124,12 @@ export function WahooConnectButton() {
       <WahooErrorAlert connectionError={connectionError} />
 
       {!isConnected ? (
-        <Button variant="outline" className="gap-2" onClick={handleConnect} disabled={isConnecting}>
+        <Button 
+          variant="outline" 
+          className="gap-2 wahoo-connect-button" 
+          onClick={handleConnect} 
+          disabled={isConnecting}
+        >
           <WahooLogoIcon />
           {isConnecting ? "Connecting..." : "Connect to Wahoo"}
         </Button>

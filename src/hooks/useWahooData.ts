@@ -4,6 +4,7 @@ import { useAuth } from "./useAuth";
 import { useWahooActivityFetcher } from "./wahoo/useWahooActivityFetcher";
 import { useWahooConnectionStatus } from "./wahoo/useWahooConnectionStatus";
 import { WahooActivityData, wahooGlobalState } from "./wahoo/wahooTypes";
+import { supabase } from "@/integrations/supabase/client";
 
 export type { WahooActivityData } from "./wahoo/wahooTypes";
 
@@ -17,12 +18,27 @@ export function useWahooData() {
   const { isConnected, checkConnectionStatus } = useWahooConnectionStatus(hookIdRef.current);
   const { activities, fetchWahooActivities, isLoading: activitiesLoading } = useWahooActivityFetcher();
 
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        console.log(`[${hookIdRef.current}] No active session found`);
+        setIsLoading(false);
+        return false;
+      }
+      return true;
+    };
+
+    checkAuth();
+  }, []);
+
   useEffect(() => {
     // Only initialize once per user session
     if (user && !hasInitializedRef.current && !wahooGlobalState.isInitialized) {
       hasInitializedRef.current = true;
       wahooGlobalState.isInitialized = true;
-      console.log(`[${hookIdRef.current}] Initializing Wahoo data hook`);
+      console.log(`[${hookIdRef.current}] Initializing Wahoo data hook for user:`, user.id);
       
       const connected = checkConnectionStatus();
       
@@ -41,7 +57,7 @@ export function useWahooData() {
       }
     } else if (user && hasInitializedRef.current) {
       // We're already initialized, just update our state
-      console.log(`[${hookIdRef.current}] Already initialized, updating state only`);
+      console.log(`[${hookIdRef.current}] Already initialized, updating state only for user:`, user.id);
       setIsLoading(false);
     }
   }, [user, checkConnectionStatus, fetchWahooActivities]);
@@ -54,8 +70,11 @@ export function useWahooData() {
   // Refresh function for manual data fetch
   const refresh = () => {
     if (user && isConnected) {
+      console.log(`[${hookIdRef.current}] Manually refreshing data for user:`, user.id);
       wahooGlobalState.lastFetchTimestamp = Date.now();
       fetchWahooActivities(user.id, hookIdRef.current);
+    } else {
+      console.log(`[${hookIdRef.current}] Cannot refresh: user=${!!user}, isConnected=${isConnected}`);
     }
   };
 

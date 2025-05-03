@@ -20,29 +20,17 @@ export function useWahooActivityFetcher() {
     setIsLoading(true);
     try {
       console.log(`[${hookId}] Fetching Wahoo activities for user`, userId);
-      
-      // Get Wahoo user ID from token if available
-      let wahooUserId = null;
-      try {
-        const tokenString = localStorage.getItem("wahoo_token");
-        if (tokenString) {
-          const tokenData = JSON.parse(tokenString);
-          wahooUserId = tokenData.wahoo_user_id;
-          console.log(`[${hookId}] Using Wahoo user ID from token:`, wahooUserId);
-        }
-      } catch (e) {
-        console.error(`[${hookId}] Error getting Wahoo user ID from token:`, e);
-      }
-      
-      // Using type assertion to fix the TypeScript error
+
+      // Using RLS policies to get only routes for the current user
       const { data, error } = await supabase
         .from('routes')
         .select('*')
         .eq("user_id", userId)
         .order("date", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) {
+        console.error(`[${hookId}] Error fetching routes:`, error);
         throw error;
       }
       
@@ -55,8 +43,8 @@ export function useWahooActivityFetcher() {
           data.map((r: any) => ({
             id: r.id,
             name: r.name || "Unnamed Activity",
-            date: r.date || new Date().toISOString(),
-            distance: r.distance || 0,
+            date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
+            distance: r.distance ? parseFloat(r.distance).toFixed(1) : 0,
             elevation: r.elevation || 0,
             duration: r.duration || "0h 0m",
             calories: r.calories || 0,

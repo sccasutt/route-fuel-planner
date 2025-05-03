@@ -38,6 +38,7 @@ export default function WahooCallback() {
           toast({
             title: "Authentication required",
             description: "Please log in before connecting your Wahoo account.",
+            variant: "destructive"
           });
           setTimeout(() => navigate("/auth"), 2000);
         }
@@ -64,17 +65,23 @@ export default function WahooCallback() {
     // Only process the callback once using ref to track state across re-renders
     if (!processingRef.current) {
       processingRef.current = true;
-      console.log("WahooCallback: Initializing callback processing");
+      console.log("WahooCallback: Initializing callback processing for user:", user.id);
       
       // Process the callback now that we know user is logged in
-      processCallback().catch(err => {
+      processCallback().then(() => {
+        // On successful connection, navigate to dashboard
+        toast({
+          title: "Wahoo Connected",
+          description: "Your Wahoo account has been successfully connected."
+        });
+        setTimeout(() => navigate("/dashboard"), 1500);
+      }).catch(err => {
         console.error("Unhandled error in processCallback:", err);
         setError(err instanceof Error ? err.message : "Unknown error occurred");
         setStatus("Authorization failed due to an unexpected error");
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user]);
+  }, [loading, user, navigate, processCallback, toast]);
 
   return (
     <Layout>
