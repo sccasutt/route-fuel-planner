@@ -69,6 +69,9 @@ export function useWahooActivityFetcher() {
               : typeof r.distance === 'string' 
                 ? parseFloat(r.distance) 
                 : 0;
+
+            // Ensure it's a valid number
+            if (isNaN(distance)) distance = 0;
           } catch (e) {
             console.error(`[${hookId}] Error parsing distance:`, e);
           }
@@ -80,6 +83,9 @@ export function useWahooActivityFetcher() {
               : typeof r.elevation === 'string' 
                 ? parseFloat(r.elevation) 
                 : 0;
+                
+            // Ensure it's a valid number
+            if (isNaN(elevation)) elevation = 0;
           } catch (e) {
             console.error(`[${hookId}] Error parsing elevation:`, e);
           }
@@ -91,6 +97,9 @@ export function useWahooActivityFetcher() {
               : typeof r.calories === 'string' 
                 ? parseInt(r.calories, 10) 
                 : 0;
+                
+            // Ensure it's a valid number
+            if (isNaN(calories)) calories = 0;
           } catch (e) {
             console.error(`[${hookId}] Error parsing calories:`, e);
           }
@@ -99,7 +108,7 @@ export function useWahooActivityFetcher() {
           const activity: WahooActivityData = {
             id: r.id || r.wahoo_route_id || `route-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             name: r.name || "Unnamed Activity",
-            date: r.date ? new Date(r.date).toLocaleDateString() : new Date().toLocaleDateString(),
+            date: r.date ? new Date(r.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             distance: distance,
             elevation: elevation,
             duration: r.duration || "0h 0m",

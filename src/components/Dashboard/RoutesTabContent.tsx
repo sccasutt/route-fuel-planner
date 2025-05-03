@@ -28,6 +28,17 @@ export function RoutesTabContent({ routes }: Props) {
   const { syncWahooData } = useWahooSyncHandler();
   const { toast } = useToast();
 
+  // Ensure routes have proper values
+  const validatedRoutes = routes.map(route => ({
+    ...route,
+    distance: typeof route.distance === 'number' && !isNaN(route.distance) ? route.distance : 0,
+    elevation: typeof route.elevation === 'number' && !isNaN(route.elevation) ? route.elevation : 0,
+    calories: typeof route.calories === 'number' && !isNaN(route.calories) ? route.calories : 0,
+    duration: route.duration || "0:00",
+    name: route.name || "Unnamed Route",
+    date: route.date || new Date().toISOString().split('T')[0]
+  }));
+
   const handleWahooImport = async () => {
     if (!user) {
       toast({
@@ -101,8 +112,8 @@ export function RoutesTabContent({ routes }: Props) {
         </div>
       </div>
       <div className="space-y-4">
-        {routes.length > 0 ? (
-          routes.map((route) => (
+        {validatedRoutes.length > 0 ? (
+          validatedRoutes.map((route) => (
             <Card key={route.id} className="overflow-hidden">
               <div className="grid grid-cols-1 md:grid-cols-4">
                 <div className="bg-muted p-6 flex flex-col justify-center">
@@ -116,14 +127,14 @@ export function RoutesTabContent({ routes }: Props) {
                         <Map className="w-4 h-4 mr-1" />
                         <span>Distance</span>
                       </div>
-                      <p className="font-semibold">{route.distance} km</p>
+                      <p className="font-semibold">{route.distance.toFixed(1)} km</p>
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center text-sm text-muted-foreground">
                         <TrendingUp className="w-4 h-4 mr-1" />
                         <span>Elevation</span>
                       </div>
-                      <p className="font-semibold">{route.elevation} m</p>
+                      <p className="font-semibold">{route.elevation.toFixed(0)} m</p>
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center text-sm text-muted-foreground">

@@ -18,7 +18,9 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
       : typeof act.distance === 'string'
         ? parseFloat(act.distance)
         : 0;
-    return sum + distance;
+    
+    // Ensure it's a valid number
+    return sum + (isNaN(distance) ? 0 : distance);
   }, 0).toFixed(1);
   
   const totalCalories = activities.reduce((sum, act) => {
@@ -28,7 +30,9 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
       : typeof act.calories === 'string'
         ? parseInt(act.calories, 10)
         : 0;
-    return sum + calories;
+    
+    // Ensure it's a valid number
+    return sum + (isNaN(calories) ? 0 : calories);
   }, 0);
   
   return (
@@ -95,15 +99,23 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="flex items-center text-xs">
                     <Map className="w-3 h-3 mr-1 text-muted-foreground" />
-                    <span>{typeof activity.distance === 'number' ? activity.distance.toFixed(1) : parseFloat(String(activity.distance || 0)).toFixed(1)} km</span>
+                    <span>
+                      {typeof activity.distance === 'number' 
+                        ? !isNaN(activity.distance) ? activity.distance.toFixed(1) : '0.0'
+                        : parseFloat(String(activity.distance || 0)).toFixed(1)} km
+                    </span>
                   </div>
                   <div className="flex items-center text-xs">
                     <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                    <span>{activity.duration}</span>
+                    <span>{activity.duration || "0:00"}</span>
                   </div>
                   <div className="flex items-center text-xs">
                     <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />
-                    <span>{activity.calories} kcal</span>
+                    <span>
+                      {typeof activity.calories === 'number' 
+                        ? !isNaN(activity.calories) ? activity.calories : 0 
+                        : parseInt(String(activity.calories || 0), 10) || 0} kcal
+                    </span>
                   </div>
                 </div>
               </div>
