@@ -55,8 +55,13 @@ export default function WahooCallback() {
     if (!loading && !authCheckedRef.current) {
       authCheckedRef.current = true;
       console.log("WahooCallback: Auth state check:", user ? "logged in" : "not logged in");
+      
+      // Auto-navigate to dashboard if the user is logged in
+      if (user) {
+        navigate("/dashboard", { state: { wahooConnected: true }});
+      }
     }
-  }, [loading, user]);
+  }, [loading, user, navigate]);
 
   return (
     <Layout>

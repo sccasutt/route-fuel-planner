@@ -48,7 +48,7 @@ export function useProcessWahooCallback({
         setStatus("Authorization failed.");
         setError(errorDesc || authError);
         errorToast("Wahoo connection failed", errorDesc || authError);
-        setTimeout(() => navigate("/dashboard"), 5000);
+        setTimeout(() => navigate("/dashboard"), 3000);
         return;
       }
 
@@ -65,7 +65,7 @@ export function useProcessWahooCallback({
           stateResult.title || "Security error",
           stateResult.description || "State validation failed"
         );
-        setTimeout(() => navigate("/dashboard"), 5000);
+        setTimeout(() => navigate("/dashboard"), 3000);
         return;
       }
 
@@ -77,7 +77,7 @@ export function useProcessWahooCallback({
           "Connection error",
           "No authorization code received from Wahoo"
         );
-        setTimeout(() => navigate("/dashboard"), 5000);
+        setTimeout(() => navigate("/dashboard"), 3000);
         return;
       }
 
@@ -109,7 +109,7 @@ export function useProcessWahooCallback({
         setStatus("An error occurred while connecting to Wahoo.");
         setError(errorDescription);
         errorToast(errorTitle, errorDescription);
-        setTimeout(() => navigate("/dashboard"), 5000);
+        setTimeout(() => navigate("/dashboard"), 3000);
         return;
       }
 
@@ -142,7 +142,7 @@ export function useProcessWahooCallback({
             // If user became available, redirect to dashboard
             navigate("/dashboard", { state: { wahooConnected: true }});
           }
-        }, 3000);
+        }, 2000);
         return;
       }
 
@@ -166,7 +166,7 @@ export function useProcessWahooCallback({
           );
           setTimeout(
             () => navigate("/dashboard", { state: { wahooConnected: true } }),
-            3000
+            2000
           );
         } else {
           throw syncResult.error;
@@ -207,7 +207,7 @@ export function useProcessWahooCallback({
           "Partial connection",
           "Connected to Wahoo, but couldn't sync rides. Try again later."
         );
-        setTimeout(() => navigate("/dashboard"), 5000);
+        setTimeout(() => navigate("/dashboard"), 3000);
       }
     } catch (error) {
       console.error("Unhandled error during callback processing:", error);
@@ -217,7 +217,7 @@ export function useProcessWahooCallback({
         "Connection error",
         "Failed to connect to Wahoo. Please try again."
       );
-      setTimeout(() => navigate("/dashboard"), 5000);
+      setTimeout(() => navigate("/dashboard"), 3000);
     }
   // dependencies:
   }, [navigate, params, setStatus, setError, errorToast, successToast, user, redirectUri, exchangeToken, validateState, syncWahooData]);

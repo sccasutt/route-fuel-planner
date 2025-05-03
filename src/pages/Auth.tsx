@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
@@ -10,6 +10,10 @@ import EmailConfirmationPrompt from "./Auth/EmailConfirmationPrompt";
 import WahooConnectPrompt from "./Auth/WahooConnectPrompt";
 
 type AuthMode = "login" | "signup";
+
+interface LocationState {
+  wahooConnected?: boolean;
+}
 
 const AuthPage = () => {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -27,6 +31,19 @@ const AuthPage = () => {
   const [showWahooConnect, setShowWahooConnect] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as LocationState;
+  
+  // Check if we were redirected from Wahoo with a connection
+  useEffect(() => {
+    if (locationState?.wahooConnected) {
+      toast({ 
+        title: "Wahoo Connected",
+        description: "Your Wahoo account is connected but you need to log in to sync data",
+        duration: 6000 
+      });
+    }
+  }, [locationState, toast]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +104,14 @@ const AuthPage = () => {
         }
       } else {
         toast({ title: "Welcome!", description: "You are now logged in." });
-        navigate("/dashboard");
+        
+        // If redirected from Wahoo, go back to dashboard
+        if (locationState?.wahooConnected) {
+          navigate("/dashboard");
+        } else {
+          // Normal login flow
+          navigate("/dashboard");
+        }
       }
     }
   };
@@ -107,6 +131,15 @@ const AuthPage = () => {
           <h1 className="text-3xl font-bold text-center">
             {mode === "login" ? "Login to PedalPlate" : "Sign up for PedalPlate"}
           </h1>
+          
+          {locationState?.wahooConnected && (
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-center">
+                Please log in to complete the connection with your Wahoo account and sync your data.
+              </p>
+            </div>
+          )}
+          
           <form className="space-y-4" onSubmit={handleAuth}>
             {mode === "signup" ? (
               <SignUpForm form={form} setForm={setForm} loading={loading} onSubmit={handleAuth} />
@@ -141,6 +174,6 @@ const AuthPage = () => {
       </div>
     </Layout>
   );
-};
+}
 
 export default AuthPage;
