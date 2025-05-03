@@ -20,6 +20,7 @@ export async function exchangeAndSaveToken(
     refresh_token: tokenData.refresh_token,
     expires_at: Date.now() + tokenData.expires_in * 1000,
     wahoo_user_id: wahooUserId,
+    email: tokenData.email || null,
   };
 
   try {
@@ -34,6 +35,7 @@ export async function exchangeAndSaveToken(
     console.log("Token and user ID saved successfully", {
       hasToken: true,
       hasWahooUserId: !!wahooUserId,
+      hasEmail: !!saveObj.email,
       expiresIn: tokenData.expires_in
     });
     
@@ -82,4 +84,24 @@ export function clearWahooTokenData() {
     console.error("Error clearing Wahoo token data:", error);
     return false;
   }
+}
+
+// New function to get Wahoo token data including email
+export function getWahooTokenData() {
+  try {
+    const tokenString = localStorage.getItem("wahoo_token");
+    if (!tokenString) return null;
+    
+    const tokenData = JSON.parse(tokenString);
+    return tokenData;
+  } catch (error) {
+    console.error("Error retrieving Wahoo token data:", error);
+    return null;
+  }
+}
+
+// Function to get just the email
+export function getWahooEmail(): string | null {
+  const tokenData = getWahooTokenData();
+  return tokenData?.email || null;
 }

@@ -57,7 +57,8 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
       hasAccessToken: !!data.access_token,
       hasRefreshToken: !!data.refresh_token,
       expiresIn: data.expires_in,
-      hasWahooUserId: !!data.wahoo_user_id
+      hasWahooUserId: !!data.wahoo_user_id,
+      hasEmail: !!data.email
     });
     
     return data;

@@ -1,7 +1,11 @@
 
 import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
+import { WahooResyncButton } from "@/components/Wahoo/WahooResyncButton";
+import { useState } from "react";
 
 export function ConnectedAccountsCard() {
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm">
       <div className="mb-2 font-semibold text-lg flex items-center gap-2">
@@ -14,8 +18,23 @@ export function ConnectedAccountsCard() {
       <p className="text-muted-foreground mb-4 text-sm">
         Link your training platforms for easier activity and nutrition syncing.
       </p>
-      <div className="flex gap-3 flex-wrap">
-        <WahooConnectButton />
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-3 flex-wrap">
+          <WahooConnectButton />
+        </div>
+        
+        <div className="flex gap-3 flex-wrap">
+          <WahooResyncButton 
+            setConnectionError={setConnectionError} 
+            showEmail={true} 
+          />
+          
+          {connectionError && (
+            <div className="text-xs text-red-500 w-full mt-1">
+              Error: {connectionError}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { syncWahooProfileAndRoutes, disconnectWahooAccount } from "./WahooSyncApi";
 import { useAuth } from "@/hooks/useAuth";
 import { RefreshCw, Bike } from "lucide-react";
+import { getWahooEmail } from "@/hooks/wahoo/wahooTokenUtils";
 
 interface WahooResyncButtonProps {
   setConnectionError: (v: string | null) => void;
@@ -13,6 +14,7 @@ interface WahooResyncButtonProps {
   showIcon?: boolean;
   label?: string;
   forceDisconnect?: boolean;
+  showEmail?: boolean;
 }
 
 export function WahooResyncButton({ 
@@ -21,11 +23,29 @@ export function WahooResyncButton({
   size = "sm", 
   showIcon = true,
   label = "Resync",
-  forceDisconnect = false
+  forceDisconnect = false,
+  showEmail = false
 }: WahooResyncButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [wahooEmail, setWahooEmail] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  useEffect(() => {
+    // Get the Wahoo email on mount and when connection changes
+    const updateEmail = () => {
+      const email = getWahooEmail();
+      setWahooEmail(email);
+    };
+
+    updateEmail();
+    
+    // Listen for connection changes
+    window.addEventListener("wahoo_connection_changed", updateEmail);
+    return () => {
+      window.removeEventListener("wahoo_connection_changed", updateEmail);
+    };
+  }, []);
 
   const handleResync = async () => {
     setIsSyncing(true);
@@ -71,6 +91,7 @@ export function WahooResyncButton({
         hasAccessToken: !!token.access_token,
         hasRefreshToken: !!token.refresh_token,
         hasWahooUserId: !!token.wahoo_user_id,
+        email: token.email || 'unknown',
         expiresAt: token.expires_at ? new Date(token.expires_at).toISOString() : 'none'
       });
 
@@ -143,15 +164,23 @@ export function WahooResyncButton({
   };
 
   return (
-    <Button 
-      variant={variant} 
-      size={size} 
-      onClick={handleResync} 
-      disabled={isSyncing}
-      className={showIcon ? "gap-2" : ""}
-    >
-      {showIcon && (isSyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bike className="h-4 w-4" />)}
-      {isSyncing ? "Syncing..." : forceDisconnect ? "Disconnect & Reconnect" : label}
-    </Button>
+    <div className="flex flex-col">
+      <Button 
+        variant={variant} 
+        size={size} 
+        onClick={handleResync} 
+        disabled={isSyncing}
+        className={showIcon ? "gap-2" : ""}
+      >
+        {showIcon && (isSyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bike className="h-4 w-4" />)}
+        {isSyncing ? "Syncing..." : forceDisconnect ? "Disconnect & Reconnect" : label}
+      </Button>
+      
+      {showEmail && wahooEmail && (
+        <div className="text-xs text-muted-foreground mt-1 text-center">
+          Connected: {wahooEmail}
+        </div>
+      )}
+    </div>
   );
 }
