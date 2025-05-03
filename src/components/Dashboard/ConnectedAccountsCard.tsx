@@ -1,10 +1,29 @@
 
 import { WahooConnectButton } from "@/components/Wahoo/WahooConnectButton";
 import { WahooResyncButton } from "@/components/Wahoo/WahooResyncButton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getWahooEmail } from "@/hooks/wahoo/wahooTokenUtils";
 
 export function ConnectedAccountsCard() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [wahooEmail, setWahooEmail] = useState<string | null>(null);
+  
+  // Check for Wahoo email on mount and when connection changes
+  useEffect(() => {
+    const updateEmail = () => {
+      const email = getWahooEmail();
+      console.log("ConnectedAccountsCard: Wahoo email:", email);
+      setWahooEmail(email);
+    };
+    
+    updateEmail();
+    
+    // Listen for connection changes
+    window.addEventListener("wahoo_connection_changed", updateEmail);
+    return () => {
+      window.removeEventListener("wahoo_connection_changed", updateEmail);
+    };
+  }, []);
 
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm">
@@ -28,6 +47,12 @@ export function ConnectedAccountsCard() {
             setConnectionError={setConnectionError} 
             showEmail={true} 
           />
+          
+          {wahooEmail && (
+            <div className="text-xs text-muted-foreground w-full mt-1">
+              Connected account: {wahooEmail}
+            </div>
+          )}
           
           {connectionError && (
             <div className="text-xs text-red-500 w-full mt-1">

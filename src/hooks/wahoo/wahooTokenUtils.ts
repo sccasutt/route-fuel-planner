@@ -15,12 +15,22 @@ export async function exchangeAndSaveToken(
     throw new Error("Invalid token response from server");
 
   const wahooUserId = tokenData.wahoo_user_id || null;
+  const email = tokenData.email || null;
+  
+  console.log("Token data received:", {
+    hasAccessToken: !!tokenData.access_token,
+    hasRefreshToken: !!tokenData.refresh_token,
+    hasWahooUserId: !!wahooUserId,
+    hasEmail: !!email,
+    email: email ? email.substring(0, 3) + "..." : "none"
+  });
+  
   const saveObj = {
     access_token: tokenData.access_token,
     refresh_token: tokenData.refresh_token,
     expires_at: Date.now() + tokenData.expires_in * 1000,
     wahoo_user_id: wahooUserId,
-    email: tokenData.email || null,
+    email: email,
   };
 
   try {
@@ -36,6 +46,7 @@ export async function exchangeAndSaveToken(
       hasToken: true,
       hasWahooUserId: !!wahooUserId,
       hasEmail: !!saveObj.email,
+      email: saveObj.email ? saveObj.email.substring(0, 3) + "..." : "none",
       expiresIn: tokenData.expires_in
     });
     
@@ -86,13 +97,24 @@ export function clearWahooTokenData() {
   }
 }
 
-// New function to get Wahoo token data including email
+// Function to get Wahoo token data including email
 export function getWahooTokenData() {
   try {
     const tokenString = localStorage.getItem("wahoo_token");
-    if (!tokenString) return null;
+    if (!tokenString) {
+      console.log("No Wahoo token found in local storage");
+      return null;
+    }
     
     const tokenData = JSON.parse(tokenString);
+    console.log("Retrieved Wahoo token data:", {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      hasWahooUserId: !!tokenData.wahoo_user_id,
+      hasEmail: !!tokenData.email,
+      email: tokenData.email ? tokenData.email.substring(0, 3) + "..." : "none",
+      expiresAt: new Date(tokenData.expires_at).toISOString()
+    });
     return tokenData;
   } catch (error) {
     console.error("Error retrieving Wahoo token data:", error);
@@ -103,5 +125,7 @@ export function getWahooTokenData() {
 // Function to get just the email
 export function getWahooEmail(): string | null {
   const tokenData = getWahooTokenData();
-  return tokenData?.email || null;
+  const email = tokenData?.email || null;
+  console.log("getWahooEmail returning:", email);
+  return email;
 }

@@ -31,10 +31,11 @@ export function WahooResyncButton({
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Check if email exists in localStorage on mount and when connection changes
   useEffect(() => {
-    // Get the Wahoo email on mount and when connection changes
     const updateEmail = () => {
       const email = getWahooEmail();
+      console.log("Retrieved Wahoo email:", email);
       setWahooEmail(email);
     };
 
