@@ -37,7 +37,7 @@ export function useRouteData(routeId: string | undefined) {
         const { data: route, error } = await supabase
           .from('routes')
           .select('*')
-          .eq('id', routeId as any) // Use 'as any' to bypass strict type checking
+          .eq('id', routeId as any)
           .single();
 
         if (error) {

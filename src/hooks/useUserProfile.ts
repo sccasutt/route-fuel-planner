@@ -37,7 +37,7 @@ export function useUserProfile() {
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id as any) // Use 'as any' to bypass strict type checking
+          .eq('id', user.id as any)
           .maybeSingle();
 
         if (error) {
@@ -51,7 +51,7 @@ export function useUserProfile() {
 
         if (!ignore) {
           if (data) {
-            // Use type assertion only after we've verified data exists
+            // Verify data exists before using type assertion
             setProfile(data as UserProfile);
           } else {
             setProfile(null);

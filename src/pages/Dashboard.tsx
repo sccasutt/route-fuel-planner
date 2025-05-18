@@ -23,70 +23,34 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [syncComplete, setSyncComplete] = useState(false);
-  const [renderAttempt, setRenderAttempt] = useState(0);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isPageMounted, setIsPageMounted] = useState(false);
 
   // Debug logging
   useEffect(() => {
-    // Log current state
     console.log("Dashboard rendered with:", {
       user: user?.id || "No user",
       loading,
       activitiesLoaded: activities?.length || 0,
       isWahooLoading: isLoading,
-      renderAttempt,
-      currentPath: window.location.pathname,
-      dashboardVisible: document.getElementById('dashboard-container') ? true : false,
-      documentReadyState: document.readyState
+      authChecked,
+      isPageMounted
     });
     
-    // Check for viewable content
-    const checkVisibleContent = () => {
-      const dashboardContainer = document.getElementById('dashboard-container');
-      if (dashboardContainer) {
-        console.log("Dashboard container visible stats:", {
-          isVisible: dashboardContainer.offsetParent !== null,
-          width: dashboardContainer.offsetWidth,
-          height: dashboardContainer.offsetHeight,
-          childNodes: dashboardContainer.childNodes.length,
-          computedStyle: window.getComputedStyle(dashboardContainer),
-          zIndex: window.getComputedStyle(dashboardContainer).zIndex
-        });
-      } else {
-        console.log("Dashboard container not found in DOM");
-      }
-      
-      // Check for any overlays that might be blocking the view
-      const overlays = document.querySelectorAll('[class*="fixed inset-0"]');
-      if (overlays.length > 0) {
-        console.log("Potential overlay elements found:", overlays.length);
-        overlays.forEach((overlay, i) => {
-          console.log(`Overlay ${i}:`, {
-            classes: overlay.className,
-            visibility: window.getComputedStyle(overlay).visibility,
-            display: window.getComputedStyle(overlay).display,
-            zIndex: window.getComputedStyle(overlay).zIndex
-          });
-        });
-      }
-    };
-    
-    // Run visual check after DOM update
-    setTimeout(checkVisibleContent, 500);
-    
-    // Try re-rendering a few times if needed
-    if (!user && !loading && renderAttempt < 3) {
-      setTimeout(() => setRenderAttempt(prev => prev + 1), 1000);
-    }
-  }, [user, loading, activities, isLoading, renderAttempt]);
+    // Mark component as mounted
+    setIsPageMounted(true);
+  }, [user, loading, activities, isLoading, authChecked]);
 
   // Check authentication and redirect if not logged in
   useEffect(() => {
+    // Only proceed if the loading state has resolved
     if (!loading) {
       if (!user) {
         console.log("No authenticated user, redirecting to auth page");
         navigate("/auth");
       } else {
         console.log("User authenticated, continuing to dashboard");
+        setAuthChecked(true);
       }
     }
   }, [user, loading, navigate]);
@@ -107,8 +71,8 @@ const Dashboard = () => {
     }, 1500);
   };
 
-  // If still loading or no user, show minimal content
-  if (loading) {
+  // If still loading or authentication status not confirmed, show loading state
+  if (loading || (!authChecked && !user)) {
     return (
       <Layout>
         <div className="container py-8">
@@ -121,7 +85,8 @@ const Dashboard = () => {
     );
   }
 
-  if (!user) {
+  // If auth check is complete and no user, show login prompt
+  if (authChecked && !user) {
     return (
       <Layout>
         <div className="container py-8">
@@ -171,7 +136,7 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div id="dashboard-container" className="container py-8" style={{ position: 'relative', zIndex: 1 }}>
+      <div id="dashboard-container" className="container py-8">
         <DashboardHeader onRefresh={handleRefresh} isLoading={isLoading} />
 
         <ConnectionAlerts 

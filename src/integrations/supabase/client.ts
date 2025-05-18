@@ -28,6 +28,11 @@ export const supabase = createClient<Database>(
 // Add debug listener for auth events
 supabase.auth.onAuthStateChange((event, session) => {
   console.log("Supabase auth state changed:", event, session?.user?.id ? "User authenticated" : "No user");
+  
+  // Dispatch custom event for auth state changes to help with UI updates
+  window.dispatchEvent(new CustomEvent('supabase-auth-change', { 
+    detail: { event, session }
+  }));
 });
 
 // Additional debugging for related issues
