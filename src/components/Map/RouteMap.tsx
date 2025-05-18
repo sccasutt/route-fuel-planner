@@ -83,7 +83,7 @@ const RouteMap = ({
         // Force a map size update after a delay to handle cases where
         // container dimensions change after initialization
         setTimeout(() => {
-          if (map && !map.isRemoved()) {
+          if (map && map._container) {  // Check if map still exists and has a container
             map.invalidateSize();
           }
         }, 250);
