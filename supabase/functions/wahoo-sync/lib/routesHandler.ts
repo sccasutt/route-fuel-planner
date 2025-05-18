@@ -1,4 +1,3 @@
-
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { formatDurationString, durationToSeconds, parseNumericValue } from "./wahooUtils.ts";
 
@@ -34,6 +33,21 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       // Extract GPS data from activity
       let gpxData = activity.gpx_data || null;
       
+      // Store file URL if available
+      const gpxFileUrl = activity.gpx_file_url || activity.file?.url || null;
+      
+      if (gpxFileUrl) {
+        console.log(`Storing file URL: ${gpxFileUrl} for route: ${id}`);
+      }
+      
+      // Store start coordinates if available
+      const startLat = activity.start_lat || null;
+      const startLng = activity.start_lng || null;
+      
+      if (startLat && startLng) {
+        console.log(`Storing start coordinates: ${startLat},${startLng} for route: ${id}`);
+      }
+      
       return {
         user_id: userId,
         wahoo_route_id: id,
@@ -48,9 +62,14 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         // Store coordinates directly in the JSONB field
         coordinates: activity.coordinates || null,
         // Store additional metadata if available
-        metadata: activity.additional_data ? JSON.stringify(activity.additional_data) : null,
+        metadata: activity.additional_data ? JSON.stringify({
+          ...activity.additional_data,
+          start_lat: startLat,
+          start_lng: startLng,
+          has_file: !!gpxFileUrl
+        }) : null,
         type: activity.type || "activity",
-        gpx_file_url: activity.gpx_file_url || null
+        gpx_file_url: gpxFileUrl
       };
     });
 

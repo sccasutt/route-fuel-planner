@@ -1,4 +1,3 @@
-
 // Wahoo API endpoint handlers
 import { formatWahooActivities } from "./wahooActivityFormatter.ts";
 
@@ -95,6 +94,8 @@ export async function fetchWahooActivities(access_token: string) {
             items = data.workouts;
           } else if (data?.rides && Array.isArray(data.rides)) {
             items = data.rides;
+          } else if (data?.routes && Array.isArray(data.routes)) {
+            items = data.routes;
           } else {
             // Try to find any array in the response
             for (const key of Object.keys(data)) {
@@ -105,6 +106,18 @@ export async function fetchWahooActivities(access_token: string) {
               }
             }
           }
+          
+          // Process file URLs if available
+          items = items.map(item => {
+            if (item.file?.url) {
+              console.log(`Found file URL: ${item.file.url} for item: ${item.id}`);
+              return {
+                ...item,
+                gpx_file_url: item.file.url
+              };
+            }
+            return item;
+          });
           
           if (items.length > 0) {
             console.log(`Found ${items.length} items from endpoint ${endpoint}`);

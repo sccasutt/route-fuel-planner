@@ -1,3 +1,4 @@
+
 // Formatter for Wahoo activity data
 import { extractCoordinates, createGpxDataObject } from "./extractCoordinates.ts";
 import { extractActivityFields } from "./activityFieldExtractor.ts";
@@ -37,7 +38,15 @@ export function formatWahooActivities(activities: any[]) {
     }
 
     // If we have a gpx_file_url, include that 
-    const gpxFileUrl = activity.gpx_file_url || activity.gpx_url || null;
+    // Try multiple possible sources for the file URL
+    const gpxFileUrl = activity.gpx_file_url || 
+                      activity.gpx_url || 
+                      activity.file?.url ||
+                      null;
+    
+    if (gpxFileUrl) {
+      console.log(`Found file URL: ${gpxFileUrl} for activity ${basicFields.id}`);
+    }
     
     // Determine activity type based on source endpoint or type field
     const activityType = activity.type || 
@@ -52,6 +61,11 @@ export function formatWahooActivities(activities: any[]) {
       gpx_data: gpxData,
       type: activityType,
       gpx_file_url: gpxFileUrl,
+      // Add start coordinates if available
+      start_lat: activity.start_lat || null,
+      start_lng: activity.start_lng || null,
+      // Include the file object for Wahoo routes
+      file: activity.file || null,
       additional_data: {
         wahoo_type: activityType,
         source_endpoint: activity._sourceEndpoint // This will be useful for debugging

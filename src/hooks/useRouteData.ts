@@ -68,8 +68,8 @@ export function useRouteData(routeId: string | undefined) {
           gpx_data: data.gpx_data,
           gpx_file_url: data.gpx_file_url,
           type: data.type,
-          // Properly type cast coordinates to ensure they're treated as [number, number][]
-          coordinates: Array.isArray(data.coordinates) ? data.coordinates as [number, number][] : [],
+          // Safely handle coordinates from database, ensuring they're treated as [number, number][]
+          coordinates: data.coordinates ? parseCoordinatesArray(data.coordinates) : [],
           // Include any other fields from the original data
           ...data
         };
@@ -81,11 +81,8 @@ export function useRouteData(routeId: string | undefined) {
         let hasValidData = false;
         
         // First try to get coordinates directly from the coordinates field
-        if (data.coordinates && Array.isArray(data.coordinates)) {
-          coordinates = data.coordinates
-            .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
-            .map((coord: any) => [Number(coord[0]), Number(coord[1])] as [number, number]);
-          
+        if (typedRouteData.coordinates && Array.isArray(typedRouteData.coordinates)) {
+          coordinates = typedRouteData.coordinates;
           hasValidData = coordinates.length >= 2;
           console.log(`Found ${coordinates.length} coordinates directly in coordinates field`);
         }
@@ -116,13 +113,7 @@ export function useRouteData(routeId: string | undefined) {
               // First try new format where coordinates are directly in the top level
               if (parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
                 // Ensure each coordinate is a valid [lat, lng] tuple
-                coordinates = parsedData.coordinates
-                  .filter((coord: any) => 
-                    Array.isArray(coord) && 
-                    coord.length === 2 &&
-                    typeof coord[0] === 'number' && 
-                    typeof coord[1] === 'number')
-                  .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+                coordinates = parseCoordinatesArray(parsedData.coordinates);
                 
                 hasValidData = coordinates.length >= 2;
                 console.log(`Extracted ${coordinates.length} valid coordinates from JSON gpx_data`);
@@ -135,13 +126,7 @@ export function useRouteData(routeId: string | undefined) {
                     : parsedData.raw_gpx;
                     
                   if (rawGpx && rawGpx.coordinates && Array.isArray(rawGpx.coordinates)) {
-                    coordinates = rawGpx.coordinates
-                      .filter((coord: any) => 
-                        Array.isArray(coord) && 
-                        coord.length === 2 &&
-                        typeof coord[0] === 'number' && 
-                        typeof coord[1] === 'number')
-                      .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+                    coordinates = parseCoordinatesArray(rawGpx.coordinates);
                     
                     hasValidData = coordinates.length >= 2;
                     console.log(`Extracted ${coordinates.length} valid coordinates from raw_gpx field`);
@@ -156,25 +141,27 @@ export function useRouteData(routeId: string | undefined) {
           }
         }
         
-        // If we still don't have valid data and we have a GPX file URL, download and parse it
-        if ((!hasValidData || coordinates.length < 2) && data.gpx_file_url) {
+        // If we still don't have valid data and we have a GPX file URL or a file URL from Wahoo, download and parse it
+        if ((!hasValidData || coordinates.length < 2) && (data.gpx_file_url || data.file?.url)) {
           try {
-            console.log("Attempting to download and parse GPX file from URL:", data.gpx_file_url);
+            const fileUrl = data.gpx_file_url || data.file?.url;
+            console.log("Attempting to download and parse file from URL:", fileUrl);
             
-            // Call our Edge Function to download and parse the GPX file
-            const { data: gpxData, error: gpxError } = await supabase.functions.invoke("gpx-parser", {
-              body: { gpx_url: data.gpx_file_url }
+            // Call our Edge Function to download and parse the file
+            const { data: fileData, error: fileError } = await supabase.functions.invoke("gpx-parser", {
+              body: { 
+                gpx_url: data.gpx_file_url,
+                file_url: data.file?.url 
+              }
             });
             
-            if (gpxError) {
-              console.error("Error downloading GPX file:", gpxError);
-            } else if (gpxData && gpxData.coordinates && Array.isArray(gpxData.coordinates)) {
-              coordinates = gpxData.coordinates
-                .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
-                .map((coord: any) => [Number(coord[0]), Number(coord[1])] as [number, number]);
+            if (fileError) {
+              console.error("Error downloading file:", fileError);
+            } else if (fileData && fileData.coordinates && Array.isArray(fileData.coordinates)) {
+              coordinates = parseCoordinatesArray(fileData.coordinates);
               
               hasValidData = coordinates.length >= 2;
-              console.log(`Extracted ${coordinates.length} coordinates from GPX file URL`);
+              console.log(`Extracted ${coordinates.length} coordinates from file URL`);
               
               // Store the parsed coordinates back to the database for future use
               if (hasValidData) {
@@ -191,8 +178,17 @@ export function useRouteData(routeId: string | undefined) {
               }
             }
           } catch (err) {
-            console.error("Failed to download or parse GPX file:", err);
+            console.error("Failed to download or parse file:", err);
           }
+        }
+        
+        // If trying to get data from the "file" object in the Wahoo format
+        if ((!hasValidData || coordinates.length < 2) && data.file && data.start_lat && data.start_lng) {
+          // Use the start coordinates as a fallback
+          coordinates = [
+            [Number(data.start_lat), Number(data.start_lng)]
+          ];
+          console.log("Using start_lat/start_lng as fallback coordinates");
         }
         
         if (!hasValidData) {
@@ -231,6 +227,27 @@ export function useRouteData(routeId: string | undefined) {
 
     fetchRouteData();
   }, [routeId, navigate, toast]);
+
+  // Helper function to safely parse coordinates array
+  function parseCoordinatesArray(input: any): [number, number][] {
+    try {
+      if (!Array.isArray(input)) {
+        return [];
+      }
+      
+      return input
+        .filter((coord: any) => 
+          Array.isArray(coord) && 
+          coord.length === 2 &&
+          !isNaN(Number(coord[0])) && 
+          !isNaN(Number(coord[1]))
+        )
+        .map((coord: any) => [Number(coord[0]), Number(coord[1])] as [number, number]);
+    } catch (e) {
+      console.error("Error parsing coordinates:", e);
+      return [];
+    }
+  }
 
   return { 
     loading, 
