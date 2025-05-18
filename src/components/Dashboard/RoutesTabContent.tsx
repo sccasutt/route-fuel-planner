@@ -22,6 +22,25 @@ interface Props {
   routes: RouteType[];
 }
 
+// Helper function to format duration for display
+function formatDuration(duration: string): string {
+  if (!duration) return "0:00";
+  
+  const parts = duration.split(':');
+  if (parts.length === 3) {
+    // Convert from HH:MM:SS to more readable format
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m ${parts[2]}s`;
+    }
+  }
+  return duration; // Return as is if not in expected format
+}
+
 export function RoutesTabContent({ routes }: Props) {
   const [isSyncing, setIsSyncing] = useState(false);
   const { user } = useAuth();
@@ -141,7 +160,7 @@ export function RoutesTabContent({ routes }: Props) {
                         <Clock className="w-4 h-4 mr-1" />
                         <span>Duration</span>
                       </div>
-                      <p className="font-semibold">{route.duration}</p>
+                      <p className="font-semibold">{formatDuration(route.duration)}</p>
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center text-sm text-muted-foreground">

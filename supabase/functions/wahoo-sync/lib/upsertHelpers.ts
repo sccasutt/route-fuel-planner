@@ -1,4 +1,3 @@
-
 // Function that handles inserting or updating profile and routes
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -60,6 +59,46 @@ function parseNumericValue(value: any, defaultValue: number = 0): number {
   }
   
   return defaultValue;
+}
+
+/**
+ * Format duration string to consistent HH:MM:SS format
+ */
+function formatDurationString(duration: string | number): string {
+  if (!duration) return "0:00:00";
+  
+  // If duration is a number, assume it's in seconds
+  if (typeof duration === 'number') {
+    const hours = Math.floor(duration / 3600);
+    const minutes = Math.floor((duration % 3600) / 60);
+    const seconds = Math.floor(duration % 60);
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  
+  // Handle string durations
+  if (typeof duration === 'string') {
+    const parts = duration.split(':');
+    
+    // Handle different formats
+    if (parts.length === 1) {
+      // Just numeric string, interpret as minutes
+      const mins = parseInt(parts[0], 10);
+      if (!isNaN(mins)) {
+        const hours = Math.floor(mins / 60);
+        const minutes = mins % 60;
+        return `${hours}:${minutes.toString().padStart(2, '0')}:00`;
+      }
+      return "0:00:00";
+    } else if (parts.length === 2) {
+      // MM:SS format, add hours
+      return `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    } else if (parts.length === 3) {
+      // HH:MM:SS format, ensure padding
+      return `${parts[0]}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
+    }
+  }
+  
+  return "0:00:00";
 }
 
 /**
@@ -149,34 +188,16 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       // Handle duration with better parsing
       let duration = "0:00:00";
       if (activity.duration) {
-        if (typeof activity.duration === 'number') {
-          // Convert seconds to HH:MM:SS format
-          const totalSeconds = Math.round(activity.duration);
-          const hours = Math.floor(totalSeconds / 3600);
-          const minutes = Math.floor((totalSeconds % 3600) / 60);
-          const seconds = totalSeconds % 60;
-          duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        } else if (typeof activity.duration === 'string') {
-          duration = activity.duration;
-          
-          // Make sure the string format is HH:MM:SS
-          const parts = duration.split(':');
-          if (parts.length === 2) {
-            // MM:SS format, convert to H:MM:SS
-            duration = `0:${duration}`;
-          }
-        }
+        duration = formatDurationString(activity.duration);
       } else if (activity.workout_summary?.duration_total_accum) {
         // Convert seconds to HH:MM:SS
-        const totalSeconds = Math.round(parseFloat(activity.workout_summary.duration_total_accum));
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-        duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        duration = formatDurationString(parseFloat(activity.workout_summary.duration_total_accum));
       } else if (activity.minutes) {
-        const hours = Math.floor(activity.minutes / 60);
-        const minutes = Math.floor(activity.minutes % 60);
-        duration = `${hours}:${minutes.toString().padStart(2, '0')}:00`;
+        duration = formatDurationString(activity.minutes * 60); // Convert minutes to seconds
+      } else if (activity.moving_time) {
+        duration = formatDurationString(activity.moving_time);
+      } else if (activity.elapsed_time) {
+        duration = formatDurationString(activity.elapsed_time);
       }
       
       // Get a proper ID

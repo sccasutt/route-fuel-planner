@@ -29,6 +29,25 @@ interface RouteType {
   calories: number;
 }
 
+// Helper function to format duration for display
+function formatDuration(duration: string): string {
+  if (!duration) return "0:00";
+  
+  const parts = duration.split(':');
+  if (parts.length === 3) {
+    // Convert from HH:MM:SS to more readable format
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m ${parts[2]}s`;
+    }
+  }
+  return duration; // Return as is if not in expected format
+}
+
 const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
   const { isConnected, activities, isLoading, refresh, syncStatus } = useWahooData();
@@ -130,6 +149,23 @@ const Dashboard = () => {
                       <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-muted-foreground text-xs mb-1">Total Activities</div>
                         <div className="text-xl font-semibold">{activities.length}</div>
+                      </div>
+                    </div>
+                    {/* Add new stats about time and elevation */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-muted/50 p-3 rounded-lg">
+                        <div className="text-muted-foreground text-xs mb-1">Total Elevation</div>
+                        <div className="text-xl font-semibold">
+                          {activities.reduce((sum, act) => sum + (typeof act.elevation === 'number' ? act.elevation : 0), 0).toFixed(0)} m
+                        </div>
+                      </div>
+                      <div className="bg-muted/50 p-3 rounded-lg">
+                        <div className="text-muted-foreground text-xs mb-1">Average Duration</div>
+                        <div className="text-xl font-semibold">
+                          {activities.length > 0 ? 
+                            formatDuration(activities[0].duration) : 
+                            "0:00"}
+                        </div>
                       </div>
                     </div>
                   </div>

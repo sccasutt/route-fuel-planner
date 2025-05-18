@@ -1,4 +1,3 @@
-
 export async function fetchWahooProfile(access_token: string) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -231,42 +230,67 @@ export async function fetchWahooActivities(access_token: string) {
         'kcal'
       ]);
       
-      // Extract duration with fallbacks
+      // Extract duration with improved fallbacks for various formats
       let durationValue = extractNestedValue(activity, [
         'duration',
         'workout_summary.duration_total_accum',
         'minutes',
         'summary.duration',
         'duration_seconds',
-        'elapsed_time'
+        'elapsed_time',
+        'moving_time'
       ]);
       
-      // Process duration based on its type
+      // Improved duration processing with better time format handling
       let duration;
       if (typeof durationValue === 'number') {
-        if (durationValue > 3600) {
-          // Likely seconds, convert to HH:MM:SS
+        // Handle seconds format (most common from API)
+        if (durationValue > 30) { // Likely seconds if over 30
           const hours = Math.floor(durationValue / 3600);
           const minutes = Math.floor((durationValue % 3600) / 60);
           const seconds = Math.floor(durationValue % 60);
           duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        } else if (durationValue > 60) {
-          // Likely minutes, convert to HH:MM:00
-          const hours = Math.floor(durationValue / 60);
-          const minutes = Math.floor(durationValue % 60);
-          duration = `${hours}:${minutes.toString().padStart(2, '0')}:00`;
         } else {
-          // Assume minutes
-          duration = `0:${Math.floor(durationValue).toString().padStart(2, '0')}:00`;
+          // Small number might be hours
+          duration = `${Math.floor(durationValue)}:00:00`;
         }
       } else if (typeof durationValue === 'string') {
-        duration = durationValue;
-        // Make sure it's properly formatted
-        const parts = duration.split(':');
-        if (parts.length === 2) {
-          duration = `0:${duration}`; // Add leading zero
-        } else if (parts.length !== 3) {
-          duration = "0:00:00"; // Default if format is unrecognized
+        // Handle string format - could be "HH:MM:SS", "MM:SS", or just text
+        const timePattern = /^(\d+:)?(\d{1,2}:)?\d{1,2}$/;
+        if (timePattern.test(durationValue)) {
+          // Already a time format string
+          const parts = durationValue.split(':');
+          if (parts.length === 1) {
+            // Just seconds
+            duration = `0:00:${parts[0].padStart(2, '0')}`;
+          } else if (parts.length === 2) {
+            // MM:SS format - add hours
+            duration = `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+          } else {
+            // Already HH:MM:SS
+            duration = `${parts[0]}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
+          }
+        } else {
+          // Not a time format, try to parse as number
+          const numericTime = parseFloat(durationValue);
+          if (!isNaN(numericTime)) {
+            if (numericTime > 30) { // Likely seconds
+              const hours = Math.floor(numericTime / 3600);
+              const minutes = Math.floor((numericTime % 3600) / 60);
+              const seconds = Math.floor(numericTime % 60);
+              duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            } else { // Likely hours or minutes
+              if (numericTime < 3) { // Probably hours
+                duration = `${Math.floor(numericTime)}:00:00`;
+              } else { // Probably minutes
+                const hours = Math.floor(numericTime / 60);
+                const minutes = Math.floor(numericTime % 60);
+                duration = `${hours}:${minutes.toString().padStart(2, '0')}:00`;
+              }
+            }
+          } else {
+            duration = "0:00:00"; // Default when we can't parse
+          }
         }
       } else {
         duration = "0:00:00"; // Default duration

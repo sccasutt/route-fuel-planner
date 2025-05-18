@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +8,22 @@ export function useWahooActivityFetcher() {
   const [activities, setActivities] = useState<WahooActivityData[]>([]);
   const [lastApiResponse, setLastApiResponse] = useState<any>(null);
   const { toast } = useToast();
+  
+  // Helper function to format duration for consistency
+  const formatDurationString = (duration: string): string => {
+    if (!duration) return "0:00:00";
+    
+    // Make sure the duration is in HH:MM:SS format
+    const parts = duration.split(':');
+    if (parts.length === 1) {
+      return `0:00:${parts[0].padStart(2, '0')}`;
+    } else if (parts.length === 2) {
+      return `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    } else if (parts.length === 3) {
+      return `${parts[0]}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
+    }
+    return duration;
+  };
 
   const fetchWahooActivities = useCallback(async (userId: string, hookId: string) => {
     if (!userId) {
@@ -109,17 +124,11 @@ export function useWahooActivityFetcher() {
             calories = !isNaN(parsed) ? parsed : 0;
           }
           
-          // Handle duration
+          // Enhanced duration handling
           let duration = r.duration || "0:00:00";
           if (duration && typeof duration === 'string') {
-            // Ensure it's a valid format (H:MM:SS or MM:SS)
-            const parts = duration.split(':');
-            if (parts.length === 2) {
-              // MM:SS format, convert to H:MM:SS
-              duration = `0:${duration}`;
-            } else if (parts.length !== 3) {
-              duration = "0:00:00";
-            }
+            // Format consistently to HH:MM:SS
+            duration = formatDurationString(duration);
           } else if (typeof duration === 'number') {
             // Convert seconds to HH:MM:SS
             const hours = Math.floor(duration / 3600);
