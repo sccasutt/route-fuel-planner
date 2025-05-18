@@ -121,11 +121,11 @@ const RouteMap = ({
       // If we have route coordinates, draw the route path with enhanced styling
       if (routeCoordinates && routeCoordinates.length > 1) {
         // Apply gradient effect if possible - visible with transparent color
-        const gradientStyle = {
+        const gradientStyle: L.PolylineOptions = {
           color: routeStyle.color || '#8B5CF6',
           weight: routeStyle.weight || 4,
           opacity: routeStyle.opacity || 0.9,
-          lineJoin: 'round',
+          lineJoin: 'round' as L.LineJoinShape,
           dashArray: routeStyle.dashArray || ''
         };
 
@@ -138,7 +138,7 @@ const RouteMap = ({
             color: routeStyle.color || '#8B5CF6',
             weight: (routeStyle.weight || 4) + 4,
             opacity: 0.3,
-            lineJoin: 'round'
+            lineJoin: 'round' as L.LineJoinShape
           }).addTo(map);
         }
         
@@ -209,3 +209,4 @@ const RouteMap = ({
 };
 
 export default RouteMap;
+
