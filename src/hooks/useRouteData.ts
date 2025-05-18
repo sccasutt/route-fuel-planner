@@ -1,20 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { RouteType } from "@/types/route";
 
-export interface RouteData {
-  id: string;
-  name: string;
-  date: string;
-  distance: number;
-  elevation: number;
-  duration: string;
-  duration_seconds: number;
-  calories: number;
-  gpx_data?: any;
-  coordinates?: [number, number][];
+export interface RouteData extends RouteType {
   [key: string]: any;
 }
 
@@ -63,10 +53,28 @@ export function useRouteData(routeId: string | undefined) {
         }
 
         console.log("Fetched route data:", data);
-        // Only set route data if we have a valid route object
-        setRouteData(data as RouteData);
         
-        // Parse GPS coordinates from gpx_data
+        // Transform data to match RouteData interface
+        const typedRouteData: RouteData = {
+          id: data.id,
+          name: data.name || "Unnamed Route",
+          date: data.date || new Date().toISOString(),
+          distance: data.distance || 0,
+          elevation: data.elevation || 0,
+          duration: data.duration || "0:00:00",
+          duration_seconds: data.duration_seconds || 0,
+          calories: data.calories || 0,
+          gpx_data: data.gpx_data,
+          gpx_file_url: data.gpx_file_url,
+          type: data.type,
+          coordinates: data.coordinates as [number, number][] || [], // Type assertion here
+          // Include any other fields from the original data
+          ...data
+        };
+        
+        setRouteData(typedRouteData);
+        
+        // Parse GPS coordinates from various sources
         let coordinates: [number, number][] = [];
         let hasValidData = false;
         
@@ -74,13 +82,13 @@ export function useRouteData(routeId: string | undefined) {
         if (data.coordinates && Array.isArray(data.coordinates)) {
           coordinates = data.coordinates
             .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
-            .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+            .map((coord: any) => [Number(coord[0]), Number(coord[1])] as [number, number]);
           
           hasValidData = coordinates.length >= 2;
           console.log(`Found ${coordinates.length} coordinates directly in coordinates field`);
         }
-        // If not available, try to extract from gpx_data
-        else if (data && data.gpx_data) {
+        // If not available or insufficient, try to extract from gpx_data
+        else if (data && data.gpx_data && (!hasValidData || coordinates.length < 2)) {
           try {
             // Try to parse the gpx_data field
             let parsedData;
@@ -143,6 +151,45 @@ export function useRouteData(routeId: string | undefined) {
             }
           } catch (err) {
             console.error("Failed to process GPX data:", err);
+          }
+        }
+        
+        // If we still don't have valid data and we have a GPX file URL, download and parse it
+        if ((!hasValidData || coordinates.length < 2) && data.gpx_file_url) {
+          try {
+            console.log("Attempting to download and parse GPX file from URL:", data.gpx_file_url);
+            
+            // Call our Edge Function to download and parse the GPX file
+            const { data: gpxData, error: gpxError } = await supabase.functions.invoke("gpx-parser", {
+              body: { gpx_url: data.gpx_file_url }
+            });
+            
+            if (gpxError) {
+              console.error("Error downloading GPX file:", gpxError);
+            } else if (gpxData && gpxData.coordinates && Array.isArray(gpxData.coordinates)) {
+              coordinates = gpxData.coordinates
+                .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
+                .map((coord: any) => [Number(coord[0]), Number(coord[1])] as [number, number]);
+              
+              hasValidData = coordinates.length >= 2;
+              console.log(`Extracted ${coordinates.length} coordinates from GPX file URL`);
+              
+              // Store the parsed coordinates back to the database for future use
+              if (hasValidData) {
+                const { error: updateError } = await supabase
+                  .from('routes')
+                  .update({ coordinates: coordinates })
+                  .eq('id', data.id);
+                
+                if (updateError) {
+                  console.error("Error updating coordinates in database:", updateError);
+                } else {
+                  console.log("Successfully stored coordinates in database");
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Failed to download or parse GPX file:", err);
           }
         }
         
