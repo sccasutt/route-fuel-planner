@@ -89,15 +89,19 @@ export type Database = {
           coordinates: Json | null
           created_at: string
           date: string
+          description: string | null
           distance: number
           duration: string
           duration_seconds: number | null
           elevation: number
+          file_url: string | null
           gpx_data: string | null
           gpx_file_url: string | null
           id: string
           metadata: Json | null
           name: string
+          start_lat: number | null
+          start_lng: number | null
           type: string | null
           updated_at: string
           user_id: string
@@ -108,15 +112,19 @@ export type Database = {
           coordinates?: Json | null
           created_at?: string
           date: string
+          description?: string | null
           distance: number
           duration: string
           duration_seconds?: number | null
           elevation: number
+          file_url?: string | null
           gpx_data?: string | null
           gpx_file_url?: string | null
           id?: string
           metadata?: Json | null
           name: string
+          start_lat?: number | null
+          start_lng?: number | null
           type?: string | null
           updated_at?: string
           user_id: string
@@ -127,15 +135,19 @@ export type Database = {
           coordinates?: Json | null
           created_at?: string
           date?: string
+          description?: string | null
           distance?: number
           duration?: string
           duration_seconds?: number | null
           elevation?: number
+          file_url?: string | null
           gpx_data?: string | null
           gpx_file_url?: string | null
           id?: string
           metadata?: Json | null
           name?: string
+          start_lat?: number | null
+          start_lng?: number | null
           type?: string | null
           updated_at?: string
           user_id?: string

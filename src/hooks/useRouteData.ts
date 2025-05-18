@@ -68,7 +68,7 @@ export function useRouteData(routeId: string | undefined) {
           gpx_data: data.gpx_data,
           gpx_file_url: data.gpx_file_url,
           type: data.type,
-          // Handle coordinates - make sure to correctly parse and cast to the right type
+          // Extract coordinates with proper casting
           coordinates: data.coordinates ? parseCoordinatesArray(data.coordinates) : [],
           // Include any other fields from the original data
           ...data
@@ -81,8 +81,8 @@ export function useRouteData(routeId: string | undefined) {
         let hasValidData = false;
         
         // First try to get coordinates directly from the coordinates field
-        if (typedRouteData.coordinates && Array.isArray(typedRouteData.coordinates)) {
-          coordinates = parseCoordinatesArray(typedRouteData.coordinates);
+        if (data.coordinates) {
+          coordinates = parseCoordinatesArray(data.coordinates);
           hasValidData = coordinates.length >= 2;
           console.log(`Found ${coordinates.length} coordinates directly in coordinates field`);
         }
@@ -142,7 +142,7 @@ export function useRouteData(routeId: string | undefined) {
         }
         
         // If we still don't have valid data and we have a GPX file URL, download and parse it
-        const fileUrl = data.gpx_file_url || (data.file?.url);
+        const fileUrl = data.gpx_file_url || data.file_url;
         if ((!hasValidData || coordinates.length < 2) && fileUrl) {
           try {
             console.log("Attempting to download and parse file from URL:", fileUrl);
@@ -151,7 +151,7 @@ export function useRouteData(routeId: string | undefined) {
             const { data: fileData, error: fileError } = await supabase.functions.invoke("gpx-parser", {
               body: { 
                 gpx_url: data.gpx_file_url,
-                file_url: data.file?.url 
+                file_url: data.file_url 
               }
             });
             
@@ -182,7 +182,7 @@ export function useRouteData(routeId: string | undefined) {
           }
         }
         
-        // If trying to get data from the "file" object in the Wahoo format
+        // If trying to get data from the start_lat and start_lng fields
         if ((!hasValidData || coordinates.length < 2) && data.start_lat && data.start_lng) {
           // Use the start coordinates as a fallback
           coordinates = [
