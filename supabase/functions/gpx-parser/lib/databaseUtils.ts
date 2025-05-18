@@ -19,7 +19,7 @@ export async function storeRoutePoints(
   
   try {
     // Process in batches to avoid potential size limits
-    const batchSize = 500;
+    const batchSize = 100;
     let insertedCount = 0;
     
     for (let i = 0; i < points.length; i += batchSize) {
@@ -33,9 +33,14 @@ export async function storeRoutePoints(
         recorded_at: point.timestamp ? new Date(point.timestamp).toISOString() : null
       }));
       
-      const { error } = await client
+      console.log(`Inserting batch ${Math.floor(i / batchSize) + 1} with ${batch.length} points`);
+      
+      const { data, error } = await client
         .from('route_points')
-        .upsert(values, { onConflict: 'route_id,sequence_index', ignoreDuplicates: false });
+        .upsert(values, { 
+          onConflict: 'route_id,sequence_index',
+          ignoreDuplicates: false 
+        });
       
       if (error) {
         console.error("Error storing route points batch:", error);
@@ -43,9 +48,10 @@ export async function storeRoutePoints(
       }
       
       insertedCount += batch.length;
-      console.log(`Inserted batch of ${batch.length} points. Total: ${insertedCount}`);
+      console.log(`Inserted batch ${Math.floor(i / batchSize) + 1} successfully. Total: ${insertedCount}`);
     }
     
+    console.log(`Successfully stored ${insertedCount} route points for route ${routeId}`);
     return insertedCount;
   } catch (error) {
     console.error("Error in storeRoutePoints:", error);

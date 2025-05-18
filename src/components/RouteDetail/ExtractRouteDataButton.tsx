@@ -14,6 +14,7 @@ interface ExtractRouteDataButtonProps {
 
 export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess }: ExtractRouteDataButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Don't show the button if we don't have any file URL
@@ -24,6 +25,14 @@ export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess
   const handleExtractData = async () => {
     try {
       setIsLoading(true);
+      setProgress("Starting extraction...");
+
+      // Log the parameters we're sending
+      console.log("Extracting data with params:", {
+        route_id: routeId,
+        gpx_url: gpxFileUrl,
+        file_url: fileUrl
+      });
 
       // Call the gpx-parser edge function to extract and save detailed route points
       const { data, error } = await supabase.functions.invoke("gpx-parser", {
@@ -38,7 +47,7 @@ export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess
         console.error("Error extracting route data:", error);
         toast({
           title: "Error",
-          description: "Failed to extract detailed route data",
+          description: "Failed to extract detailed route data: " + error.message,
           variant: "destructive"
         });
         return;
@@ -68,11 +77,12 @@ export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess
       console.error("Error in extract route data process:", err);
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "An unexpected error occurred: " + (err instanceof Error ? err.message : String(err)),
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
+      setProgress(null);
     }
   };
 
@@ -85,7 +95,7 @@ export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess
     >
       {isLoading ? (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Extracting...
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {progress || "Extracting..."}
         </>
       ) : (
         <>

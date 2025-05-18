@@ -16,6 +16,8 @@ export async function extractCoordinatesFromFitFile(url: string): Promise<{
 }> {
   try {
     // For FIT files, we need to download the binary data and parse it
+    console.log("Fetching file from URL:", url);
+    
     const response = await fetch(url, {
       headers: {
         'Accept': '*/*',
@@ -24,7 +26,8 @@ export async function extractCoordinatesFromFitFile(url: string): Promise<{
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch FIT file: ${response.status} ${response.statusText}`);
+      console.error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
     }
     
     // Try to get the content as text first
@@ -32,15 +35,21 @@ export async function extractCoordinatesFromFitFile(url: string): Promise<{
     const coordinates: [number, number][] = [];
     let detailedPoints: DetailedPoint[] = [];
     
+    console.log("Successfully fetched file content, content length:", content.length);
+    console.log("Content starts with:", content.substring(0, 100));
+    
     // If it looks like XML/GPX, parse it as such
     if (content.includes('<gpx') || content.includes('<trk') || content.includes('<wpt')) {
+      console.log("Detected GPX format, extracting coordinates...");
       coordinates.push(...extractCoordinatesFromGpx(content));
       detailedPoints = extractDetailedPointsFromGpx(content);
+      console.log(`Extracted ${coordinates.length} coordinates and ${detailedPoints.length} detailed points from GPX`);
       return { coordinates, detailedPoints };
     }
     
     // If it's JSON, try to parse it
     try {
+      console.log("Trying to parse content as JSON...");
       const jsonData = JSON.parse(content);
       
       // Look for detailed points in various JSON formats
@@ -67,6 +76,7 @@ export async function extractCoordinatesFromFitFile(url: string): Promise<{
           }
           return null;
         }).filter(Boolean);
+        console.log(`Found ${detailedPoints.length} detailed points in JSON format`);
       }
       
       // Also get simplified coordinates for map display
@@ -77,9 +87,11 @@ export async function extractCoordinatesFromFitFile(url: string): Promise<{
           }
           return null;
         }).filter(Boolean));
+        console.log(`Found ${coordinates.length} coordinates in JSON format`);
       } else if (detailedPoints.length > 0) {
         // Create simplified coordinates from detailed points if needed
         coordinates.push(...detailedPoints.map(p => [p.lat, p.lng] as [number, number]));
+        console.log(`Created ${coordinates.length} coordinates from detailed points`);
       }
       
       return { coordinates, detailedPoints };

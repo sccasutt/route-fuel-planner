@@ -17,6 +17,8 @@ export function extractCoordinatesFromGpx(gpxContent: string): [number, number][
       }
     }
     
+    console.log(`Found ${coordinates.length} track points from GPX`);
+    
     // If no trkpt elements found, try looking for wpt (waypoint) elements
     if (coordinates.length === 0) {
       const waypointRegex = /<wpt\s+lat="([^"]+)"\s+lon="([^"]+)"[^>]*>/g;
@@ -28,6 +30,7 @@ export function extractCoordinatesFromGpx(gpxContent: string): [number, number][
           coordinates.push([lat, lon]);
         }
       }
+      console.log(`Found ${coordinates.length} waypoints from GPX`);
     }
     
     // If still no coordinates, look for rtept (route point) elements
@@ -41,6 +44,7 @@ export function extractCoordinatesFromGpx(gpxContent: string): [number, number][
           coordinates.push([lat, lon]);
         }
       }
+      console.log(`Found ${coordinates.length} route points from GPX`);
     }
     
     return coordinates;
@@ -93,10 +97,74 @@ export function extractDetailedPointsFromGpx(gpxContent: string): Array<{
       }
     }
     
-    // If no track points, try waypoints or route points with the same approach
+    console.log(`Extracted ${points.length} detailed track points from GPX`);
+    
+    // If no track points, try waypoints
     if (points.length === 0) {
-      // Similar regex processing for wpt and rtept elements
-      // Omitted for brevity but would follow the same pattern
+      const waypointRegex = /<wpt\s+lat="([^"]+)"\s+lon="([^"]+)"[^>]*>(?:(.*?)<\/wpt>)/gs;
+      while ((match = waypointRegex.exec(gpxContent)) !== null) {
+        const lat = parseFloat(match[1]);
+        const lon = parseFloat(match[2]);
+        const pointContent = match[3];
+        
+        // Extract elevation if available
+        let elevation = null;
+        const eleMatch = /<ele>([\d.-]+)<\/ele>/i.exec(pointContent);
+        if (eleMatch) {
+          elevation = parseFloat(eleMatch[1]);
+        }
+        
+        // Extract timestamp if available
+        let timestamp = null;
+        const timeMatch = /<time>([^<]+)<\/time>/i.exec(pointContent);
+        if (timeMatch) {
+          timestamp = timeMatch[1];
+        }
+        
+        if (!isNaN(lat) && !isNaN(lon)) {
+          points.push({
+            lat,
+            lng: lon,
+            elevation,
+            timestamp
+          });
+        }
+      }
+      console.log(`Extracted ${points.length} detailed waypoints from GPX`);
+    }
+    
+    // If still no points, try route points
+    if (points.length === 0) {
+      const routePointRegex = /<rtept\s+lat="([^"]+)"\s+lon="([^"]+)"[^>]*>(?:(.*?)<\/rtept>)/gs;
+      while ((match = routePointRegex.exec(gpxContent)) !== null) {
+        const lat = parseFloat(match[1]);
+        const lon = parseFloat(match[2]);
+        const pointContent = match[3];
+        
+        // Extract elevation if available
+        let elevation = null;
+        const eleMatch = /<ele>([\d.-]+)<\/ele>/i.exec(pointContent);
+        if (eleMatch) {
+          elevation = parseFloat(eleMatch[1]);
+        }
+        
+        // Extract timestamp if available
+        let timestamp = null;
+        const timeMatch = /<time>([^<]+)<\/time>/i.exec(pointContent);
+        if (timeMatch) {
+          timestamp = timeMatch[1];
+        }
+        
+        if (!isNaN(lat) && !isNaN(lon)) {
+          points.push({
+            lat,
+            lng: lon,
+            elevation,
+            timestamp
+          });
+        }
+      }
+      console.log(`Extracted ${points.length} detailed route points from GPX`);
     }
     
     return points;
