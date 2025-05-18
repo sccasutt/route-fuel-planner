@@ -68,12 +68,12 @@ export function useRouteData(routeId: string | undefined) {
           gpx_data: data.gpx_data,
           gpx_file_url: data.gpx_file_url,
           type: data.type,
-          // Safely handle coordinates from database, ensuring they're treated as [number, number][]
+          // Handle coordinates safely with proper parsing
           coordinates: data.coordinates ? parseCoordinatesArray(data.coordinates) : [],
-          // Include file object if it exists
-          file: data.file,
-          start_lat: data.start_lat,
-          start_lng: data.start_lng,
+          // Include Wahoo-specific fields if they exist
+          file: data.file || undefined,
+          start_lat: data.start_lat || undefined,
+          start_lng: data.start_lng || undefined,
           // Include any other fields from the original data
           ...data
         };
