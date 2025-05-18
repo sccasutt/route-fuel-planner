@@ -37,7 +37,7 @@ export function useUserProfile() {
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id as string)
+          .eq('id', user.id)
           .maybeSingle();
 
         if (error) {
@@ -51,6 +51,7 @@ export function useUserProfile() {
 
         if (!ignore) {
           if (data) {
+            // Safely cast data to UserProfile
             setProfile(data as UserProfile);
           } else {
             setProfile(null);
