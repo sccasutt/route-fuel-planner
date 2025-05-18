@@ -34,7 +34,7 @@ export function useRouteData(routeId: string | undefined) {
         setLoading(true);
         
         // Fetch the route data from the database
-        const { data: route, error } = await supabase
+        const { data, error } = await supabase
           .from('routes')
           .select('*')
           .eq('id', routeId as any)
@@ -51,7 +51,7 @@ export function useRouteData(routeId: string | undefined) {
           return;
         }
 
-        if (!route) {
+        if (!data) {
           toast({ 
             title: "Not Found", 
             description: "Route not found", 
@@ -61,32 +61,32 @@ export function useRouteData(routeId: string | undefined) {
           return;
         }
 
-        console.log("Fetched route data:", route);
+        console.log("Fetched route data:", data);
         // Only set route data if we have a valid route object
-        setRouteData(route as RouteData);
+        setRouteData(data as RouteData);
         
         // Parse GPS coordinates from gpx_data
         let coordinates: [number, number][] = [];
         let hasValidData = false;
         
-        if (route && route.gpx_data) {
+        if (data && data.gpx_data) {
           try {
             // Try to parse the gpx_data field
             let parsedData;
             try {
               // Handle both string and object formats
-              parsedData = typeof route.gpx_data === 'string' 
-                ? JSON.parse(route.gpx_data) 
-                : route.gpx_data;
+              parsedData = typeof data.gpx_data === 'string' 
+                ? JSON.parse(data.gpx_data) 
+                : data.gpx_data;
               
               console.log("Successfully parsed GPX data:", typeof parsedData);
             } catch (parseErr) {
               console.error("GPX data is not valid JSON:", parseErr);
-              console.log("Raw GPX data type:", typeof route.gpx_data);
+              console.log("Raw GPX data type:", typeof data.gpx_data);
               console.log("Raw GPX data sample:", 
-                typeof route.gpx_data === 'string' 
-                  ? route.gpx_data.substring(0, 100) + '...' 
-                  : route.gpx_data
+                typeof data.gpx_data === 'string' 
+                  ? data.gpx_data.substring(0, 100) + '...' 
+                  : data.gpx_data
               );
             }
             

@@ -17,43 +17,30 @@ import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
-  const { isConnected, activities, isLoading, refresh } = useWahooData();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isConnected, activities, isLoading: wahooLoading, refresh } = useWahooData();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [syncComplete, setSyncComplete] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isPageMounted, setIsPageMounted] = useState(false);
-
+  
   // Debug logging
   useEffect(() => {
     console.log("Dashboard rendered with:", {
       user: user?.id || "No user",
-      loading,
+      authLoading,
       activitiesLoaded: activities?.length || 0,
-      isWahooLoading: isLoading,
-      authChecked,
-      isPageMounted
+      isWahooLoading: wahooLoading
     });
-    
-    // Mark component as mounted
-    setIsPageMounted(true);
-  }, [user, loading, activities, isLoading, authChecked]);
+  }, [user, authLoading, activities, wahooLoading]);
 
   // Check authentication and redirect if not logged in
   useEffect(() => {
-    // Only proceed if the loading state has resolved
-    if (!loading) {
-      if (!user) {
-        console.log("No authenticated user, redirecting to auth page");
-        navigate("/auth");
-      } else {
-        console.log("User authenticated, continuing to dashboard");
-        setAuthChecked(true);
-      }
+    if (!authLoading && !user) {
+      console.log("No authenticated user, redirecting to auth page");
+      navigate("/auth");
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate]);
 
   // Handle manual refresh
   const handleRefresh = () => {
@@ -71,8 +58,8 @@ const Dashboard = () => {
     }, 1500);
   };
 
-  // If still loading or authentication status not confirmed, show loading state
-  if (loading || (!authChecked && !user)) {
+  // If still loading authentication status, show loading state
+  if (authLoading) {
     return (
       <Layout>
         <div className="container py-8">
@@ -85,8 +72,8 @@ const Dashboard = () => {
     );
   }
 
-  // If auth check is complete and no user, show login prompt
-  if (authChecked && !user) {
+  // If auth check is complete and no user, automatically redirect (handled by the useEffect above)
+  if (!user) {
     return (
       <Layout>
         <div className="container py-8">
@@ -137,7 +124,7 @@ const Dashboard = () => {
   return (
     <Layout>
       <div id="dashboard-container" className="container py-8">
-        <DashboardHeader onRefresh={handleRefresh} isLoading={isLoading} />
+        <DashboardHeader onRefresh={handleRefresh} isLoading={wahooLoading} />
 
         <ConnectionAlerts 
           connectionError={connectionError} 
@@ -149,7 +136,7 @@ const Dashboard = () => {
             <ConnectedAccountsCard />
           </div>
           <div className="col-span-2">
-            <RecentActivityCard activities={activities} isLoading={isLoading} />
+            <RecentActivityCard activities={activities} isLoading={wahooLoading} />
           </div>
         </div>
 
@@ -169,7 +156,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="routes">
-            <RoutesTabContent activities={routesData} routeCoordinatesMap={routeCoordinatesMap} isLoading={isLoading} />
+            <RoutesTabContent activities={routesData} routeCoordinatesMap={routeCoordinatesMap} isLoading={wahooLoading} />
           </TabsContent>
 
           <TabsContent value="nutrition">

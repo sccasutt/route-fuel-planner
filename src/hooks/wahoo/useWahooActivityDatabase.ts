@@ -112,9 +112,9 @@ export function useWahooActivityDatabase() {
       }
       
       console.log(`[${hookId}] Found Wahoo profile:`, {
-        userId: data.id,
-        wahooUserId: data.wahoo_user_id,
-        lastSynced: data.last_synced_at
+        userId: data?.id,
+        wahooUserId: data?.wahoo_user_id,
+        lastSynced: data?.last_synced_at
       });
       
       return data;

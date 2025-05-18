@@ -29,51 +29,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchSession = async () => {
+    const initAuth = async () => {
       try {
-        setLoading(true);
+        // First set up the auth state listener to prevent race conditions
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+          console.log("Auth state changed:", event, newSession?.user?.id ? "User authenticated" : "No user");
+          
+          setSession(newSession);
+          setUser(newSession?.user || null);
+          
+          // Notify about auth state changes
+          if (event === 'SIGNED_IN' && newSession?.user) {
+            toast({
+              title: "Signed in",
+              description: "You have successfully signed in.",
+            });
+          } else if (event === 'SIGNED_OUT') {
+            toast({
+              title: "Signed out",
+              description: "You have been signed out.",
+            });
+            // Don't navigate here as it might cause loops
+          }
+        });
         
-        // Get session from Supabase
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Then check for existing session
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         
-        console.log("Auth session check:", {
-          hasSession: !!session,
-          error: error?.message || "No error"
+        console.log("Initial auth session check:", {
+          hasSession: !!initialSession,
+          error: sessionError?.message || "No error"
         });
 
-        if (error) {
-          throw error;
-        }
+        if (sessionError) throw sessionError;
 
-        setSession(session);
-        setUser(session?.user || null);
+        setSession(initialSession);
+        setUser(initialSession?.user || null);
+        setLoading(false);
         
-        // Add listener for authentication changes
-        const { data: authListener } = supabase.auth.onAuthStateChange(
-          async (event, newSession) => {
-            console.log("Auth state changed:", event, newSession?.user?.id ? "User authenticated" : "No user");
-            
-            setSession(newSession);
-            setUser(newSession?.user || null);
-            
-            // Notify about auth state changes
-            if (event === 'SIGNED_IN' && newSession?.user) {
-              toast({
-                title: "Signed in",
-                description: "You have successfully signed in.",
-              });
-            } else if (event === 'SIGNED_OUT') {
-              toast({
-                title: "Signed out",
-                description: "You have been signed out.",
-              });
-              navigate('/');
-            }
-          }
-        );
-
         return () => {
-          // Clean up the listener
           if (authListener && authListener.subscription) {
             authListener.subscription.unsubscribe();
           }
@@ -83,13 +77,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setError(err.message);
         setUser(null);
         setSession(null);
-      } finally {
         setLoading(false);
       }
     };
 
-    fetchSession();
-  }, [navigate, toast]);
+    initAuth();
+  }, [toast]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -163,6 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
+      navigate('/');
     } catch (error: any) {
       console.error("Sign out error:", error.message);
       setError(error.message);
