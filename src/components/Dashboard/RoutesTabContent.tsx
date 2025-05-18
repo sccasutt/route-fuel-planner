@@ -14,12 +14,14 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MapPin, ArrowRight, AlertCircle } from "lucide-react";
 import RouteMap from "../Map/RouteMap";
+import { RouteCard } from "./RouteCard";
 
 interface RoutesTabContentProps {
   activities: WahooActivityData[];
+  routeCoordinatesMap?: Record<string, [number, number][]>;
 }
 
-export function RoutesTabContent({ activities }: RoutesTabContentProps) {
+export function RoutesTabContent({ activities, routeCoordinatesMap = {} }: RoutesTabContentProps) {
   useEffect(() => {
     // Add debug logging to help identify issues
     console.log("RoutesTabContent rendered with", activities?.length || 0, "activities");
@@ -27,10 +29,11 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
       console.log("First activity sample:", {
         id: activities[0].id,
         name: activities[0].name,
-        hasCoordinates: activities[0].coordinates?.length || 0
+        hasCoordinates: activities[0].coordinates?.length || 0,
+        mapCoordinates: routeCoordinatesMap[activities[0].id]?.length || 0
       });
     }
-  }, [activities]);
+  }, [activities, routeCoordinatesMap]);
 
   if (!activities) {
     return (
@@ -75,9 +78,10 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
 
   // Display the most recent activity map
   const mostRecentActivity = activities[0];
+  const mostRecentCoordinates = routeCoordinatesMap[mostRecentActivity.id] || getRouteCoordinates(0);
 
-  // Generate different route shapes for variety
-  const getRouteCoordinates = (index: number): [number, number][] => {
+  // Function to get route coordinates (either from map or generate)
+  function getRouteCoordinates(index: number): [number, number][] {
     // Base center point
     const basePoint: [number, number] = [51.505, -0.09];
     
@@ -92,6 +96,12 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
       [51.495, -0.12],
       [51.505, -0.09],
     ];
+    
+    // If activity has coordinates in the map, use them
+    if (activities[index % activities.length] && 
+        routeCoordinatesMap[activities[index % activities.length].id]) {
+      return routeCoordinatesMap[activities[index % activities.length].id];
+    }
     
     // If activity has coordinates, try to use them
     if (activities[index % activities.length]?.coordinates && 
@@ -145,7 +155,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
               height="100%"
               className="rounded-b-lg"
               showControls={true}
-              routeCoordinates={getRouteCoordinates(0)}
+              routeCoordinates={mostRecentCoordinates}
               mapStyle="terrain"
               routeStyle={{
                 color: "#8B5CF6", // Vivid purple
@@ -166,62 +176,26 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
 
       {/* Route Cards List */}
       <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {activities.map((activity, index) => (
-          <Card key={activity.id} className="overflow-hidden">
-            <div className="h-2 bg-primary" />
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">{activity.name}</CardTitle>
-              <CardDescription>{new Date(activity.date).toLocaleDateString()}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              <div className="h-[120px] w-full mb-2">
-                <RouteMap
-                  center={[51.505, -0.09]}
-                  zoom={11}
-                  height="100%"
-                  className="rounded-md border border-border/50"
-                  showControls={false}
-                  routeCoordinates={getRouteCoordinates(index)}
-                  mapStyle={index % 2 === 0 ? "default" : "dark"}
-                  routeStyle={{
-                    color: index % 3 === 0 ? "#8B5CF6" : index % 3 === 1 ? "#0EA5E9" : "#F97316", 
-                    weight: 3,
-                    opacity: 0.8
-                  }}
-                />
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm font-medium">Distance:</span>
-                <span className="ml-1 text-sm text-muted-foreground">
-                  {typeof activity.distance === 'number' ? activity.distance.toFixed(1) : '0.0'} km
-                </span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm font-medium">Elevation:</span>
-                <span className="ml-1 text-sm text-muted-foreground">
-                  {formatElevation(activity.elevation)} m
-                </span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm font-medium">Duration:</span>
-                <span className="ml-1 text-sm text-muted-foreground">
-                  {formatHumanReadableDuration(activity.duration_seconds || 0)}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm font-medium">Calories:</span>
-                <span className="ml-1 text-sm text-muted-foreground">
-                  {activity.calories} kcal
-                </span>
-              </div>
-              <Link to={`/routes/${activity.id}`} className="mt-2">
-                <Button variant="ghost" size="sm" className="gap-1">
-                  View Details <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
+        {activities.map((activity, index) => {
+          // Get coordinates either from the map or generate them
+          const routeCoordinates = routeCoordinatesMap[activity.id] || getRouteCoordinates(index);
+          
+          return (
+            <RouteCard
+              key={activity.id}
+              id={activity.id}
+              name={activity.name}
+              date={activity.date}
+              distance={activity.distance}
+              elevation={activity.elevation}
+              duration={activity.duration}
+              calories={activity.calories}
+              routeCoordinates={routeCoordinates}
+              type={activity.type}
+              gpxFileUrl={activity.gpx_file_url}
+            />
+          );
+        })}
       </div>
     </div>
   );
