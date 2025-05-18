@@ -1,6 +1,6 @@
-
 // Formatter for Wahoo activity data
-import { extractNestedValue, formatDurationString, durationToSeconds, parseNumericValue } from "./wahooUtils.ts";
+import { extractCoordinates, createGpxDataObject } from "./extractCoordinates.ts";
+import { extractActivityFields } from "./activityFieldExtractor.ts";
 
 /**
  * Transforms raw activity data from various Wahoo API endpoints to consistent format
@@ -15,90 +15,47 @@ export function formatWahooActivities(activities: any[]) {
   
   // Transform activity data with robust fallback extraction
   const formattedActivities = activities.map(activity => {
-    // Extract ID with fallbacks
-    const id = extractNestedValue(activity, ['id', 'workout_id', 'route_id']) || 
-              `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // Extract base fields using the field extractor
+    const basicFields = extractActivityFields(activity);
     
-    // Extract name with fallbacks
-    const name = extractNestedValue(activity, ['name', 'title', 'workout_name']) || "Unnamed Activity";
+    // Extract GPS coordinates from different possible sources
+    const coordinates = extractCoordinates(activity);
     
-    // Extract date with fallbacks
-    const dateValue = extractNestedValue(activity, [
-      'start_time', 'starts', 'created_at', 'timestamp', 
-      'workout_summary.created_at', 'date'
-    ]) || new Date().toISOString();
+    // IMPORTANT: First preserve the original raw GPX data if available
+    // This ensures we keep the complete data for later use
+    const gpxRawData = activity.gpx_data || activity.route_gpx || activity.gpx || activity.gpx_string || null;
     
-    // Extract distance with fallbacks
-    let distance = extractNestedValue(activity, [
-      'distance', 
-      'workout_summary.distance_accum',
-      'summary.distance',
-      'total_distance',
-      'distance_km'
-    ]);
+    // Create the GPX data object that will be stored in the database
+    // This ensures we store both raw GPX data (if available) and extracted coordinates
+    const gpxData = createGpxDataObject(coordinates, gpxRawData);
     
-    // Extract elevation with fallbacks
-    let elevation = extractNestedValue(activity, [
-      'elevation', 
-      'elevation_gain',
-      'workout_summary.ascent_accum',
-      'summary.elevation',
-      'altitude_gain',
-      'total_ascent',
-      'ascent'
-    ]);
-    
-    // Extract calories with fallbacks
-    let calories = extractNestedValue(activity, [
-      'calories', 
-      'energy',
-      'workout_summary.calories_accum',
-      'summary.calories',
-      'total_calories',
-      'kcal'
-    ]);
-    
-    // Extract duration with improved fallbacks for various formats
-    let durationValue = extractNestedValue(activity, [
-      'duration',
-      'workout_summary.duration_total_accum',
-      'minutes',
-      'summary.duration',
-      'duration_seconds',
-      'elapsed_time',
-      'moving_time'
-    ]);
-    
-    // Process duration to handle different formats
-    let duration = formatDurationString(durationValue);
-    let durationSeconds = durationToSeconds(durationValue);
-    
-    // Convert numeric values correctly
-    if (typeof distance === 'string') distance = parseFloat(distance) || 0;
-    if (typeof elevation === 'string') elevation = parseFloat(elevation) || 0;
-    if (typeof calories === 'string') calories = parseInt(calories, 10) || 0;
-    
-    // Ensure all values are numbers, not null/undefined
-    distance = parseNumericValue(distance);
-    elevation = parseNumericValue(elevation);
-    calories = parseNumericValue(calories);
-    
-    // Convert distance to kilometers if needed
-    if (distance > 1000 && distance < 1000000) {
-      distance = distance / 1000;
+    // If we have coordinates, log success
+    if (coordinates.length > 0) {
+      console.log(`Created GPX data with ${coordinates.length} coordinates for activity ${basicFields.id}`);
+    } else if (gpxRawData) {
+      console.log(`Stored raw GPX data for activity ${basicFields.id} but no coordinates could be extracted`);
     }
+
+    // If we have a gpx_file_url, include that 
+    const gpxFileUrl = activity.gpx_file_url || activity.gpx_url || null;
     
+    // Determine activity type based on source endpoint or type field
+    const activityType = activity.type || 
+                        activity.workout_type || 
+                        activity.ride_type || 
+                        activity.route_type || 
+                        "activity";
+    
+    // Return the final formatted activity
     return {
-      id,
-      name,
-      date: dateValue,
-      distance,
-      elevation,
-      duration,
-      duration_seconds: durationSeconds,
-      calories,
-      gpx_data: activity.gpx_data || null,
-      type: activity.type || activity.workout_type || "activity"
+      ...basicFields,
+      gpx_data: gpxData,
+      type: activityType,
+      gpx_file_url: gpxFileUrl,
+      additional_data: {
+        wahoo_type: activityType,
+        source_endpoint: activity._sourceEndpoint // This will be useful for debugging
+      }
     };
   });
   

@@ -1,74 +1,62 @@
 
-import React from "react";
-import { 
-  Card, 
-  CardContent,
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
-import { formatDistance, formatElevation } from "@/lib/utils";
-import { formatHumanReadableDuration } from "@/lib/durationFormatter";
+import React, { useEffect } from "react";
+import { FeaturedRouteMap } from "./FeaturedRouteMap";
+import { EmptyRoutesState } from "./EmptyRoutesState";
+import { RoutesGrid } from "./RoutesGrid";
+import { RoutesLoadingState } from "./RoutesLoadingState";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { RouteType } from "@/types/route";
 
 interface RoutesTabContentProps {
-  activities: WahooActivityData[];
+  activities: RouteType[];
+  routeCoordinatesMap?: Record<string, [number, number][]>;
+  isLoading?: boolean;
 }
 
-export function RoutesTabContent({ activities }: RoutesTabContentProps) {
-  if (!activities || activities.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>No Routes Available</CardTitle>
-          <CardDescription>
-            No routes have been synced yet. Connect your Wahoo account to start
-            importing your activities.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Once you connect your account, your routes will appear here.</p>
-        </CardContent>
-      </Card>
-    );
+export function RoutesTabContent({ 
+  activities = [], 
+  routeCoordinatesMap = {},
+  isLoading = false
+}: RoutesTabContentProps) {
+  useEffect(() => {
+    // Add debug logging to help identify issues
+    console.log("RoutesTabContent rendered with", activities?.length || 0, "activities");
+    if (activities && activities.length > 0) {
+      console.log("First activity sample:", {
+        id: activities[0].id,
+        name: activities[0].name,
+        // Using routeCoordinatesMap instead of direct coordinates property
+        hasCoordinates: routeCoordinatesMap[activities[0].id]?.length || 0,
+        mapCoordinates: routeCoordinatesMap[activities[0].id]?.length || 0
+      });
+    }
+  }, [activities, routeCoordinatesMap]);
+
+  if (isLoading) {
+    return <RoutesLoadingState />;
   }
 
+  if (!activities || activities.length === 0) {
+    return <EmptyRoutesState />;
+  }
+
+  // Display the most recent activity map
+  const mostRecentActivity = activities[0];
+  const mostRecentCoordinates = routeCoordinatesMap[mostRecentActivity.id] || [];
+
   return (
-    <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-      {activities.map((activity) => (
-        <Card key={activity.id}>
-          <CardHeader>
-            <CardTitle>{activity.name}</CardTitle>
-            <CardDescription>{activity.date}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            <div className="flex items-center">
-              <span className="text-sm font-medium">Distance:</span>
-              <span className="ml-1 text-sm text-muted-foreground">
-                {formatDistance(activity.distance)} km
-              </span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">Elevation:</span>
-              <span className="ml-1 text-sm text-muted-foreground">
-                {formatElevation(activity.elevation)} m
-              </span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">Duration:</span>
-              <span className="ml-1 text-sm text-muted-foreground">
-                {formatHumanReadableDuration(activity.duration_seconds || 0)}
-              </span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">Calories:</span>
-              <span className="ml-1 text-sm text-muted-foreground">
-                {activity.calories} kcal
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-6">
+      {/* Featured Route Map */}
+      <FeaturedRouteMap 
+        route={mostRecentActivity} 
+        routeCoordinates={mostRecentCoordinates}
+      />
+
+      {/* Route Cards List */}
+      <RoutesGrid 
+        activities={activities} 
+        routeCoordinatesMap={routeCoordinatesMap}
+      />
     </div>
   );
 }

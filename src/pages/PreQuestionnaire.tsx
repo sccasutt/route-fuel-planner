@@ -1,245 +1,228 @@
-import { useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Form,
+  FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import Layout from "@/components/layout/Layout";
-import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
-// Pre-questionnaire schema using zod
-const questionnaireSchema = z.object({
-  weight_kg: z.string().min(1, "Enter your weight in kg"),
-  age: z.string().min(1, "Enter your age"),
-  goal: z.string().min(1, "Select your primary cycling goal"),
-  diet_type: z.string().optional(),
-  intolerances: z.string().optional(),
-  allergies: z.string().optional(),
+const formSchema = z.object({
+  fullName: z.string().min(2, {
+    message: "Full name must be at least 2 characters.",
+  }),
+  age: z.string().refine((value) => {
+    const num = Number(value);
+    return !isNaN(num) && num > 0;
+  }, {
+    message: "Age must be a valid number.",
+  }),
+  weight: z.string().refine((value) => {
+    const num = Number(value);
+    return !isNaN(num) && num > 0;
+  }, {
+    message: "Weight must be a valid number.",
+  }),
+  goalType: z.string().min(1, {
+    message: "Please select a goal.",
+  }),
+  dietType: z.string().min(1, {
+    message: "Please select a diet type.",
+  }),
 });
 
-type QuestionnaireForm = z.infer<typeof questionnaireSchema>;
-
-const GOALS = [
-  { value: "general", label: "General Health" },
-  { value: "endurance", label: "Endurance Training" },
-  { value: "performance", label: "Performance Optimization" },
-  { value: "weight", label: "Weight Management" },
-];
-
-const DIET_TYPES = [
-  { value: "none", label: "No Preference" },
-  { value: "vegetarian", label: "Vegetarian" },
-  { value: "vegan", label: "Vegan" },
-  { value: "keto", label: "Keto" },
-  { value: "paleo", label: "Paleo" },
-];
-
 const PreQuestionnaire = () => {
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Check if user is authenticated and test Supabase connection
-  useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/login");
-      } else {
-        console.log("Authenticated user:", user);
-      }
-    };
-    checkAuth();
-  }, [navigate]);
-
-  const form = useForm<QuestionnaireForm>({
-    resolver: zodResolver(questionnaireSchema),
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      weight_kg: "",
+      fullName: "",
       age: "",
-      goal: "",
-      diet_type: "",
-      intolerances: "",
-      allergies: "",
+      weight: "",
+      goalType: "",
+      dietType: "",
     },
   });
 
-  const onSubmit = async (data: QuestionnaireForm) => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      toast({ title: "Not logged in", description: "Please log in again." });
-      navigate("/login");
-      return;
-    }
-
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
     try {
-      const insert = {
-        weight_kg: Number(data.weight_kg),
-        age: Number(data.age),
-        goal_type: data.goal,
-        diet_type: data.diet_type || null,
-        intolerances: data.intolerances
-          ? data.intolerances.split(",").map((v) => v.trim())
-          : [],
-        allergies: data.allergies
-          ? data.allergies.split(",").map((v) => v.trim())
-          : [],
-      };
-
-      // Update user profile using type assertion to fix TypeScript error
-      const { error } = await supabase
-        .from('profiles')
-        .update(insert as any)
-        .eq("id", user.id);
-
-      if (error) {
-        console.error("Profile update error:", error);
-        toast({ title: "Error", description: error.message });
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "User not authenticated.",
+          variant: "destructive",
+        });
         return;
       }
 
-      toast({
-        title: "Profile updated!",
-        description: "Setup complete. Welcome to PedalPlate.",
-      });
+      const { fullName, age, weight, goalType, dietType } = values;
 
-      setTimeout(() => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          age: parseInt(age),
+          weight: parseFloat(weight),
+          goal_type: goalType,
+          diet_type: dietType,
+        })
+        .eq('id', user.id as any); // Use 'as any' to bypass strict type checking
+
+      if (error) {
+        console.error("Error updating profile:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update profile.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Profile updated successfully.",
+        });
         navigate("/dashboard");
-      }, 1500);
-    } catch (error) {
-      console.error("Submission error:", error);
-      toast({ 
-        title: "Error", 
-        description: "An error occurred while updating your profile." 
+      }
+    } catch (error: any) {
+      console.error("Unexpected error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
 
   return (
-    <Layout>
-      <div className="container max-w-md mx-auto py-12">
-        <div className="space-y-6">
-          <h1 className="text-3xl font-bold text-center">Tell us about yourself</h1>
-          <p className="text-center text-muted-foreground">
-            We'll use these details to personalize your nutrition & route planning.
-          </p>
-          <Form {...form}>
-            <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
-              <FormField
-                control={form.control}
-                name="weight_kg"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weight (kg)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} {...field} placeholder="e.g. 75" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="age"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Age</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={10} max={120} {...field} placeholder="e.g. 35" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="goal"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Primary Cycling Goal</FormLabel>
-                    <FormControl>
-                      <select className="w-full border border-input rounded-md px-3 py-2 bg-background" {...field}>
-                        <option value="">Select goal</option>
-                        {GOALS.map(({ value, label }) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="diet_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Diet Type (optional)</FormLabel>
-                    <FormControl>
-                      <select className="w-full border border-input rounded-md px-3 py-2 bg-background" {...field}>
-                        <option value="">No Preference</option>
-                        {DIET_TYPES.filter(d => d.value !== "none").map(({ value, label }) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="intolerances"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Intolerances (comma-separated, optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g. gluten, nuts" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="allergies"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Allergies (comma-separated, optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g. peanuts, shellfish" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full mt-2">
-                Finish Setup
-              </Button>
-            </form>
-          </Form>
-        </div>
+    <div className="container mx-auto py-10">
+      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
+        <h2 className="text-2xl font-semibold mb-4">Complete Your Profile</h2>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="John Doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="age"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Age</FormLabel>
+                  <FormControl>
+                    <Input placeholder="30" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="weight"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Weight (kg)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="75" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="goalType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Goal</FormLabel>
+                  <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="weight_loss" id="weight_loss" />
+                      </FormControl>
+                      <FormLabel htmlFor="weight_loss">Weight Loss</FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="muscle_gain" id="muscle_gain" />
+                      </FormControl>
+                      <FormLabel htmlFor="muscle_gain">Muscle Gain</FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="general_fitness" id="general_fitness" />
+                      </FormControl>
+                      <FormLabel htmlFor="general_fitness">General Fitness</FormLabel>
+                    </FormItem>
+                  </RadioGroup>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dietType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Diet Type</FormLabel>
+                  <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="vegetarian" id="vegetarian" />
+                      </FormControl>
+                      <FormLabel htmlFor="vegetarian">Vegetarian</FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="vegan" id="vegan" />
+                      </FormControl>
+                      <FormLabel htmlFor="vegan">Vegan</FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="omnivore" id="omnivore" />
+                      </FormControl>
+                      <FormLabel htmlFor="omnivore">Omnivore</FormLabel>
+                    </FormItem>
+                  </RadioGroup>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Submitting..." : "Submit"}
+            </Button>
+          </form>
+        </Form>
       </div>
-    </Layout>
+    </div>
   );
 };
 

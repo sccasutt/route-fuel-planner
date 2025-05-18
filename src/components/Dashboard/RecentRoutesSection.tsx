@@ -1,75 +1,19 @@
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Map, TrendingUp, Clock, LineChart } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { formatHumanReadableDuration } from "@/lib/durationFormatter";
+import React from "react";
+import { SectionHeader } from "./SectionHeader";
+import { RecentRoutesGrid } from "./RecentRoutesGrid";
+import { RouteType } from "@/types/route";
 
-interface RouteType {
-  id: string;
-  name: string;
-  date: string;
-  distance: number;
-  elevation: number;
-  duration: string;
-  duration_seconds?: number | null;
-  calories: number;
-}
-
-interface Props {
+interface RecentRoutesSectionProps {
   routes: RouteType[];
+  routeCoordinates?: Record<string, [number, number][]>;
 }
 
-export function RecentRoutesSection({ routes }: Props) {
+export function RecentRoutesSection({ routes, routeCoordinates = {} }: RecentRoutesSectionProps) {
   return (
     <div className="p-6 bg-muted rounded-lg border">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Recent Routes</h2>
-        <Link to="/routes">
-          <Button variant="outline" size="sm">View All</Button>
-        </Link>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {routes.map((route) => {
-          // Use human readable format for duration
-          const displayDuration = formatHumanReadableDuration(route.duration_seconds || 0);
-          
-          return (
-            <Card key={route.id} className="overflow-hidden">
-              <div className="h-2 bg-primary" />
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">{route.name}</CardTitle>
-                <CardDescription>{route.date}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center">
-                    <Map className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{(route.distance/1000).toFixed(1)} km</span>
-                  </div>
-                  <div className="flex items-center">
-                    <TrendingUp className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{Math.round(route.elevation)} m</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{displayDuration}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <LineChart className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{route.calories} kcal</span>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Link to={`/routes/${route.id}`}>
-                  <Button variant="ghost" size="sm">View Details</Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          );
-        })}
-      </div>
+      <SectionHeader title="Recent Routes" linkTo="/routes" />
+      <RecentRoutesGrid routes={routes} routeCoordinates={routeCoordinates} />
     </div>
   );
 }

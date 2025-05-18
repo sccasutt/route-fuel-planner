@@ -1,26 +1,21 @@
-
 import { NutritionStatusCard } from "./NutritionStatusCard";
 import { UpcomingRideCard } from "./UpcomingRideCard";
 import { ActivityStatsCard } from "./ActivityStatsCard";
 import { RecentRoutesSection } from "./RecentRoutesSection";
 import { WahooConnectPrompt } from "./WahooConnectPrompt";
-
-interface RouteType {
-  id: string;
-  name: string;
-  date: string;
-  distance: number;
-  elevation: number;
-  duration: string;
-  calories: number;
-}
+import { RouteType } from "@/types/route";
 
 interface OverviewTabContentProps {
   activities: RouteType[];
   setConnectionError: (error: string | null) => void;
+  routeCoordinates?: Record<string, [number, number][]>;
 }
 
-export function OverviewTabContent({ activities, setConnectionError }: OverviewTabContentProps) {
+export function OverviewTabContent({ 
+  activities, 
+  setConnectionError, 
+  routeCoordinates = {} 
+}: OverviewTabContentProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -30,7 +25,10 @@ export function OverviewTabContent({ activities, setConnectionError }: OverviewT
       </div>
       
       {activities.length > 0 ? (
-        <RecentRoutesSection routes={activities} />
+        <RecentRoutesSection 
+          routes={activities} 
+          routeCoordinates={routeCoordinates} 
+        />
       ) : (
         <WahooConnectPrompt setConnectionError={setConnectionError} />
       )}
