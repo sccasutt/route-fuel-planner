@@ -47,6 +47,8 @@ export function useRoutePoints(routeId: string | undefined) {
         setLoading(true);
         setError(null);
         
+        console.log(`Fetching route points for route ID: ${routeId}`);
+        
         const { data, error: fetchError } = await supabase
           .from("route_points")
           .select("*")
@@ -70,6 +72,8 @@ export function useRoutePoints(routeId: string | undefined) {
           return;
         }
 
+        console.log(`Found ${data.length} route points for route ${routeId}`);
+        
         const typedPoints: RoutePoint[] = data.map((point) => ({
           id: point.id,
           route_id: point.route_id,

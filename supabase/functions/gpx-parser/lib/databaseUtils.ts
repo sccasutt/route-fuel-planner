@@ -33,8 +33,9 @@ export async function storeRoutePoints(
     }
     
     // Process in batches to avoid potential size limits
-    const batchSize = 50; // Smaller batch size for more reliable processing
+    const batchSize = 25; // Smaller batch size for more reliable processing
     let insertedCount = 0;
+    let hasError = false;
     
     for (let i = 0; i < points.length; i += batchSize) {
       const batch = points.slice(i, i + batchSize);
@@ -49,29 +50,33 @@ export async function storeRoutePoints(
       
       console.log(`Inserting batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(points.length / batchSize)} with ${batch.length} points`);
       
-      // Log sample points for debugging
+      // Log first point for debugging
       if (values.length > 0) {
         console.log(`Sample point [0]: lat=${values[0].lat}, lng=${values[0].lng}, ele=${values[0].elevation}`);
-        if (values.length > 1) {
-          const last = values[values.length - 1];
-          console.log(`Sample point [last]: lat=${last.lat}, lng=${last.lng}, ele=${last.elevation}`);
-        }
       }
       
       const { data, error } = await client
         .from('route_points')
-        .insert(values);
+        .insert(values)
+        .select();
       
       if (error) {
         console.error("Error storing route points batch:", error);
-        throw error;
+        hasError = true;
+        continue; // Try next batch even if this one fails
       }
       
-      insertedCount += batch.length;
+      const insertedBatch = data ? data.length : batch.length;
+      insertedCount += insertedBatch;
       console.log(`Inserted batch ${Math.floor(i / batchSize) + 1} successfully. Total: ${insertedCount}`);
     }
     
-    console.log(`Successfully stored ${insertedCount} route points for route ${routeId}`);
+    if (hasError) {
+      console.warn(`Completed with some errors. Stored ${insertedCount} route points for route ${routeId}`);
+    } else {
+      console.log(`Successfully stored all ${insertedCount} route points for route ${routeId}`);
+    }
+    
     return insertedCount;
   } catch (error) {
     console.error("Error in storeRoutePoints:", error);

@@ -34,6 +34,9 @@ export function RouteHeader({
     }
 
     try {
+      console.log("Starting route data extraction for route:", routeId);
+      console.log("Using file URLs:", { gpxFileUrl, fileUrl });
+      
       // Call our Edge Function to parse the GPX file
       const { data, error } = await supabase.functions.invoke("gpx-parser", {
         body: { 
@@ -72,6 +75,7 @@ export function RouteHeader({
   // Automatically attempt to extract route data when component mounts
   useEffect(() => {
     if (routeId && (gpxFileUrl || fileUrl)) {
+      console.log("Automatically extracting route data on mount");
       extractRouteData();
     }
   }, [routeId, gpxFileUrl, fileUrl]);
