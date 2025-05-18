@@ -17,8 +17,15 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       storage: localStorage,
-      // Remove 'localhost' from the default redirect URL
-      flowType: 'pkce'
+      // Configure auth to prevent redirect issues
+      flowType: 'pkce',
+      detectSessionInUrl: true,
+      debug: true
     }
   }
 );
+
+// Add debug listener for auth events
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log("Supabase auth state changed:", event, session?.user?.id ? "User authenticated" : "No user");
+});
