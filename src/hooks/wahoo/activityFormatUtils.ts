@@ -24,6 +24,20 @@ export function secondsToTimeString(seconds: number): string {
 export function formatDurationString(duration: string): string {
   if (!duration) return "0:00:00";
   
+  // Handle different formats
+  if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
+    // Format like "2h 30m 15s"
+    const hoursMatch = duration.match(/(\d+)h/);
+    const minutesMatch = duration.match(/(\d+)m/);
+    const secondsMatch = duration.match(/(\d+)s/);
+    
+    const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+    const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
+    const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
+    
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  
   // Make sure the duration is in HH:MM:SS format
   const parts = duration.split(':');
   if (parts.length === 1) {
@@ -39,6 +53,7 @@ export function formatDurationString(duration: string): string {
   } else if (parts.length === 3) {
     return `${parts[0]}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
   }
+  
   return "0:01:00"; // Default to 1 minute
 }
 
@@ -47,6 +62,20 @@ export function formatDurationString(duration: string): string {
  */
 export function durationToSeconds(duration: string): number {
   if (!duration) return 60; // Default to 1 minute
+  
+  // Handle different formats
+  if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
+    // Format like "2h 30m 15s"
+    const hoursMatch = duration.match(/(\d+)h/);
+    const minutesMatch = duration.match(/(\d+)m/);
+    const secondsMatch = duration.match(/(\d+)s/);
+    
+    const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+    const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
+    const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
+    
+    return hours * 3600 + minutes * 60 + seconds;
+  }
   
   const parts = duration.split(':');
   if (parts.length === 3) {

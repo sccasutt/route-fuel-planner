@@ -44,6 +44,19 @@ export function formatDurationString(duration: string | number): string {
   
   // Handle string durations
   if (typeof duration === 'string') {
+    // Handle human-readable formats like "2h 30m 15s"
+    if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
+      const hoursMatch = duration.match(/(\d+)h/);
+      const minutesMatch = duration.match(/(\d+)m/);
+      const secondsMatch = duration.match(/(\d+)s/);
+      
+      const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+      const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
+      const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
+      
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
     const parts = duration.split(':');
     
     // Handle different formats
@@ -81,6 +94,19 @@ export function durationToSeconds(duration: string | number): number {
   
   // Handle string durations in various formats
   if (typeof duration === 'string') {
+    // Handle human-readable formats like "2h 30m 15s"
+    if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
+      const hoursMatch = duration.match(/(\d+)h/);
+      const minutesMatch = duration.match(/(\d+)m/);
+      const secondsMatch = duration.match(/(\d+)s/);
+      
+      const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+      const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
+      const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
+      
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+    
     // Format HH:MM:SS
     const timeMatch = duration.match(/^(\d+):(\d+):(\d+)$/);
     if (timeMatch) {
