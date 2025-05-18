@@ -68,9 +68,8 @@ export function useRouteData(routeId: string | undefined) {
           gpx_data: data.gpx_data,
           gpx_file_url: data.gpx_file_url,
           type: data.type,
-          // Extract coordinates with proper casting
-          coordinates: data.coordinates ? parseCoordinatesArray(data.coordinates) : [],
-          // Include any other fields from the original data
+          // Extract coordinates with proper casting - explicitly set as optional
+          // We'll handle the actual parsing below with parseCoordinatesArray
           ...data
         };
         
