@@ -1,50 +1,42 @@
 
-// Types for the Wahoo integration
+// Types for Wahoo integration
 
-// Global state for tracking Wahoo data loading
-export const wahooGlobalState = {
-  isInitialized: false,
-  lastFetchTimestamp: 0
-};
-
-// Wahoo profile data
-export interface WahooProfileData {
-  id: string;
-  wahooUserId: string | null;
-  weightKg: number | null;
-  lastSyncedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+export interface WahooTokenData {
+  access_token: string;
+  refresh_token: string;
+  expires_at?: number;
+  wahoo_user_id?: string | null;
+  email?: string;
 }
 
-// Weather data type
-export interface WeatherData {
-  id: string;
-  routeId: string;
-  temperature: number | null;
-  windSpeed: number | null;
-  humidity: number | null;
-  conditions: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Main activity data type
 export interface WahooActivityData {
   id: string;
-  wahooRouteId?: string;
   name: string;
   date: string;
   distance: number;
   elevation: number;
   duration: string;
-  duration_seconds: number;
+  duration_seconds?: number;
   calories: number;
-  coordinates: [number, number][];  // Format: [latitude, longitude][]
-  gpx_data: string | null;  // Stored JSON string with coordinates and possibly raw GPX
-  raw_gpx?: any;            // Raw GPX data if available (parsed from gpx_data)
-  gpx_file_url: string | null;
-  type: string;
-  weather?: WeatherData | null;
-  metadata?: any;
+  gpx_data?: string | null;
 }
+
+export interface WahooSyncResult {
+  success: boolean;
+  error?: Error;
+}
+
+export interface WahooProfileData {
+  id: string;
+  wahoo_user_id?: string | null;
+  last_synced_at?: string | null;
+  weight_kg?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Global state to avoid multiple initializations
+export const wahooGlobalState = {
+  isInitialized: false,
+  lastFetchTimestamp: 0
+};

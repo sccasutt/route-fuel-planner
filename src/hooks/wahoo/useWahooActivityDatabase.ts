@@ -19,13 +19,10 @@ export function useWahooActivityDatabase() {
       // Using RLS policies to get only routes for the current user
       const { data, error } = await supabase
         .from('routes')
-        .select(`
-          *,
-          route_weather(*)
-        `)
+        .select('*')
         .eq("user_id", userId)
         .order("date", { ascending: false })
-        .limit(100); // Increased limit to get more recent activities
+        .limit(50);
 
       if (error) {
         console.error(`[${hookId}] Error fetching routes:`, error);
@@ -42,35 +39,6 @@ export function useWahooActivityDatabase() {
       console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
       if (data.length > 0) {
         console.log(`[${hookId}] First raw activity:`, data[0]);
-        
-        // More detailed logging for the gpx_data field
-        const firstActivity = data[0];
-        if (firstActivity.gpx_data) {
-          console.log(`[${hookId}] gpx_data type:`, typeof firstActivity.gpx_data);
-          console.log(`[${hookId}] gpx_data sample:`, 
-            typeof firstActivity.gpx_data === 'string' 
-              ? firstActivity.gpx_data.substring(0, 100) + '...' 
-              : JSON.stringify(firstActivity.gpx_data).substring(0, 100) + '...');
-          
-          // Try to parse it
-          try {
-            const parsedData = typeof firstActivity.gpx_data === 'string' 
-              ? JSON.parse(firstActivity.gpx_data) 
-              : firstActivity.gpx_data;
-            
-            console.log(`[${hookId}] gpx_data parsed successfully:`, 
-              parsedData?.coordinates?.length || 0, 
-              'coordinates found');
-              
-            if (parsedData?.coordinates?.length > 0) {
-              console.log(`[${hookId}] First coordinate:`, parsedData.coordinates[0]);
-            }
-          } catch (err) {
-            console.log(`[${hookId}] gpx_data is not valid JSON:`, err);
-          }
-        } else {
-          console.log(`[${hookId}] No gpx_data found in route`);
-        }
       }
       
       // Process raw data into typed activities
@@ -119,43 +87,8 @@ export function useWahooActivityDatabase() {
     }
   }, []);
 
-  /**
-   * Fetches a single route by ID
-   */
-  const fetchRouteById = useCallback(async (routeId: string, hookId: string) => {
-    try {
-      console.log(`[${hookId}] Fetching route by ID:`, routeId);
-      
-      const { data, error } = await supabase
-        .from('routes')
-        .select(`
-          *,
-          route_weather(*)
-        `)
-        .eq('id', routeId)
-        .single();
-      
-      if (error) {
-        console.error(`[${hookId}] Error fetching route by ID:`, error);
-        return null;
-      }
-      
-      if (!data) {
-        console.log(`[${hookId}] No route found with ID:`, routeId);
-        return null;
-      }
-      
-      console.log(`[${hookId}] Found route:`, data);
-      return processActivityData(data);
-    } catch (error) {
-      console.error(`[${hookId}] Error in fetchRouteById:`, error);
-      return null;
-    }
-  }, []);
-
   return {
     fetchActivitiesFromDB,
-    fetchWahooProfile,
-    fetchRouteById
+    fetchWahooProfile
   };
 }
