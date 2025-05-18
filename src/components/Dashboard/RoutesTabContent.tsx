@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Bike, Map, TrendingUp, Clock, LineChart, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWahooSyncHandler } from "@/hooks/wahoo/useWahooSyncHandler";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { formatDuration } from "@/lib/utils";
 
 interface RouteType {
   id: string;

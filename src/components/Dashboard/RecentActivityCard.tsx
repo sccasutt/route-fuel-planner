@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Map, Clock, LineChart, Activity } from "lucide-react";
 import { WahooActivityData } from "@/hooks/useWahooData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDuration } from "@/lib/utils";
+import { formatDuration, formatShortDate } from "@/lib/utils";
 
 interface Props {
   activities: WahooActivityData[];
@@ -11,19 +11,6 @@ interface Props {
 }
 
 export function RecentActivityCard({ activities, isLoading }: Props) {
-  // Helper function to format date string
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString();
-      }
-      return dateStr;
-    } catch (e) {
-      return dateStr;
-    }
-  };
-
   return (
     <Card className="overflow-hidden h-full">
       <div className="p-6">
@@ -51,7 +38,7 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
                   <div>
                     <p className="font-medium text-sm">{activity.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(activity.date)}</p>
+                    <p className="text-xs text-muted-foreground">{formatShortDate(activity.date)}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex items-center text-xs">

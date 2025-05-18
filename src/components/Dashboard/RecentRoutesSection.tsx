@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Map, TrendingUp, Clock, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { formatDuration } from "@/lib/utils";
 
 interface RouteType {
   id: string;
@@ -16,25 +17,6 @@ interface RouteType {
 
 interface Props {
   routes: RouteType[];
-}
-
-// Improved helper function to format duration for display
-function formatDuration(duration: string): string {
-  if (!duration) return "0:00";
-  
-  const parts = duration.split(':');
-  if (parts.length === 3) {
-    // Convert from HH:MM:SS to more readable format
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else {
-      return `${minutes}m ${parts[2]}s`;
-    }
-  }
-  return duration; // Return as is if not in expected format
 }
 
 export function RecentRoutesSection({ routes }: Props) {

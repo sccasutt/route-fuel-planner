@@ -7,36 +7,47 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format duration string (HH:MM:SS) to a more readable format
- * @param durationString Duration string in HH:MM:SS format
+ * Convert Date object or ISO string to seconds
+ * @param dateTime Date object or ISO string
+ * @returns Total seconds as a number
+ */
+export function getTimeInSeconds(dateTime: Date | string | number): number {
+  if (typeof dateTime === 'number') return dateTime;
+  
+  const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
+  
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    console.warn('Invalid date provided to getTimeInSeconds:', dateTime);
+    return 0;
+  }
+  
+  return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+}
+
+/**
+ * Format a duration in seconds to a human-readable string
+ * @param seconds Total duration in seconds
  * @returns Formatted duration string (e.g. "2h 30m" or "45m 10s")
  */
-export function formatDuration(durationString: string): string {
-  if (!durationString) return "0:00";
+export function formatDuration(seconds: number | string): string {
+  // Convert string to number if needed
+  const totalSeconds = typeof seconds === 'string' 
+    ? parseDurationToSeconds(seconds)
+    : seconds;
   
-  const parts = durationString.split(':');
-  if (parts.length === 3) {
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    const seconds = parseInt(parts[2], 10);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
-    } else {
-      return `${seconds}s`;
-    }
+  if (isNaN(totalSeconds) || totalSeconds < 0) return "0m";
+  
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = Math.floor(totalSeconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`;
+  } else {
+    return `${remainingSeconds}s`;
   }
-  
-  // Handle MM:SS format
-  if (parts.length === 2) {
-    const minutes = parseInt(parts[0], 10);
-    const seconds = parseInt(parts[1], 10);
-    return `${minutes}m ${seconds}s`;
-  }
-  
-  return durationString;
 }
 
 /**
@@ -87,3 +98,42 @@ export function formatSecondsToTimeString(seconds: number): string {
   return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Format a Date object or timestamp to a human-readable date string
+ * @param date Date object or timestamp
+ * @returns Formatted date string (e.g. "May 18, 2023")
+ */
+export function formatDate(date: Date | string): string {
+  if (!date) return "";
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+    console.warn('Invalid date provided to formatDate:', date);
+    return "";
+  }
+  
+  return dateObj.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
+/**
+ * Format a Date object or timestamp to a short date string
+ * @param date Date object or timestamp
+ * @returns Formatted date string (e.g. "05/18/2023")
+ */
+export function formatShortDate(date: Date | string): string {
+  if (!date) return "";
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+    console.warn('Invalid date provided to formatShortDate:', date);
+    return "";
+  }
+  
+  return dateObj.toLocaleDateString();
+}
