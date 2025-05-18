@@ -59,17 +59,16 @@ const RouteDetail = () => {
         setRouteData(route);
         
         // Parse GPS coordinates if available in gpx_data
-        // In a real implementation, you would need to parse GPX data or get coordinates from another field
-        // For now, if no real coordinates are available, use a default location
         let coordinates: [number, number][] = [];
         
         if (route.gpx_data) {
           try {
-            // This is a simplified example - actual GPX parsing would be more complex
-            // You might need a specialized library for GPX parsing
             const parsedData = JSON.parse(route.gpx_data);
             if (parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
-              coordinates = parsedData.coordinates;
+              // Ensure each coordinate is a valid [lat, lng] tuple
+              coordinates = parsedData.coordinates
+                .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
+                .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
             }
           } catch (err) {
             console.warn("Failed to parse GPX data:", err);
@@ -243,7 +242,10 @@ const RouteDetail = () => {
   ];
 
   // Get center coordinates for the map from the route data
-  const mapCenter = routeCoordinates.length > 0 ? routeCoordinates[0] : [51.505, -0.09];
+  // Fix: Ensure we have a valid tuple with exactly 2 elements for the map center
+  const mapCenter: [number, number] = routeCoordinates.length > 0 
+    ? [routeCoordinates[0][0], routeCoordinates[0][1]] 
+    : [51.505, -0.09];
 
   return (
     <Layout>
