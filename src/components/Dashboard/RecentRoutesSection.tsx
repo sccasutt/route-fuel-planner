@@ -4,6 +4,7 @@ import { Map, TrendingUp, Clock, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { formatDuration, ensureValidDuration } from "@/lib/utils";
+import { secondsToTimeString } from "@/hooks/wahoo/activityFormatUtils";
 
 interface RouteType {
   id: string;
@@ -74,15 +75,4 @@ export function RecentRoutesSection({ routes }: Props) {
       </div>
     </div>
   );
-}
-
-// Helper function to convert seconds to HH:MM:SS format
-function secondsToTimeString(seconds: number): string {
-  if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  
-  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

@@ -4,6 +4,7 @@ import { Map, Clock, LineChart, Activity } from "lucide-react";
 import { WahooActivityData } from "@/hooks/useWahooData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDuration, formatShortDate, ensureValidDuration } from "@/lib/utils";
+import { secondsToTimeString } from "@/hooks/wahoo/activityFormatUtils";
 
 interface Props {
   activities: WahooActivityData[];
@@ -72,15 +73,4 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
       </div>
     </Card>
   );
-}
-
-// Helper function to convert seconds to HH:MM:SS format
-function secondsToTimeString(seconds: number): string {
-  if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  
-  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

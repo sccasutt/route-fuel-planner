@@ -26,6 +26,15 @@ export interface WahooSyncResult {
   error?: Error;
 }
 
+export interface WahooProfileData {
+  id: string;
+  wahoo_user_id?: string | null;
+  last_synced_at?: string | null;
+  weight_kg?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Global state to avoid multiple initializations
 export const wahooGlobalState = {
   isInitialized: false,
