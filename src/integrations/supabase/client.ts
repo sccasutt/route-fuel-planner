@@ -17,13 +17,6 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       storage: localStorage,
-      // Ensure proper cookie handling for custom domains
-      cookieOptions: {
-        domain: window.location.hostname,
-        path: '/',
-        sameSite: 'lax',
-        secure: window.location.protocol === 'https:'
-      },
       // Configure auth to prevent redirect issues
       flowType: 'pkce',
       detectSessionInUrl: true,
@@ -37,7 +30,7 @@ supabase.auth.onAuthStateChange((event, session) => {
   console.log("Supabase auth state changed:", event, session?.user?.id ? "User authenticated" : "No user");
 });
 
-// Additional debugging for cookie-related issues
+// Additional debugging for related issues
 console.log("Supabase client initialized with options:", {
   domain: window.location.hostname,
   secure: window.location.protocol === 'https:',

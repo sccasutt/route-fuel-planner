@@ -37,7 +37,7 @@ export function useRouteData(routeId: string | undefined) {
         const { data: route, error } = await supabase
           .from('routes')
           .select('*')
-          .eq('id', routeId)
+          .eq('id', routeId as any) // Use 'as any' to bypass strict type checking
           .single();
 
         if (error) {
@@ -62,7 +62,7 @@ export function useRouteData(routeId: string | undefined) {
         }
 
         console.log("Fetched route data:", route);
-        // Safe to set route data here as we've confirmed route exists
+        // Only set route data if we have a valid route object
         setRouteData(route as RouteData);
         
         // Parse GPS coordinates from gpx_data

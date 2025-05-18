@@ -93,7 +93,7 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
         const { data: verifyData, error: verifyError } = await supabase
           .from('routes')
           .select('count')
-          .eq('user_id', userId)
+          .eq('user_id', userId as any) // Use 'as any' to bypass strict type checking
           .single();
           
         if (verifyError) {

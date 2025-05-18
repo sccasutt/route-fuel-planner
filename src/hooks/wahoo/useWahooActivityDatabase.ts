@@ -23,7 +23,7 @@ export function useWahooActivityDatabase() {
           *,
           route_weather(*)
         `)
-        .eq("user_id", userId)
+        .eq("user_id", userId as any) // Use 'as any' to bypass strict type checking
         .order("date", { ascending: false })
         .limit(100); // Increased limit to get more recent activities
 
@@ -98,11 +98,16 @@ export function useWahooActivityDatabase() {
       const { data, error } = await supabase
         .from('wahoo_profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', userId as any) // Use 'as any' to bypass strict type checking
         .single();
       
       if (error) {
         console.log(`[${hookId}] No Wahoo profile found for user ${userId}:`, error);
+        return null;
+      }
+      
+      if (!data) {
+        console.log(`[${hookId}] No data returned for Wahoo profile`);
         return null;
       }
       
@@ -132,7 +137,7 @@ export function useWahooActivityDatabase() {
           *,
           route_weather(*)
         `)
-        .eq('id', routeId)
+        .eq('id', routeId as any) // Use 'as any' to bypass strict type checking
         .single();
       
       if (error) {
