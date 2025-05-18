@@ -1,11 +1,11 @@
 
 import React, { useEffect, useRef } from 'react';
-import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in Leaflet with Vite
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+// Define default icon URLs - leaflet has issues with bundlers finding the marker icons
+const DEFAULT_ICON_URL = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
+const DEFAULT_SHADOW_URL = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png';
 
 interface RouteMapProps {
   center?: [number, number];  // [latitude, longitude]
@@ -26,10 +26,10 @@ const RouteMap = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
-    // Fix for default marker icons in Leaflet
+    // Fix for default marker icons in Leaflet when using bundlers
     const DefaultIcon = L.icon({
-      iconUrl: icon,
-      shadowUrl: iconShadow,
+      iconUrl: DEFAULT_ICON_URL,
+      shadowUrl: DEFAULT_SHADOW_URL,
       iconSize: [25, 41],
       iconAnchor: [12, 41]
     });
