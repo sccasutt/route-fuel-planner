@@ -23,6 +23,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log("Auth provider initializing");
+    console.log("Current URL:", window.location.href);
+    console.log("Browser environment:", {
+      userAgent: navigator.userAgent,
+      cookiesEnabled: navigator.cookieEnabled,
+      localStorage: typeof localStorage !== 'undefined' ? 'available' : 'unavailable',
+      hostname: window.location.hostname
+    });
     
     // Set up the auth state change listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -48,6 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       console.log("Initial auth session check:", initialSession ? "session found" : "no session");
+      if (initialSession) {
+        console.log("Session user:", initialSession.user.id);
+        console.log("Session expires:", new Date(initialSession.expires_at! * 1000).toLocaleString());
+      }
+      
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
@@ -61,12 +73,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [toast]);
 
+  // Add a forced refresh method to help with cookie issues
+  const refreshSession = async () => {
+    try {
+      console.log("Manually refreshing session...");
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error("Session refresh failed:", error);
+      } else if (data && data.session) {
+        console.log("Session refreshed successfully");
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+      }
+    } catch (error) {
+      console.error("Error during session refresh:", error);
+    }
+  };
+
+  // Call refresh on mount to ensure we have the latest session
+  useEffect(() => {
+    if (!loading && !user) {
+      refreshSession();
+    }
+  }, [loading]);
+
   const signIn = async (email: string, password: string) => {
     try {
+      console.log("Attempting sign in for:", email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      if (!error) {
+        console.log("Sign in successful, refreshing session");
+        await refreshSession();
+      } else {
+        console.error("Sign in error:", error);
+      }
+      
       return { error };
     } catch (error) {
       console.error('Sign in error:', error);
@@ -76,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
+      console.log("Attempting sign up for:", email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -83,6 +130,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: metadata,
         },
       });
+      
+      if (!error) {
+        console.log("Sign up successful, user created");
+        await refreshSession();
+      }
+      
       return { data, error };
     } catch (error) {
       console.error('Sign up error:', error);
