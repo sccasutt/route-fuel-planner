@@ -23,7 +23,7 @@ export function useWahooActivityDatabase() {
           *,
           route_weather(*)
         `)
-        .eq("user_id", userId as any)
+        .eq("user_id", userId)
         .order("date", { ascending: false })
         .limit(100); // Increased limit to get more recent activities
 
@@ -45,7 +45,7 @@ export function useWahooActivityDatabase() {
         
         // More detailed logging for the gpx_data field
         const firstActivity = data[0];
-        if (firstActivity && firstActivity.gpx_data) {
+        if (firstActivity.gpx_data) {
           console.log(`[${hookId}] gpx_data type:`, typeof firstActivity.gpx_data);
           console.log(`[${hookId}] gpx_data sample:`, 
             typeof firstActivity.gpx_data === 'string' 
@@ -74,7 +74,7 @@ export function useWahooActivityDatabase() {
       }
       
       // Process raw data into typed activities
-      const typedActivities: WahooActivityData[] = data.map(item => processActivityData(item));
+      const typedActivities: WahooActivityData[] = data.map(processActivityData);
       
       console.log(`[${hookId}] Processed ${typedActivities.length} activities`);
       
@@ -98,7 +98,7 @@ export function useWahooActivityDatabase() {
       const { data, error } = await supabase
         .from('wahoo_profiles')
         .select('*')
-        .eq('id', userId as any)
+        .eq('id', userId)
         .single();
       
       if (error) {
@@ -106,15 +106,10 @@ export function useWahooActivityDatabase() {
         return null;
       }
       
-      if (!data) {
-        console.log(`[${hookId}] No data returned for Wahoo profile`);
-        return null;
-      }
-      
       console.log(`[${hookId}] Found Wahoo profile:`, {
-        userId: data?.id,
-        wahooUserId: data?.wahoo_user_id,
-        lastSynced: data?.last_synced_at
+        userId: data.id,
+        wahooUserId: data.wahoo_user_id,
+        lastSynced: data.last_synced_at
       });
       
       return data;
@@ -137,7 +132,7 @@ export function useWahooActivityDatabase() {
           *,
           route_weather(*)
         `)
-        .eq('id', routeId as any)
+        .eq('id', routeId)
         .single();
       
       if (error) {

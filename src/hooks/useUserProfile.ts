@@ -33,11 +33,11 @@ export function useUserProfile() {
           return;
         }
 
-        // Using explicit typing for safe database querying
+        // Using type assertion to fix the TypeScript error
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id as any)
+          .eq('id', user.id)
           .maybeSingle();
 
         if (error) {
@@ -50,12 +50,7 @@ export function useUserProfile() {
         }
 
         if (!ignore) {
-          if (data) {
-            // Verify data exists before using type assertion
-            setProfile(data as UserProfile);
-          } else {
-            setProfile(null);
-          }
+          setProfile(data as UserProfile | null);
           setLoading(false);
         }
       } catch (error) {

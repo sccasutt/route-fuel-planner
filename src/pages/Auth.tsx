@@ -34,11 +34,6 @@ const AuthPage = () => {
   const location = useLocation();
   const locationState = location.state as LocationState;
   
-  // Debug logging for troubleshooting
-  useEffect(() => {
-    console.log("Auth page rendered", { mode, confirmationSent, showWahooConnect });
-  }, [mode, confirmationSent, showWahooConnect]);
-  
   // Check if we were redirected from Wahoo with a connection
   useEffect(() => {
     if (locationState?.wahooConnected) {
@@ -57,8 +52,6 @@ const AuthPage = () => {
     if (mode === "signup") {
       const { email, password, name, age, weight, goal_type, diet_type } = form;
       const siteUrl = window.location.origin;
-      console.log("Signing up with email:", email);
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -74,7 +67,6 @@ const AuthPage = () => {
         },
       });
       setLoading(false);
-      console.log("Sign up response:", { data, error });
 
       if (error) {
         toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
@@ -97,11 +89,8 @@ const AuthPage = () => {
       }
     } else {
       const { email, password } = form;
-      console.log("Logging in with email:", email);
-      
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
-      console.log("Login response:", { error });
 
       if (error) {
         if (error.message.includes("Email not confirmed")) {
