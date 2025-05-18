@@ -27,6 +27,7 @@ const RouteMap = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sizeCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Initialize map when component mounts
   useEffect(() => {
@@ -43,7 +44,7 @@ const RouteMap = ({
       }
     }
 
-    // Wait a bit longer to ensure the container is fully rendered and sized
+    // Wait longer to ensure the container is fully rendered and sized
     initTimerRef.current = setTimeout(() => {
       try {
         if (!mapRef.current) {
@@ -51,14 +52,56 @@ const RouteMap = ({
           return;
         }
 
-        // Check if container has size and is in the DOM
-        if (!document.body.contains(mapRef.current) || 
-            mapRef.current.clientHeight === 0 || 
-            mapRef.current.clientWidth === 0) {
-          console.log("Map container has zero size or is not in DOM, delaying initialization");
-          return;
+        // Check for container size with a retry mechanism
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        const checkSize = () => {
+          attempts++;
+          
+          // Check if container has size and is in the DOM
+          if (!document.body.contains(mapRef.current) || 
+              !mapRef.current.clientHeight || 
+              !mapRef.current.clientWidth) {
+            if (attempts < maxAttempts) {
+              console.log(`Map container not ready, attempt ${attempts}/${maxAttempts}`);
+              return false;
+            } else {
+              console.log("Max attempts reached, trying to initialize map anyway");
+              return true; // Try anyway after max attempts
+            }
+          }
+          return true; // Container is ready
+        };
+        
+        if (!checkSize()) {
+          sizeCheckIntervalRef.current = setInterval(() => {
+            if (checkSize()) {
+              if (sizeCheckIntervalRef.current) {
+                clearInterval(sizeCheckIntervalRef.current);
+                sizeCheckIntervalRef.current = null;
+              }
+              initializeMap();
+            } else if (attempts >= 5) {
+              if (sizeCheckIntervalRef.current) {
+                clearInterval(sizeCheckIntervalRef.current);
+                sizeCheckIntervalRef.current = null;
+              }
+              initializeMap(); // Try anyway after max attempts
+            }
+          }, 100);
+        } else {
+          initializeMap();
         }
+      } catch (error) {
+        console.error("Error in map initialization setup:", error);
+      }
+    }, 500);
 
+    function initializeMap() {
+      try {
+        if (!mapRef.current) return;
+        
         // Initialize map
         const map = L.map(mapRef.current, {
           zoomControl: false // We'll add custom controls if requested
@@ -99,7 +142,7 @@ const RouteMap = ({
           console.log("GPX data available for rendering");
         }
 
-        // Force a map size update to handle container size changes
+        // Force a map size update after a delay to handle container size changes
         setTimeout(() => {
           if (map && map.getContainer() && document.body.contains(map.getContainer())) {
             map.invalidateSize(true);
@@ -111,12 +154,18 @@ const RouteMap = ({
       } catch (error) {
         console.error("Error initializing map:", error);
       }
-    }, 500); // Longer delay to ensure container is ready
+    }
 
     // Cleanup on unmount
     return () => {
       if (initTimerRef.current) {
         clearTimeout(initTimerRef.current);
+        initTimerRef.current = null;
+      }
+      
+      if (sizeCheckIntervalRef.current) {
+        clearInterval(sizeCheckIntervalRef.current);
+        sizeCheckIntervalRef.current = null;
       }
       
       if (mapInstanceRef.current) {
@@ -127,6 +176,8 @@ const RouteMap = ({
           console.error("Error cleaning up map:", e);
         }
       }
+      
+      setIsMapReady(false);
     };
   }, [center, zoom, mapStyle]); // Don't include routeCoordinates in dependencies here
 

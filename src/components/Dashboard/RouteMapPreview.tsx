@@ -20,12 +20,13 @@ export function RouteMapPreview({
   
   // Only render map when component is visible and mounted
   useEffect(() => {
+    // Mark component as visible first
     setIsVisible(true);
     
-    // Set a longer delay to ensure DOM is fully ready
+    // Set a much longer delay to ensure DOM is fully ready
     const timer = setTimeout(() => {
       setIsLoaded(true);
-    }, 300);
+    }, 500); // Increased from 300ms to 500ms
     
     return () => {
       clearTimeout(timer);
