@@ -8,7 +8,11 @@ interface RouteMapCardProps {
   mapStyle?: 'default' | 'terrain' | 'satellite' | 'dark';
 }
 
-export function RouteMapCard({ coordinates, routeCoordinates, mapStyle = 'terrain' }: RouteMapCardProps) {
+export function RouteMapCard({ 
+  coordinates, 
+  routeCoordinates, 
+  mapStyle = 'terrain' 
+}: RouteMapCardProps) {
   return (
     <Card className="h-[400px]">
       <CardHeader>

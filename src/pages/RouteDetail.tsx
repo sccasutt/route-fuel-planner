@@ -1,5 +1,6 @@
 
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Bike, Wind } from "lucide-react";
@@ -9,52 +10,139 @@ import { RouteMapCard } from "@/components/RouteDetail/RouteMapCard";
 import { ActivityDataCard } from "@/components/RouteDetail/ActivityDataCard";
 import { NutritionTab } from "@/components/RouteDetail/NutritionTab";
 import { NotesTab } from "@/components/RouteDetail/NotesTab";
-
-// Sample route data (would come from an API in a real app)
-const sampleRoute = {
-  id: 1,
-  name: "Morning Hill Climb",
-  date: "2023-04-15",
-  distance: 28.5,
-  elevation: 450,
-  duration: "1h 24m",
-  calories: 680,
-  avgSpeed: 20.4,
-  maxSpeed: 42.8,
-  temperature: 18,
-  windSpeed: 12,
-  windDirection: "NE",
-  nutrition: {
-    carbs: 120,
-    protein: 25,
-    fat: 15,
-    water: 1.5
-  },
-  // Sample coordinates for the route (would come from API)
-  coordinates: [51.505, -0.09],
-  // Sample route coordinates - in a real app, these would come from the route data
-  routeCoordinates: [
-    [51.505, -0.09],
-    [51.51, -0.1],
-    [51.52, -0.12],
-    [51.518, -0.14],
-    [51.51, -0.15],
-    [51.5, -0.14],
-    [51.495, -0.12],
-    [51.505, -0.09],
-  ]
-};
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const RouteDetail = () => {
   const { id } = useParams();
-  // In a real app, fetch route by ID here
-  const route = sampleRoute;
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [routeData, setRouteData] = useState<any>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
+
+  useEffect(() => {
+    const fetchRouteData = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        
+        // Fetch the route data from the database
+        const { data: route, error } = await supabase
+          .from('routes')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching route:", error);
+          toast({ 
+            title: "Error", 
+            description: "Failed to load route data", 
+            variant: "destructive" 
+          });
+          navigate('/dashboard');
+          return;
+        }
+
+        if (!route) {
+          toast({ 
+            title: "Not Found", 
+            description: "Route not found", 
+            variant: "destructive" 
+          });
+          navigate('/dashboard');
+          return;
+        }
+
+        setRouteData(route);
+        
+        // Parse GPS coordinates if available in gpx_data
+        // In a real implementation, you would need to parse GPX data or get coordinates from another field
+        // For now, if no real coordinates are available, use a default location
+        let coordinates: [number, number][] = [];
+        
+        if (route.gpx_data) {
+          try {
+            // This is a simplified example - actual GPX parsing would be more complex
+            // You might need a specialized library for GPX parsing
+            const parsedData = JSON.parse(route.gpx_data);
+            if (parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
+              coordinates = parsedData.coordinates;
+            }
+          } catch (err) {
+            console.warn("Failed to parse GPX data:", err);
+          }
+        }
+        
+        // If we couldn't get coordinates, use a default set based on London
+        if (coordinates.length < 2) {
+          // Default circular route around a central point
+          const center: [number, number] = [51.505, -0.09];
+          coordinates = generateSimpleRouteAround(center, 0.03);
+        }
+        
+        setRouteCoordinates(coordinates);
+      } catch (err) {
+        console.error("Error in route data fetch:", err);
+        toast({ 
+          title: "Error", 
+          description: "An unexpected error occurred", 
+          variant: "destructive" 
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRouteData();
+  }, [id, navigate, toast]);
+
+  // Generate a simple circular route around a center point
+  const generateSimpleRouteAround = (center: [number, number], radius: number): [number, number][] => {
+    const points: [number, number][] = [];
+    const steps = 12;
+    
+    for (let i = 0; i <= steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      const lat = center[0] + Math.sin(angle) * radius;
+      const lng = center[1] + Math.cos(angle) * radius;
+      points.push([lat, lng]);
+    }
+    
+    return points;
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container py-8 flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-lg text-muted-foreground">Loading route data...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!routeData) {
+    return (
+      <Layout>
+        <div className="container py-8">
+          <h1 className="text-2xl font-bold mb-4">Route not found</h1>
+          <p>The requested route could not be found.</p>
+        </div>
+      </Layout>
+    );
+  }
 
   // Define the nutrition items for the NutritionTab
   const nutritionItems = [
     {
       name: "Carbohydrates",
-      value: route.nutrition.carbs,
+      value: 120,
       unit: "g",
       percentage: 60,
       color: "primary",
@@ -62,7 +150,7 @@ const RouteDetail = () => {
     },
     {
       name: "Protein",
-      value: route.nutrition.protein,
+      value: 25,
       unit: "g",
       percentage: 15,
       color: "accent",
@@ -70,7 +158,7 @@ const RouteDetail = () => {
     },
     {
       name: "Fat",
-      value: route.nutrition.fat,
+      value: 15,
       unit: "g",
       percentage: 25,
       color: "secondary",
@@ -78,7 +166,7 @@ const RouteDetail = () => {
     },
     {
       name: "Hydration",
-      value: route.nutrition.water,
+      value: 1.5,
       unit: "L",
       percentage: 0,
       color: "secondary",
@@ -118,56 +206,61 @@ const RouteDetail = () => {
   const energyPowerItems = [
     {
       label: "Calories",
-      value: `${route.calories} kcal`,
+      value: `${routeData.calories || 0} kcal`,
       icon: LineChart
     },
     {
       label: "Avg Speed",
-      value: `${route.avgSpeed} km/h`,
+      value: routeData.distance && routeData.duration_seconds ? 
+        `${((routeData.distance / (routeData.duration_seconds / 3600))).toFixed(1)} km/h` : 
+        "N/A",
       icon: Bike
     },
     {
       label: "Max Speed",
-      value: `${route.maxSpeed} km/h`,
+      value: routeData.max_speed ? `${routeData.max_speed} km/h` : "N/A",
       icon: Bike
     }
   ];
 
-  // Define weather items for ActivityDataCard
+  // Define weather items for ActivityDataCard - these would ideally come from a weather API
   const weatherItems = [
     {
       label: "Temperature",
-      value: `${route.temperature}°C`,
+      value: `18°C`,
       icon: LineChart
     },
     {
       label: "Wind Speed",
-      value: `${route.windSpeed} km/h`,
+      value: `12 km/h`,
       icon: Wind
     },
     {
       label: "Wind Direction",
-      value: route.windDirection,
+      value: "NE",
       icon: Wind
     }
   ];
 
+  // Get center coordinates for the map from the route data
+  const mapCenter = routeCoordinates.length > 0 ? routeCoordinates[0] : [51.505, -0.09];
+
   return (
     <Layout>
       <div className="container py-8">
-        <RouteHeader name={route.name} date={route.date} />
+        <RouteHeader name={routeData.name} date={routeData.date} />
         
         <RouteSummaryCards 
-          distance={route.distance} 
-          elevation={route.elevation} 
-          duration={route.duration} 
+          distance={routeData.distance || 0} 
+          elevation={routeData.elevation || 0} 
+          duration={routeData.duration || "0:00:00"} 
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
             <RouteMapCard 
-              coordinates={route.coordinates as [number, number]} 
-              routeCoordinates={route.routeCoordinates as [number, number][]} 
+              coordinates={mapCenter} 
+              routeCoordinates={routeCoordinates} 
             />
           </div>
 

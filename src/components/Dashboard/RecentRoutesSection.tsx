@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { formatHumanReadableDuration } from "@/lib/durationFormatter";
 import RouteMap from "../Map/RouteMap";
+import { useState, useEffect } from "react";
 
 interface RouteType {
   id: string;
@@ -15,6 +16,7 @@ interface RouteType {
   duration: string;
   duration_seconds?: number | null;
   calories: number;
+  gpx_data?: string | null;
 }
 
 interface Props {
@@ -24,19 +26,61 @@ interface Props {
 export function RecentRoutesSection({ routes }: Props) {
   // Get the most recent route for the featured map
   const mostRecentRoute = routes.length > 0 ? routes[0] : null;
+  const [routeCoordinates, setRouteCoordinates] = useState<Record<string, [number, number][]>>({});
 
-  // Sample route coordinates - in a real app, these would come from the route data
-  // This is just a sample circular route around London for demonstration
-  const sampleRouteCoordinates: [number, number][] = [
-    [51.505, -0.09],
-    [51.51, -0.1],
-    [51.52, -0.12],
-    [51.518, -0.14],
-    [51.51, -0.15],
-    [51.5, -0.14],
-    [51.495, -0.12],
-    [51.505, -0.09],
-  ];
+  useEffect(() => {
+    // Generate route coordinates for each route
+    // In a real implementation, these would come from the gpx_data or another source
+    const generateCoordinates = () => {
+      const newCoordinates: Record<string, [number, number][]> = {};
+      
+      routes.forEach(route => {
+        let routeCoords: [number, number][] = [];
+        
+        // Try to parse GPX data if available
+        if (route.gpx_data) {
+          try {
+            const parsed = JSON.parse(route.gpx_data);
+            if (parsed.coordinates && Array.isArray(parsed.coordinates)) {
+              routeCoords = parsed.coordinates;
+            }
+          } catch (err) {
+            console.warn(`Failed to parse GPX data for route ${route.id}:`, err);
+          }
+        }
+        
+        // If no valid coordinates were found, generate a simple route
+        if (routeCoords.length < 2) {
+          // Generate a unique but consistent route for each id
+          const idSum = route.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+          const centerLat = 51.505 + (idSum % 10) * 0.01;
+          const centerLng = -0.09 + (idSum % 7) * 0.01;
+          routeCoords = generateSimpleRouteAround([centerLat, centerLng], 0.02);
+        }
+        
+        newCoordinates[route.id] = routeCoords;
+      });
+      
+      setRouteCoordinates(newCoordinates);
+    };
+    
+    generateCoordinates();
+  }, [routes]);
+
+  // Generate a simple circular route around a center point
+  const generateSimpleRouteAround = (center: [number, number], radius: number): [number, number][] => {
+    const points: [number, number][] = [];
+    const steps = 12;
+    
+    for (let i = 0; i <= steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      const lat = center[0] + Math.sin(angle) * radius;
+      const lng = center[1] + Math.cos(angle) * radius;
+      points.push([lat, lng]);
+    }
+    
+    return points;
+  };
 
   return (
     <div className="space-y-6">
@@ -53,12 +97,12 @@ export function RecentRoutesSection({ routes }: Props) {
           <CardContent className="p-0">
             <div className="h-[240px] w-full">
               <RouteMap
-                center={[51.505, -0.09]}
+                center={routeCoordinates[mostRecentRoute.id]?.[0] || [51.505, -0.09]}
                 zoom={12}
                 height="100%"
                 className="rounded-none"
                 showControls={true}
-                routeCoordinates={sampleRouteCoordinates}
+                routeCoordinates={routeCoordinates[mostRecentRoute.id] || []}
                 mapStyle="default"
                 routeStyle={{
                   color: "#0EA5E9", // Ocean blue
@@ -99,12 +143,12 @@ export function RecentRoutesSection({ routes }: Props) {
                 <CardContent className="space-y-2">
                   <div className="h-[100px] w-full mb-2">
                     <RouteMap
-                      center={[51.505, -0.09]}
+                      center={routeCoordinates[route.id]?.[0] || [51.505, -0.09]}
                       zoom={11}
                       height="100%"
                       className="rounded-md border border-border/50"
                       showControls={false}
-                      routeCoordinates={sampleRouteCoordinates}
+                      routeCoordinates={routeCoordinates[route.id] || []}
                       mapStyle="default"
                       routeStyle={{
                         color: "#8B5CF6", // Vivid purple
@@ -128,7 +172,7 @@ export function RecentRoutesSection({ routes }: Props) {
                     </div>
                     <div className="flex items-center">
                       <LineChart className="w-4 h-4 mr-2 text-muted-foreground" />
-                      <span className="text-sm">{route.calories} kcal</span>
+                      <span className="text-sm">{route.calories || 0} kcal</span>
                     </div>
                   </div>
                 </CardContent>
