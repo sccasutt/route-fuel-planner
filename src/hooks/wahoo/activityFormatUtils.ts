@@ -10,7 +10,14 @@ export function processActivityData(route: any): WahooActivityData {
   let rawGpxData = route.gpx_data;
   let rawGpx: any = null;
 
-  if (rawGpxData) {
+  // First try to get coordinates directly from the coordinates field
+  if (route.coordinates && Array.isArray(route.coordinates)) {
+    coordinates = route.coordinates
+      .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
+      .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+  }
+  // If not available, try to extract from gpx_data
+  else if (rawGpxData) {
     try {
       // Parse JSON data if it's a string
       const gpxData = typeof rawGpxData === 'string' ? JSON.parse(rawGpxData) : rawGpxData;

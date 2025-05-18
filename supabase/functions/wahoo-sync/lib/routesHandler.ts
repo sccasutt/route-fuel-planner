@@ -45,6 +45,8 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         duration_seconds: parseNumericValue(activity.duration_seconds, 60),
         calories: parseNumericValue(activity.calories),
         gpx_data: gpxData,
+        // Store coordinates directly in the JSONB field
+        coordinates: activity.coordinates || null,
         // Store additional metadata if available
         metadata: activity.additional_data ? JSON.stringify(activity.additional_data) : null,
         type: activity.type || "activity",

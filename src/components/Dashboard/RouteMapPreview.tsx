@@ -51,7 +51,9 @@ export function RouteMapPreview({
     }
   };
 
-  if (!hasValidCoordinates) {
+  const hasValidRoute = hasValidCoordinates && routeCoordinates && routeCoordinates.length >= 2;
+
+  if (!hasValidRoute) {
     return (
       <div className="h-[100px] w-full mb-2 flex items-center justify-center bg-muted rounded-md border border-border/50">
         <p className="text-sm text-muted-foreground">No route data available</p>

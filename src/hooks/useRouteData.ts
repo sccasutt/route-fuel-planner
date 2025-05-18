@@ -14,6 +14,7 @@ export interface RouteData {
   duration_seconds: number;
   calories: number;
   gpx_data?: any;
+  coordinates?: [number, number][];
   [key: string]: any;
 }
 
@@ -69,7 +70,17 @@ export function useRouteData(routeId: string | undefined) {
         let coordinates: [number, number][] = [];
         let hasValidData = false;
         
-        if (data && data.gpx_data) {
+        // First try to get coordinates directly from the coordinates field
+        if (data.coordinates && Array.isArray(data.coordinates)) {
+          coordinates = data.coordinates
+            .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
+            .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+          
+          hasValidData = coordinates.length >= 2;
+          console.log(`Found ${coordinates.length} coordinates directly in coordinates field`);
+        }
+        // If not available, try to extract from gpx_data
+        else if (data && data.gpx_data) {
           try {
             // Try to parse the gpx_data field
             let parsedData;

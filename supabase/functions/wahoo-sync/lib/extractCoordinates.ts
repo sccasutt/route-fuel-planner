@@ -57,7 +57,7 @@ export function extractCoordinates(activity: any): [number, number][] {
   if (Array.isArray(activity.points)) {
     const points = activity.points
       .filter((point: any) => (point.lat !== undefined && point.lng !== undefined) || 
-                              (point.latitude !== undefined && point.longitude !== undefined))
+                             (point.latitude !== undefined && point.longitude !== undefined))
       .map((point: any) => {
         const lat = point.lat !== undefined ? point.lat : point.latitude;
         const lng = point.lng !== undefined ? point.lng : point.longitude;
