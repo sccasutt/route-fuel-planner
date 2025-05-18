@@ -18,6 +18,7 @@ const RouteDetail = () => {
   // Callback for when data extraction is complete
   const handleExtractComplete = useCallback(() => {
     // Increment the refresh key to trigger a re-fetch of data
+    console.log("Extract complete, refreshing data");
     setRefreshKey(prevKey => prevKey + 1);
   }, []);
 

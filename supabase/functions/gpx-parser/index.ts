@@ -41,9 +41,7 @@ Deno.serve(async (req) => {
     }
     
     console.log(`Processing route [${route_id}] with file: ${url}`);
-    if (wahoo_route_id) {
-      console.log(`Wahoo route ID: ${wahoo_route_id}`);
-    }
+    console.log(`Wahoo route ID (if available): ${wahoo_route_id || 'not provided'}`);
     
     // Set timeout to prevent infinite waiting
     const controller = new AbortController();

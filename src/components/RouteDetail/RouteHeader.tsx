@@ -35,15 +35,15 @@ export function RouteHeader({
 
     try {
       console.log("Starting route data extraction for route:", routeId);
-      console.log("Using file URLs:", { gpxFileUrl, fileUrl });
+      console.log("Using file URLs:", { gpxFileUrl, fileUrl, wahooRouteId });
       
       // Call our Edge Function to parse the GPX file
       const { data, error } = await supabase.functions.invoke("gpx-parser", {
         body: { 
           gpx_url: gpxFileUrl, 
           file_url: fileUrl,
-          route_id: routeId,  // This is the database ID, not the wahoo_route_id
-          wahoo_route_id: wahooRouteId
+          route_id: routeId,  // Database ID for storing points
+          wahoo_route_id: wahooRouteId  // Wahoo ID for fetching the file
         }
       });
       
