@@ -77,7 +77,7 @@ export function ElevationProfileCard({ points }: ElevationProfileCardProps) {
               />
               <YAxis
                 name="Elevation"
-                tickFormatter={(value) => formatElevation(value, false)}
+                tickFormatter={(value) => formatElevation(value)}
                 stroke="#888"
                 fontSize={12}
                 width={40}
