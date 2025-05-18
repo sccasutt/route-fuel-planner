@@ -17,6 +17,13 @@ interface RouteMapProps {
   routeCoordinates?: [number, number][]; // Array of lat/long points for the route
   startPoint?: [number, number]; // Optional start point
   endPoint?: [number, number]; // Optional end point
+  routeStyle?: {
+    color?: string;
+    weight?: number;
+    opacity?: number;
+    dashArray?: string;
+  };
+  mapStyle?: 'default' | 'terrain' | 'satellite' | 'dark';
 }
 
 const RouteMap = ({ 
@@ -28,7 +35,13 @@ const RouteMap = ({
   showControls = false,
   routeCoordinates = [],
   startPoint,
-  endPoint
+  endPoint,
+  routeStyle = {
+    color: '#8B5CF6', // Vivid purple
+    weight: 4,
+    opacity: 0.9
+  },
+  mapStyle = 'default'
 }: RouteMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -63,29 +76,71 @@ const RouteMap = ({
 
     if (mapRef.current && !mapInstanceRef.current) {
       // Initialize map
-      const map = L.map(mapRef.current).setView(center, zoom);
+      const map = L.map(mapRef.current, {
+        zoomControl: false // We'll add custom controls if requested
+      }).setView(center, zoom);
       mapInstanceRef.current = map;
 
-      // Add OpenStreetMap tiles
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-      }).addTo(map);
+      // Select tile layer based on mapStyle
+      let tileLayer;
+      switch (mapStyle) {
+        case 'terrain':
+          tileLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+            maxZoom: 17
+          });
+          break;
+        case 'satellite':
+          tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19
+          });
+          break;
+        case 'dark':
+          tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+          });
+          break;
+        default:
+          tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+          });
+      }
+      
+      // Add selected tile layer
+      tileLayer.addTo(map);
 
       // Add navigation controls if requested
       if (showControls) {
         L.control.zoom({ position: 'topright' }).addTo(map);
       }
 
-      // If we have route coordinates, draw the route path
+      // If we have route coordinates, draw the route path with enhanced styling
       if (routeCoordinates && routeCoordinates.length > 1) {
-        // Draw polyline for the route
-        const routePath = L.polyline(routeCoordinates, {
-          color: 'blue',
-          weight: 4,
-          opacity: 0.7,
-          lineJoin: 'round'
-        }).addTo(map);
+        // Apply gradient effect if possible - visible with transparent color
+        const gradientStyle = {
+          color: routeStyle.color || '#8B5CF6',
+          weight: routeStyle.weight || 4,
+          opacity: routeStyle.opacity || 0.9,
+          lineJoin: 'round',
+          dashArray: routeStyle.dashArray || ''
+        };
+
+        // Draw main route polyline
+        const routePath = L.polyline(routeCoordinates, gradientStyle).addTo(map);
+        
+        // Add subtle glow effect by adding a wider, more transparent line underneath
+        if (!routeStyle.dashArray) { // Don't add glow for dashed lines
+          L.polyline(routeCoordinates, {
+            color: routeStyle.color || '#8B5CF6',
+            weight: (routeStyle.weight || 4) + 4,
+            opacity: 0.3,
+            lineJoin: 'round'
+          }).addTo(map);
+        }
         
         // Fit the map to the route bounds
         map.fitBounds(routePath.getBounds());
@@ -137,10 +192,17 @@ const RouteMap = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [center, zoom, gpxData, showControls, routeCoordinates, startPoint, endPoint]);
+  }, [center, zoom, gpxData, showControls, routeCoordinates, startPoint, endPoint, mapStyle, routeStyle]);
+
+  // Apply custom CSS styles for the map container
+  const mapStyles = {
+    height,
+    position: 'relative' as const,
+    borderRadius: className.includes('rounded') ? 'inherit' : '0',
+  };
 
   return (
-    <div className={`route-map ${className}`} style={{ height }}>
+    <div className={`route-map ${className}`} style={mapStyles}>
       <div ref={mapRef} style={{ width: '100%', height: '100%' }}></div>
     </div>
   );

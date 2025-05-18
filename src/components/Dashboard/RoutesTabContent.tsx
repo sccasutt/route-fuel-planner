@@ -53,6 +53,38 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
     [51.505, -0.09],
   ];
 
+  // Generate different route shapes for variety
+  const getRouteCoordinates = (index: number): [number, number][] => {
+    // Base center point
+    const basePoint: [number, number] = [51.505, -0.09];
+    
+    // Different route shapes based on index
+    switch (index % 3) {
+      case 0: // circular
+        return sampleRouteCoordinates;
+      case 1: // out and back
+        return [
+          [basePoint[0], basePoint[1]],
+          [basePoint[0] + 0.02, basePoint[1] + 0.02],
+          [basePoint[0] + 0.04, basePoint[1] + 0.01],
+          [basePoint[0] + 0.06, basePoint[1] + 0.03],
+          [basePoint[0] + 0.06, basePoint[1] + 0.03], // turning point
+          [basePoint[0] + 0.04, basePoint[1] + 0.01],
+          [basePoint[0] + 0.02, basePoint[1] + 0.02],
+          [basePoint[0], basePoint[1]],
+        ];
+      case 2: // triangle
+        return [
+          [basePoint[0], basePoint[1]],
+          [basePoint[0] + 0.03, basePoint[1] + 0.05],
+          [basePoint[0] - 0.03, basePoint[1] + 0.02],
+          [basePoint[0], basePoint[1]],
+        ];
+      default:
+        return sampleRouteCoordinates;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Featured Route Map */}
@@ -72,6 +104,12 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
               className="rounded-b-lg"
               showControls={true}
               routeCoordinates={sampleRouteCoordinates}
+              mapStyle="terrain"
+              routeStyle={{
+                color: "#8B5CF6", // Vivid purple
+                weight: 5,
+                opacity: 0.85
+              }}
             />
             <div className="absolute bottom-4 right-4">
               <Link to={`/routes/${mostRecentActivity.id}`}>
@@ -86,7 +124,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
 
       {/* Route Cards List */}
       <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {activities.map((activity) => (
+        {activities.map((activity, index) => (
           <Card key={activity.id} className="overflow-hidden">
             <div className="h-2 bg-primary" />
             <CardHeader className="pb-2">
@@ -94,6 +132,22 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
               <CardDescription>{activity.date}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-2">
+              <div className="h-[120px] w-full mb-2">
+                <RouteMap
+                  center={[51.505, -0.09]}
+                  zoom={11}
+                  height="100%"
+                  className="rounded-md border border-border/50"
+                  showControls={false}
+                  routeCoordinates={getRouteCoordinates(index)}
+                  mapStyle={index % 2 === 0 ? "default" : "dark"}
+                  routeStyle={{
+                    color: index % 3 === 0 ? "#8B5CF6" : index % 3 === 1 ? "#0EA5E9" : "#F97316", 
+                    weight: 3,
+                    opacity: 0.8
+                  }}
+                />
+              </div>
               <div className="flex items-center">
                 <span className="text-sm font-medium">Distance:</span>
                 <span className="ml-1 text-sm text-muted-foreground">

@@ -5,9 +5,10 @@ import RouteMap from "@/components/Map/RouteMap";
 interface RouteMapCardProps {
   coordinates: [number, number];
   routeCoordinates: [number, number][];
+  mapStyle?: 'default' | 'terrain' | 'satellite' | 'dark';
 }
 
-export function RouteMapCard({ coordinates, routeCoordinates }: RouteMapCardProps) {
+export function RouteMapCard({ coordinates, routeCoordinates, mapStyle = 'terrain' }: RouteMapCardProps) {
   return (
     <Card className="h-[400px]">
       <CardHeader>
@@ -22,6 +23,12 @@ export function RouteMapCard({ coordinates, routeCoordinates }: RouteMapCardProp
           className="rounded-b-lg"
           routeCoordinates={routeCoordinates}
           showControls={true}
+          mapStyle={mapStyle}
+          routeStyle={{
+            color: "#8B5CF6", // Vivid purple
+            weight: 5,
+            opacity: 0.85
+          }}
         />
       </CardContent>
     </Card>

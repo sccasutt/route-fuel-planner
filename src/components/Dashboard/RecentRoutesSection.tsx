@@ -59,6 +59,12 @@ export function RecentRoutesSection({ routes }: Props) {
                 className="rounded-none"
                 showControls={true}
                 routeCoordinates={sampleRouteCoordinates}
+                mapStyle="default"
+                routeStyle={{
+                  color: "#0EA5E9", // Ocean blue
+                  weight: 4,
+                  opacity: 0.8
+                }}
               />
             </div>
           </CardContent>
@@ -91,6 +97,22 @@ export function RecentRoutesSection({ routes }: Props) {
                   <CardDescription>{route.date}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  <div className="h-[100px] w-full mb-2">
+                    <RouteMap
+                      center={[51.505, -0.09]}
+                      zoom={11}
+                      height="100%"
+                      className="rounded-md border border-border/50"
+                      showControls={false}
+                      routeCoordinates={sampleRouteCoordinates}
+                      mapStyle="default"
+                      routeStyle={{
+                        color: "#8B5CF6", // Vivid purple
+                        weight: 3,
+                        opacity: 0.8
+                      }}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center">
                       <Map className="w-4 h-4 mr-2 text-muted-foreground" />
