@@ -1,8 +1,8 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { MapPin } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { MapPin, ArrowRight } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import RouteMap from "../Map/RouteMap";
 
@@ -21,37 +21,38 @@ export function FeaturedRouteMap({ route, routeCoordinates }: FeaturedRouteMapPr
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center">
-          <MapPin className="w-5 h-5 mr-2 text-primary" />
-          Latest Route Map
-        </CardTitle>
-        <CardDescription>{route.name} - {route.date}</CardDescription>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>Recent Route</CardTitle>
+        <CardDescription>
+          {route.name} - {new Date(route.date).toLocaleDateString()}
+        </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="h-[240px] w-full">
+        <div className="h-[300px] w-full relative">
           <RouteMap
-            center={routeCoordinates[0]}
+            center={[51.505, -0.09]}
             zoom={12}
             height="100%"
-            className="rounded-none"
+            className="rounded-b-lg"
             showControls={true}
             routeCoordinates={routeCoordinates}
-            mapStyle="default"
+            mapStyle="terrain"
             routeStyle={{
-              color: "#0EA5E9", // Ocean blue
-              weight: 4,
-              opacity: 0.8
+              color: "#8B5CF6", // Vivid purple
+              weight: 5,
+              opacity: 0.85
             }}
           />
+          <div className="absolute bottom-4 right-4">
+            <Link to={`/routes/${route.id}`}>
+              <Button size="sm" className="gap-2">
+                <MapPin className="h-4 w-4" /> View Details <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="bg-muted/50">
-        <Link to={`/routes/${route.id}`}>
-          <Button variant="outline" size="sm">View Full Details</Button>
-        </Link>
-      </CardFooter>
     </Card>
   );
 }

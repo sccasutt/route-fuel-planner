@@ -45,6 +45,30 @@ const RoutesPage = () => {
     id: activity.id
   }));
 
+  // Generate route coordinates map for passing to components
+  const routeCoordinatesMap = Object.fromEntries(
+    activities.map(activity => {
+      // Try to extract coordinates from activity
+      let coordinates: [number, number][] = [];
+      if (activity.coordinates && Array.isArray(activity.coordinates) && activity.coordinates.length >= 2) {
+        coordinates = activity.coordinates as [number, number][];
+      } else {
+        // Fallback coordinates if none in the activity
+        coordinates = [
+          [51.505, -0.09],
+          [51.51, -0.1],
+          [51.52, -0.12],
+          [51.518, -0.14],
+          [51.51, -0.15],
+          [51.5, -0.14],
+          [51.495, -0.12],
+          [51.505, -0.09]
+        ];
+      }
+      return [activity.id, coordinates];
+    })
+  );
+
   return (
     <Layout>
       <div className="container py-8">
@@ -68,14 +92,11 @@ const RoutesPage = () => {
         </div>
 
         <div className="mt-4">
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading your routes...</p>
-            </div>
-          ) : (
-            <RoutesTabContent activities={routesData} />
-          )}
+          <RoutesTabContent 
+            activities={routesData} 
+            routeCoordinatesMap={routeCoordinatesMap}
+            isLoading={isLoading}
+          />
         </div>
       </div>
     </Layout>
