@@ -69,9 +69,36 @@ export function formatWahooActivities(activities: any[]) {
       'moving_time'
     ]);
     
-    // Process duration to handle different formats
-    let duration = formatDurationString(durationValue);
-    let durationSeconds = durationToSeconds(durationValue);
+    // Process duration to handle different formats and normalize
+    let duration;
+    let durationSeconds;
+    
+    if (typeof durationValue === 'number') {
+      // If duration is in seconds
+      durationSeconds = durationValue;
+      // Format as H:MM:SS with hour value limited to 0-23
+      const hours = Math.floor(durationSeconds / 3600) % 24;
+      const minutes = Math.floor((durationSeconds % 3600) / 60);
+      const seconds = Math.floor(durationSeconds % 60);
+      duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else if (typeof durationValue === 'string') {
+      // Check if it's already in HH:MM:SS format with excessive hours
+      const largeHourFormat = durationValue.match(/^(\d+):(\d+):(\d+)$/);
+      if (largeHourFormat) {
+        const hours = parseInt(largeHourFormat[1], 10) % 24; // Limit to 24 hour clock
+        const minutes = parseInt(largeHourFormat[2], 10);
+        const seconds = parseInt(largeHourFormat[3], 10);
+        duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        durationSeconds = parseInt(largeHourFormat[1], 10) * 3600 + minutes * 60 + seconds;
+      } else {
+        duration = formatDurationString(durationValue);
+        durationSeconds = durationToSeconds(durationValue);
+      }
+    } else {
+      // Default case if no valid duration found
+      duration = "0:01:00"; // Default 1 minute
+      durationSeconds = 60;
+    }
     
     // Convert numeric values correctly
     if (typeof distance === 'string') distance = parseFloat(distance) || 0;
