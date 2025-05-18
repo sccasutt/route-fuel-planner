@@ -23,7 +23,7 @@ export function useWahooActivityDatabase() {
           *,
           route_weather(*)
         `)
-        .eq("user_id", userId)
+        .eq("user_id", userId as string)
         .order("date", { ascending: false })
         .limit(100); // Increased limit to get more recent activities
 
@@ -45,7 +45,7 @@ export function useWahooActivityDatabase() {
         
         // More detailed logging for the gpx_data field
         const firstActivity = data[0];
-        if (firstActivity.gpx_data) {
+        if (firstActivity && firstActivity.gpx_data) {
           console.log(`[${hookId}] gpx_data type:`, typeof firstActivity.gpx_data);
           console.log(`[${hookId}] gpx_data sample:`, 
             typeof firstActivity.gpx_data === 'string' 
@@ -74,7 +74,7 @@ export function useWahooActivityDatabase() {
       }
       
       // Process raw data into typed activities
-      const typedActivities: WahooActivityData[] = data.map(processActivityData);
+      const typedActivities: WahooActivityData[] = data.map(item => processActivityData(item));
       
       console.log(`[${hookId}] Processed ${typedActivities.length} activities`);
       
@@ -98,7 +98,7 @@ export function useWahooActivityDatabase() {
       const { data, error } = await supabase
         .from('wahoo_profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', userId as string)
         .single();
       
       if (error) {
@@ -132,7 +132,7 @@ export function useWahooActivityDatabase() {
           *,
           route_weather(*)
         `)
-        .eq('id', routeId)
+        .eq('id', routeId as string)
         .single();
       
       if (error) {

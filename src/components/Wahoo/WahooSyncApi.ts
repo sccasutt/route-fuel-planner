@@ -93,13 +93,13 @@ export async function syncWahooProfileAndRoutes(tokenObj: {
         const { data: verifyData, error: verifyError } = await supabase
           .from('routes')
           .select('count')
-          .eq('user_id', userId)
+          .eq('user_id', userId as string)
           .single();
           
         if (verifyError) {
           console.error("Post-sync verification error:", verifyError);
         } else {
-          console.log("Post-sync verification: Found", verifyData?.count || 0, "routes");
+          console.log("Post-sync verification: Found", verifyData && 'count' in verifyData ? verifyData.count : 0, "routes");
         }
       } catch (e) {
         console.error("Error in post-sync verification:", e);

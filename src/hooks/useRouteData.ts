@@ -37,7 +37,7 @@ export function useRouteData(routeId: string | undefined) {
         const { data: route, error } = await supabase
           .from('routes')
           .select('*')
-          .eq('id', routeId)
+          .eq('id', routeId as string)
           .single();
 
         if (error) {
@@ -62,13 +62,13 @@ export function useRouteData(routeId: string | undefined) {
         }
 
         console.log("Fetched route data:", route);
-        setRouteData(route);
+        setRouteData(route as RouteData);
         
         // Parse GPS coordinates from gpx_data
         let coordinates: [number, number][] = [];
         let hasValidData = false;
         
-        if (route.gpx_data) {
+        if (route && route.gpx_data) {
           try {
             // Try to parse the gpx_data field
             let parsedData;
