@@ -55,7 +55,7 @@ export function useRouteData(routeId: string | undefined) {
 
         console.log("Fetched route data:", data);
         
-        // Transform data to match RouteData interface
+        // Transform data to match RouteData interface with proper type casting
         const typedRouteData: RouteData = {
           id: data.id,
           name: data.name || "Unnamed Route",
@@ -70,6 +70,10 @@ export function useRouteData(routeId: string | undefined) {
           type: data.type,
           // Safely handle coordinates from database, ensuring they're treated as [number, number][]
           coordinates: data.coordinates ? parseCoordinatesArray(data.coordinates) : [],
+          // Include file object if it exists
+          file: data.file,
+          start_lat: data.start_lat,
+          start_lng: data.start_lng,
           // Include any other fields from the original data
           ...data
         };
@@ -82,7 +86,7 @@ export function useRouteData(routeId: string | undefined) {
         
         // First try to get coordinates directly from the coordinates field
         if (typedRouteData.coordinates && Array.isArray(typedRouteData.coordinates)) {
-          coordinates = typedRouteData.coordinates;
+          coordinates = parseCoordinatesArray(typedRouteData.coordinates);
           hasValidData = coordinates.length >= 2;
           console.log(`Found ${coordinates.length} coordinates directly in coordinates field`);
         }
@@ -142,16 +146,16 @@ export function useRouteData(routeId: string | undefined) {
         }
         
         // If we still don't have valid data and we have a GPX file URL or a file URL from Wahoo, download and parse it
-        if ((!hasValidData || coordinates.length < 2) && (data.gpx_file_url || data.file?.url)) {
+        const fileUrl = data.gpx_file_url || (typedRouteData.file?.url);
+        if ((!hasValidData || coordinates.length < 2) && fileUrl) {
           try {
-            const fileUrl = data.gpx_file_url || data.file?.url;
             console.log("Attempting to download and parse file from URL:", fileUrl);
             
             // Call our Edge Function to download and parse the file
             const { data: fileData, error: fileError } = await supabase.functions.invoke("gpx-parser", {
               body: { 
                 gpx_url: data.gpx_file_url,
-                file_url: data.file?.url 
+                file_url: typedRouteData.file?.url 
               }
             });
             
@@ -183,10 +187,10 @@ export function useRouteData(routeId: string | undefined) {
         }
         
         // If trying to get data from the "file" object in the Wahoo format
-        if ((!hasValidData || coordinates.length < 2) && data.file && data.start_lat && data.start_lng) {
+        if ((!hasValidData || coordinates.length < 2) && typedRouteData.start_lat && typedRouteData.start_lng) {
           // Use the start coordinates as a fallback
           coordinates = [
-            [Number(data.start_lat), Number(data.start_lng)]
+            [Number(typedRouteData.start_lat), Number(typedRouteData.start_lng)]
           ];
           console.log("Using start_lat/start_lng as fallback coordinates");
         }
