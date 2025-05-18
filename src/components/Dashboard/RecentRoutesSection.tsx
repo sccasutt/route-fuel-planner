@@ -25,6 +25,19 @@ export function RecentRoutesSection({ routes }: Props) {
   // Get the most recent route for the featured map
   const mostRecentRoute = routes.length > 0 ? routes[0] : null;
 
+  // Sample route coordinates - in a real app, these would come from the route data
+  // This is just a sample circular route around London for demonstration
+  const sampleRouteCoordinates: [number, number][] = [
+    [51.505, -0.09],
+    [51.51, -0.1],
+    [51.52, -0.12],
+    [51.518, -0.14],
+    [51.51, -0.15],
+    [51.5, -0.14],
+    [51.495, -0.12],
+    [51.505, -0.09],
+  ];
+
   return (
     <div className="space-y-6">
       {/* Featured Route Map */}
@@ -40,11 +53,12 @@ export function RecentRoutesSection({ routes }: Props) {
           <CardContent className="p-0">
             <div className="h-[240px] w-full">
               <RouteMap
-                center={[51.505, -0.09]} 
+                center={[51.505, -0.09]}
                 zoom={12}
                 height="100%"
                 className="rounded-none"
                 showControls={true}
+                routeCoordinates={sampleRouteCoordinates}
               />
             </div>
           </CardContent>
@@ -80,7 +94,7 @@ export function RecentRoutesSection({ routes }: Props) {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center">
                       <Map className="w-4 h-4 mr-2 text-muted-foreground" />
-                      <span className="text-sm">{(route.distance/1000).toFixed(1)} km</span>
+                      <span className="text-sm">{route.distance.toFixed(1)} km</span>
                     </div>
                     <div className="flex items-center">
                       <TrendingUp className="w-4 h-4 mr-2 text-muted-foreground" />

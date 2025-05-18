@@ -40,6 +40,19 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
   // Display the most recent activity map
   const mostRecentActivity = activities[0];
 
+  // Sample route coordinates - in a real app, these would come from the route data
+  // This is just a sample circular route around London for demonstration
+  const sampleRouteCoordinates: [number, number][] = [
+    [51.505, -0.09],
+    [51.51, -0.1],
+    [51.52, -0.12],
+    [51.518, -0.14],
+    [51.51, -0.15],
+    [51.5, -0.14],
+    [51.495, -0.12],
+    [51.505, -0.09],
+  ];
+
   return (
     <div className="space-y-6">
       {/* Featured Route Map */}
@@ -58,6 +71,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
               height="100%"
               className="rounded-b-lg"
               showControls={true}
+              routeCoordinates={sampleRouteCoordinates}
             />
             <div className="absolute bottom-4 right-4">
               <Link to={`/routes/${mostRecentActivity.id}`}>
@@ -83,7 +97,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
               <div className="flex items-center">
                 <span className="text-sm font-medium">Distance:</span>
                 <span className="ml-1 text-sm text-muted-foreground">
-                  {formatDistance(activity.distance)} km
+                  {activity.distance.toFixed(1)} km
                 </span>
               </div>
               <div className="flex items-center">

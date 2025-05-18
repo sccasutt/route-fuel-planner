@@ -1,3 +1,4 @@
+
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,18 @@ const sampleRoute = {
     water: 1.5
   },
   // Sample coordinates for the route (would come from API)
-  coordinates: [51.505, -0.09]
+  coordinates: [51.505, -0.09],
+  // Sample route coordinates - in a real app, these would come from the route data
+  routeCoordinates: [
+    [51.505, -0.09],
+    [51.51, -0.1],
+    [51.52, -0.12],
+    [51.518, -0.14],
+    [51.51, -0.15],
+    [51.5, -0.14],
+    [51.495, -0.12],
+    [51.505, -0.09],
+  ]
 };
 
 const RouteDetail = () => {
@@ -107,6 +119,8 @@ const RouteDetail = () => {
                   zoom={13}
                   height="100%"
                   className="rounded-b-lg"
+                  routeCoordinates={route.routeCoordinates as [number, number][]}
+                  showControls={true}
                 />
               </CardContent>
             </Card>

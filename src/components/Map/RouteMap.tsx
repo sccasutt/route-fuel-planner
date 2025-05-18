@@ -14,6 +14,9 @@ interface RouteMapProps {
   className?: string;
   gpxData?: string | null; // For future GPX route rendering
   showControls?: boolean;
+  routeCoordinates?: [number, number][]; // Array of lat/long points for the route
+  startPoint?: [number, number]; // Optional start point
+  endPoint?: [number, number]; // Optional end point
 }
 
 const RouteMap = ({ 
@@ -22,7 +25,10 @@ const RouteMap = ({
   height = '320px',
   className = '',
   gpxData = null,
-  showControls = false
+  showControls = false,
+  routeCoordinates = [],
+  startPoint,
+  endPoint
 }: RouteMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -35,6 +41,24 @@ const RouteMap = ({
       iconSize: [25, 41],
       iconAnchor: [12, 41]
     });
+    
+    // Create start and end icons
+    const StartIcon = L.icon({
+      iconUrl: DEFAULT_ICON_URL,
+      shadowUrl: DEFAULT_SHADOW_URL,
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      className: 'start-icon' // We could style this differently with CSS
+    });
+    
+    const EndIcon = L.icon({
+      iconUrl: DEFAULT_ICON_URL,
+      shadowUrl: DEFAULT_SHADOW_URL,
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      className: 'end-icon' // We could style this differently with CSS
+    });
+    
     L.Marker.prototype.options.icon = DefaultIcon;
 
     if (mapRef.current && !mapInstanceRef.current) {
@@ -53,10 +77,52 @@ const RouteMap = ({
         L.control.zoom({ position: 'topright' }).addTo(map);
       }
 
-      // Add a sample marker at the center position
-      L.marker(center).addTo(map)
-        .bindPopup('Route location')
-        .openPopup();
+      // If we have route coordinates, draw the route path
+      if (routeCoordinates && routeCoordinates.length > 1) {
+        // Draw polyline for the route
+        const routePath = L.polyline(routeCoordinates, {
+          color: 'blue',
+          weight: 4,
+          opacity: 0.7,
+          lineJoin: 'round'
+        }).addTo(map);
+        
+        // Fit the map to the route bounds
+        map.fitBounds(routePath.getBounds());
+        
+        // Add start and end markers if not explicitly provided
+        if (!startPoint && !endPoint) {
+          const firstPoint = routeCoordinates[0];
+          const lastPoint = routeCoordinates[routeCoordinates.length - 1];
+          
+          // Add start marker
+          L.marker(firstPoint, { icon: StartIcon }).addTo(map)
+            .bindPopup('Start');
+            
+          // Add end marker
+          L.marker(lastPoint, { icon: EndIcon }).addTo(map)
+            .bindPopup('Finish');
+        }
+      }
+      
+      // Add explicit start and end points if provided
+      if (startPoint) {
+        L.marker(startPoint, { icon: StartIcon }).addTo(map)
+          .bindPopup('Start');
+      }
+      
+      if (endPoint) {
+        L.marker(endPoint, { icon: EndIcon }).addTo(map)
+          .bindPopup('Finish');
+      }
+
+      // If no route coordinates but we have a center point, add a marker there
+      if ((!routeCoordinates || routeCoordinates.length === 0) && 
+          (!startPoint && !endPoint)) {
+        L.marker(center).addTo(map)
+          .bindPopup('Route location')
+          .openPopup();
+      }
 
       // If we have GPX data (for future implementation)
       if (gpxData) {
@@ -71,7 +137,7 @@ const RouteMap = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [center, zoom, gpxData, showControls]);
+  }, [center, zoom, gpxData, showControls, routeCoordinates, startPoint, endPoint]);
 
   return (
     <div className={`route-map ${className}`} style={{ height }}>
