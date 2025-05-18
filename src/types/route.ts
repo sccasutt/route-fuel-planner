@@ -13,10 +13,10 @@ export interface RouteType {
   gpx_file_url?: string | null;
   coordinates?: [number, number][];
   // Additional fields from Wahoo API
-  start_lat?: number;
-  start_lng?: number;
-  description?: string;
+  start_lat?: number | null;
+  start_lng?: number | null;
+  description?: string | null;
   file?: {
     url: string;
-  };
+  } | null;
 }

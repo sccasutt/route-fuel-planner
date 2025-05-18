@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,12 +67,8 @@ export function useRouteData(routeId: string | undefined) {
           gpx_data: data.gpx_data,
           gpx_file_url: data.gpx_file_url,
           type: data.type,
-          // Handle coordinates safely with proper parsing
+          // Handle coordinates with proper parsing and type casting
           coordinates: data.coordinates ? parseCoordinatesArray(data.coordinates) : [],
-          // Include Wahoo-specific fields if they exist
-          file: data.file || undefined,
-          start_lat: data.start_lat || undefined,
-          start_lng: data.start_lng || undefined,
           // Include any other fields from the original data
           ...data
         };
@@ -145,7 +140,7 @@ export function useRouteData(routeId: string | undefined) {
           }
         }
         
-        // If we still don't have valid data and we have a GPX file URL or a file URL from Wahoo, download and parse it
+        // If we still don't have valid data and we have a GPX file URL, download and parse it
         const fileUrl = data.gpx_file_url || (typedRouteData.file?.url);
         if ((!hasValidData || coordinates.length < 2) && fileUrl) {
           try {
