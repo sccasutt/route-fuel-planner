@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,7 +68,7 @@ export function useRouteData(routeId: string | undefined) {
           gpx_data: data.gpx_data,
           gpx_file_url: data.gpx_file_url,
           type: data.type,
-          // Handle coordinates with proper parsing and type casting
+          // Handle coordinates - make sure to correctly parse and cast to the right type
           coordinates: data.coordinates ? parseCoordinatesArray(data.coordinates) : [],
           // Include any other fields from the original data
           ...data
@@ -141,7 +142,7 @@ export function useRouteData(routeId: string | undefined) {
         }
         
         // If we still don't have valid data and we have a GPX file URL, download and parse it
-        const fileUrl = data.gpx_file_url || (typedRouteData.file?.url);
+        const fileUrl = data.gpx_file_url || (data.file?.url);
         if ((!hasValidData || coordinates.length < 2) && fileUrl) {
           try {
             console.log("Attempting to download and parse file from URL:", fileUrl);
@@ -150,7 +151,7 @@ export function useRouteData(routeId: string | undefined) {
             const { data: fileData, error: fileError } = await supabase.functions.invoke("gpx-parser", {
               body: { 
                 gpx_url: data.gpx_file_url,
-                file_url: typedRouteData.file?.url 
+                file_url: data.file?.url 
               }
             });
             
@@ -182,10 +183,10 @@ export function useRouteData(routeId: string | undefined) {
         }
         
         // If trying to get data from the "file" object in the Wahoo format
-        if ((!hasValidData || coordinates.length < 2) && typedRouteData.start_lat && typedRouteData.start_lng) {
+        if ((!hasValidData || coordinates.length < 2) && data.start_lat && data.start_lng) {
           // Use the start coordinates as a fallback
           coordinates = [
-            [Number(typedRouteData.start_lat), Number(typedRouteData.start_lng)]
+            [Number(data.start_lat), Number(data.start_lng)]
           ];
           console.log("Using start_lat/start_lng as fallback coordinates");
         }
