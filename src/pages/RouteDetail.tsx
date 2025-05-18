@@ -1,5 +1,6 @@
 
 import { useParams } from "react-router-dom";
+import { useState, useCallback } from "react";
 import Layout from "@/components/layout/Layout";
 import { RouteHeader } from "@/components/RouteDetail/RouteHeader";
 import { RouteSummaryCards } from "@/components/RouteDetail/RouteSummaryCards";
@@ -11,7 +12,14 @@ import { useRouteData } from "@/hooks/useRouteData";
 
 const RouteDetail = () => {
   const { id } = useParams();
-  const { loading, routeData, routeCoordinates, hasRouteData, mapCenter } = useRouteData(id);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { loading, routeData, routeCoordinates, hasRouteData, mapCenter } = useRouteData(id, refreshKey);
+
+  // Callback for when data extraction is complete
+  const handleExtractComplete = useCallback(() => {
+    // Increment the refresh key to trigger a re-fetch of data
+    setRefreshKey(prevKey => prevKey + 1);
+  }, []);
 
   if (loading) {
     return <LoadingState />;
@@ -31,6 +39,7 @@ const RouteDetail = () => {
           gpxFileUrl={routeData.gpx_file_url}
           fileUrl={routeData.file_url}
           wahooRouteId={routeData.wahoo_route_id}
+          onExtractComplete={handleExtractComplete}
         />
         
         <RouteSummaryCards 

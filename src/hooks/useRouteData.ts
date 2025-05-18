@@ -9,8 +9,9 @@ import { getFallbackCoordinates } from "@/utils/coordinateUtils";
 /**
  * Hook to fetch and process route data
  * @param routeId ID of the route to fetch
+ * @param refreshKey A key that triggers data refresh when changed
  */
-export function useRouteData(routeId: string | undefined) {
+export function useRouteData(routeId: string | undefined, refreshKey: number = 0) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export function useRouteData(routeId: string | undefined) {
     };
 
     fetchRouteDataAndCoordinates();
-  }, [routeId, navigate, toast]);
+  }, [routeId, navigate, toast, refreshKey]); // Added refreshKey to the dependencies
 
   return { 
     loading, 

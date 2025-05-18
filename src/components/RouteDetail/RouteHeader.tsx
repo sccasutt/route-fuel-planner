@@ -1,8 +1,9 @@
 
 import { Calendar } from "lucide-react";
 import { formatShortDate } from "@/lib/utils";
-import { ExtractRouteDataButton } from "./ExtractRouteDataButton";
-import { useState } from "react";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface RouteHeaderProps {
   name: string;
@@ -11,6 +12,7 @@ interface RouteHeaderProps {
   gpxFileUrl?: string | null;
   fileUrl?: string | null;
   wahooRouteId?: string | null;
+  onExtractComplete?: () => void;
 }
 
 export function RouteHeader({ 
@@ -19,14 +21,60 @@ export function RouteHeader({
   routeId,
   gpxFileUrl,
   fileUrl,
-  wahooRouteId
+  wahooRouteId,
+  onExtractComplete
 }: RouteHeaderProps) {
-  const [refreshKey, setRefreshKey] = useState(0);
-  
-  const handleExtractSuccess = () => {
-    // Increment the refresh key to trigger a re-fetch of data in parent components
-    setRefreshKey(prev => prev + 1);
+  const { toast } = useToast();
+
+  // Function to extract route data
+  const extractRouteData = async () => {
+    if (!routeId || (!gpxFileUrl && !fileUrl)) {
+      console.log("Missing required data for extraction:", { routeId, gpxFileUrl, fileUrl });
+      return;
+    }
+
+    try {
+      // Call our Edge Function to parse the GPX file
+      const { data, error } = await supabase.functions.invoke("gpx-parser", {
+        body: { 
+          gpx_url: gpxFileUrl, 
+          file_url: fileUrl,
+          route_id: routeId,
+          wahoo_route_id: wahooRouteId
+        }
+      });
+      
+      if (error) {
+        console.error("Error extracting route data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to extract route data",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      console.log("Route data extraction successful:", data);
+      
+      if (onExtractComplete) {
+        onExtractComplete();
+      }
+    } catch (err) {
+      console.error("Error during route data extraction:", err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
   };
+
+  // Automatically attempt to extract route data when component mounts
+  useEffect(() => {
+    if (routeId && (gpxFileUrl || fileUrl)) {
+      extractRouteData();
+    }
+  }, [routeId, gpxFileUrl, fileUrl]);
 
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -37,20 +85,6 @@ export function RouteHeader({
           <span>{formatShortDate(date)}</span>
         </div>
       </div>
-      
-      {/* Show the extract button if we have a routeId and file URL */}
-      {routeId && (gpxFileUrl || fileUrl) && (
-        <ExtractRouteDataButton 
-          routeId={routeId}
-          gpxFileUrl={gpxFileUrl}
-          fileUrl={fileUrl}
-          wahooRouteId={wahooRouteId}
-          onSuccess={handleExtractSuccess}
-        />
-      )}
-      
-      {/* Hidden element to trigger re-renders */}
-      <input type="hidden" value={refreshKey} />
     </div>
   );
 }

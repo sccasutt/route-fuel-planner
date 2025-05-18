@@ -40,7 +40,10 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log(`Processing route [${route_id}] with wahoo_route_id [${wahoo_route_id || 'not provided'}] and file URL: ${url}`);
+    console.log(`Processing route [${route_id}] with file: ${url}`);
+    if (wahoo_route_id) {
+      console.log(`Wahoo route ID: ${wahoo_route_id}`);
+    }
     
     // Set timeout to prevent infinite waiting
     const controller = new AbortController();
@@ -94,7 +97,6 @@ Deno.serve(async (req) => {
           source: 'file_url',
           coordinateCount: coordinates.length,
           pointsInserted,
-          wahoo_route_id: wahoo_route_id || null,
           message: pointsInserted > 0 
             ? `Successfully extracted ${pointsInserted} route points` 
             : "No route points could be extracted"
