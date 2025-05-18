@@ -11,7 +11,7 @@ interface FeaturedRouteMapProps {
     name: string;
     date: string;
   } | null;
-  routeCoordinates: [number, number][];
+  routeCoordinates?: [number, number][];
 }
 
 export function FeaturedRouteMap({ route }: FeaturedRouteMapProps) {

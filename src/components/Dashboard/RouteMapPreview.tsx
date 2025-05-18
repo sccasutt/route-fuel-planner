@@ -3,7 +3,7 @@ import React from "react";
 
 interface RouteMapPreviewProps {
   routeCoordinates?: [number, number][];
-  hasValidCoordinates: boolean;
+  hasValidCoordinates?: boolean;
   height?: string;
   routeType?: string;
 }

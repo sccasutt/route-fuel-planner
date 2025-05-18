@@ -2,8 +2,8 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 interface RouteMapCardProps {
-  coordinates: [number, number];
-  routeCoordinates: [number, number][];
+  coordinates?: [number, number];
+  routeCoordinates?: [number, number][];
   mapStyle?: 'default' | 'terrain' | 'satellite' | 'dark';
 }
 

@@ -32,8 +32,6 @@ export function RouteMainContent({
       <div className="lg:col-span-2 space-y-6">
         <RouteMapSection 
           hasRouteData={hasRouteData}
-          mapCenter={mapCenter}
-          displayCoordinates={displayCoordinates}
         />
         
         <ElevationSection 

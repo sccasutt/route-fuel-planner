@@ -3,8 +3,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 
 interface RouteMapSectionProps {
   hasRouteData: boolean;
-  mapCenter: [number, number];
-  displayCoordinates: [number, number][];
+  mapCenter?: [number, number];
+  displayCoordinates?: [number, number][];
 }
 
 export function RouteMapSection({ 
