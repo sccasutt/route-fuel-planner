@@ -16,11 +16,22 @@ export function RouteMapPreview({
   routeType = "activity"
 }: RouteMapPreviewProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   
-  // Only render map when component is visible
+  // Only render map when component is visible and mounted
   useEffect(() => {
     setIsVisible(true);
-    return () => setIsVisible(false);
+    
+    // Set a small delay to ensure DOM is fully ready
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      setIsVisible(false);
+      setIsLoaded(false);
+    };
   }, []);
   
   // Set route style based on route type
@@ -49,7 +60,7 @@ export function RouteMapPreview({
 
   return (
     <div className="h-[100px] w-full mb-2">
-      {isVisible && (
+      {isVisible && isLoaded && (
         <RouteMap
           center={routeCoordinates[0] || [51.505, -0.09]}
           zoom={11}

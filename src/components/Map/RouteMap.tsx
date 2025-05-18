@@ -83,7 +83,7 @@ const RouteMap = ({
         // Force a map size update after a delay to handle cases where
         // container dimensions change after initialization
         setTimeout(() => {
-          if (map && map._container) {  // Check if map still exists and has a container
+          if (map && map.getContainer()) {  // Use proper method to check container existence
             map.invalidateSize();
           }
         }, 250);
@@ -147,7 +147,7 @@ const RouteMap = ({
   return (
     <div className={`route-map ${className}`} style={mapStyles}>
       <div ref={mapRef} style={{ width: '100%', height: '100%' }}></div>
-      {isMapReady && (
+      {isMapReady && mapInstanceRef.current && (
         <RouteMarkers 
           map={mapInstanceRef.current}
           routeCoordinates={routeCoordinates}
@@ -158,6 +158,6 @@ const RouteMap = ({
       )}
     </div>
   );
-};
+}
 
 export default RouteMap;

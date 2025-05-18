@@ -1,5 +1,4 @@
-
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { createMapIcon, DEFAULT_ICON_URL, DEFAULT_SHADOW_URL } from './mapUtils';
 
@@ -18,18 +17,29 @@ export function RouteMarkers({
   endPoint,
   center
 }: RouteMarkersProps) {
+  // Keep track of created markers for cleanup
+  const markersRef = useRef<L.Marker[]>([]);
+
   useEffect(() => {
     // Safety check - if map isn't initialized yet, don't proceed
-    if (!map || !map.getContainer()) return;
+    if (!map) return;
     
-    // Make sure the map is properly loaded and visible
-    const container = map.getContainer();
-    if (!container || container.clientHeight === 0 || container.clientWidth === 0) {
-      console.log("Map container not ready yet, skipping marker initialization");
-      return;
-    }
-    
+    // Make sure the map is properly loaded and has a container
     try {
+      const container = map.getContainer();
+      if (!container || container.clientHeight === 0 || container.clientWidth === 0) {
+        console.log("Map container not ready yet, skipping marker initialization");
+        return;
+      }
+      
+      // Clean up previous markers first
+      markersRef.current.forEach(marker => {
+        if (marker) {
+          marker.remove();
+        }
+      });
+      markersRef.current = [];
+      
       // Create marker icons
       const DefaultIcon = createMapIcon({
         iconUrl: DEFAULT_ICON_URL,
@@ -59,13 +69,15 @@ export function RouteMarkers({
 
       // Add start and end markers if provided
       if (startPoint) {
-        L.marker(startPoint, { icon: StartIcon }).addTo(map)
-          .bindPopup('Start');
+        const marker = L.marker(startPoint, { icon: StartIcon }).addTo(map);
+        marker.bindPopup('Start');
+        markersRef.current.push(marker);
       }
       
       if (endPoint) {
-        L.marker(endPoint, { icon: EndIcon }).addTo(map)
-          .bindPopup('Finish');
+        const marker = L.marker(endPoint, { icon: EndIcon }).addTo(map);
+        marker.bindPopup('Finish');
+        markersRef.current.push(marker);
       }
 
       // If we have route coordinates but no explicit start/end points
@@ -74,20 +86,22 @@ export function RouteMarkers({
         const lastPoint = routeCoordinates[routeCoordinates.length - 1];
         
         // Add start marker
-        L.marker(firstPoint, { icon: StartIcon }).addTo(map)
-          .bindPopup('Start');
-          
+        const startMarker = L.marker(firstPoint, { icon: StartIcon }).addTo(map);
+        startMarker.bindPopup('Start');
+        markersRef.current.push(startMarker);
+        
         // Add end marker
-        L.marker(lastPoint, { icon: EndIcon }).addTo(map)
-          .bindPopup('Finish');
+        const endMarker = L.marker(lastPoint, { icon: EndIcon }).addTo(map);
+        endMarker.bindPopup('Finish');
+        markersRef.current.push(endMarker);
       }
 
       // If no route coordinates and no start/end points, add a marker at center
       if ((!routeCoordinates || routeCoordinates.length === 0) && 
           (!startPoint && !endPoint)) {
-        L.marker(center).addTo(map)
-          .bindPopup('Route location')
-          .openPopup();
+        const marker = L.marker(center).addTo(map);
+        marker.bindPopup('Route location').openPopup();
+        markersRef.current.push(marker);
       }
     } catch (error) {
       console.error("Error initializing map markers:", error);
@@ -95,7 +109,16 @@ export function RouteMarkers({
 
     // Cleanup function
     return () => {
-      // No specific cleanup needed for markers as they'll be removed with the map
+      markersRef.current.forEach(marker => {
+        if (marker) {
+          try {
+            marker.remove();
+          } catch (e) {
+            console.error("Error removing marker:", e);
+          }
+        }
+      });
+      markersRef.current = [];
     };
   }, [map, routeCoordinates, startPoint, endPoint, center]);
 
