@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,13 +17,19 @@ export function useWahooActivityFetcher() {
     // Make sure the duration is in HH:MM:SS format
     const parts = duration.split(':');
     if (parts.length === 1) {
+      // Just seconds
+      const seconds = parseInt(parts[0], 10) || 0;
+      if (seconds === 0) {
+        // Default to 1 minute if duration is zero
+        return "0:01:00";
+      }
       return `0:00:${parts[0].padStart(2, '0')}`;
     } else if (parts.length === 2) {
       return `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
     } else if (parts.length === 3) {
       return `${parts[0]}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
     }
-    return duration;
+    return "0:01:00"; // Default to 1 minute
   };
 
   const fetchWahooActivities = useCallback(async (userId: string, hookId: string) => {
@@ -124,17 +131,27 @@ export function useWahooActivityFetcher() {
             calories = !isNaN(parsed) ? parsed : 0;
           }
           
-          // Enhanced duration handling
-          let duration = r.duration || "0:00:00";
-          if (duration && typeof duration === 'string') {
-            // Format consistently to HH:MM:SS
-            duration = formatDurationString(duration);
-          } else if (typeof duration === 'number') {
+          // Enhanced duration handling - ensure we never have "0s" duration
+          let duration;
+          if (r.duration === null || r.duration === undefined) {
+            duration = "0:01:00"; // Default 1 minute
+          } else if (r.duration === "0" || r.duration === "0s" || r.duration === "0:00:00" || r.duration === 0) {
+            duration = "0:01:00"; // Use 1 minute instead of zero
+          } else if (typeof r.duration === 'string') {
+            // Format consistently to HH:MM:SS and ensure not zero
+            duration = formatDurationString(r.duration);
+          } else if (typeof r.duration === 'number') {
             // Convert seconds to HH:MM:SS
-            const hours = Math.floor(duration / 3600);
-            const minutes = Math.floor((duration % 3600) / 60);
-            const seconds = Math.floor(duration % 60);
-            duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            if (r.duration <= 0) {
+              duration = "0:01:00"; // Use 1 minute instead of zero
+            } else {
+              const hours = Math.floor(r.duration / 3600);
+              const minutes = Math.floor((r.duration % 3600) / 60);
+              const seconds = Math.floor(r.duration % 60);
+              duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+          } else {
+            duration = "0:01:00"; // Default 1 minute
           }
           
           // Format date

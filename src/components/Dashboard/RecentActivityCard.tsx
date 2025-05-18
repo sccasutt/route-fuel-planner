@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Map, Clock, LineChart, Activity } from "lucide-react";
 import { WahooActivityData } from "@/hooks/useWahooData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDuration, formatShortDate } from "@/lib/utils";
+import { formatDuration, formatShortDate, ensureValidDuration } from "@/lib/utils";
 
 interface Props {
   activities: WahooActivityData[];
@@ -34,6 +34,9 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
         ) : activities.length > 0 ? (
           <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
             {activities.slice(0, 3).map((activity) => {
+              // Ensure we have a valid duration for display
+              const displayDuration = ensureValidDuration(activity.duration);
+              
               return (
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
                   <div>
@@ -47,7 +50,7 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
                     </div>
                     <div className="flex items-center text-xs">
                       <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{formatDuration(activity.duration || "0:00")}</span>
+                      <span>{displayDuration}</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />

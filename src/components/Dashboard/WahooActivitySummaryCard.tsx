@@ -3,7 +3,7 @@ import { Bike, Map, Clock, LineChart, Trophy, Calendar } from "lucide-react";
 import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDuration, formatShortDate } from "@/lib/utils";
+import { formatDuration, formatShortDate, ensureValidDuration } from "@/lib/utils";
 
 interface Props {
   isLoading: boolean;
@@ -105,6 +105,9 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
                   ? parseInt(activity.calories, 10) || 0
                   : 0;
               
+              // Ensure valid duration
+              const displayDuration = ensureValidDuration(activity.duration);
+              
               return (
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
                   <div>
@@ -118,7 +121,7 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
                     </div>
                     <div className="flex items-center text-xs">
                       <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{formatDuration(activity.duration || "0:00")}</span>
+                      <span>{displayDuration}</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />

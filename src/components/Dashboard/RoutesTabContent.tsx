@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWahooSyncHandler } from "@/hooks/wahoo/useWahooSyncHandler";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { formatDuration as formatDurationDisplay } from "@/lib/utils";
+import { formatDuration, ensureValidDuration } from "@/lib/utils";
 
 interface RouteType {
   id: string;
@@ -30,15 +30,20 @@ export function RoutesTabContent({ routes }: Props) {
   const { toast } = useToast();
 
   // Ensure routes have proper values
-  const validatedRoutes = routes.map(route => ({
-    ...route,
-    distance: typeof route.distance === 'number' && !isNaN(route.distance) ? route.distance : 0,
-    elevation: typeof route.elevation === 'number' && !isNaN(route.elevation) ? route.elevation : 0,
-    calories: typeof route.calories === 'number' && !isNaN(route.calories) ? route.calories : 0,
-    duration: route.duration || "0:00:00",
-    name: route.name || "Unnamed Route",
-    date: route.date || new Date().toISOString().split('T')[0]
-  }));
+  const validatedRoutes = routes.map(route => {
+    // Make sure duration is never 0s or invalid
+    const validDuration = ensureValidDuration(route.duration);
+    
+    return {
+      ...route,
+      distance: typeof route.distance === 'number' && !isNaN(route.distance) ? route.distance : 0,
+      elevation: typeof route.elevation === 'number' && !isNaN(route.elevation) ? route.elevation : 0,
+      calories: typeof route.calories === 'number' && !isNaN(route.calories) ? route.calories : 0,
+      duration: validDuration,
+      name: route.name || "Unnamed Route",
+      date: route.date || new Date().toISOString().split('T')[0]
+    };
+  });
 
   const handleWahooImport = async () => {
     if (!user) {
@@ -142,7 +147,7 @@ export function RoutesTabContent({ routes }: Props) {
                         <Clock className="w-4 h-4 mr-1" />
                         <span>Duration</span>
                       </div>
-                      <p className="font-semibold">{formatDurationDisplay(route.duration)}</p>
+                      <p className="font-semibold">{formatDuration(route.duration)}</p>
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center text-sm text-muted-foreground">

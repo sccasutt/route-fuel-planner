@@ -63,6 +63,43 @@ export function parseDurationToSeconds(durationString: string): number {
     return parseInt(durationString, 10);
   }
   
+  // Check if it's just "0s" or similar
+  if (durationString.endsWith('s') && !durationString.includes('m') && !durationString.includes('h')) {
+    const seconds = parseInt(durationString.replace('s', ''), 10);
+    return isNaN(seconds) ? 0 : seconds;
+  }
+  
+  // Handle 1h 30m format
+  if (durationString.includes('h') || durationString.includes('m')) {
+    let totalSeconds = 0;
+    
+    // Extract hours
+    if (durationString.includes('h')) {
+      const hoursMatch = durationString.match(/(\d+)h/);
+      if (hoursMatch && hoursMatch[1]) {
+        totalSeconds += parseInt(hoursMatch[1], 10) * 3600;
+      }
+    }
+    
+    // Extract minutes
+    if (durationString.includes('m')) {
+      const minutesMatch = durationString.match(/(\d+)m/);
+      if (minutesMatch && minutesMatch[1]) {
+        totalSeconds += parseInt(minutesMatch[1], 10) * 60;
+      }
+    }
+    
+    // Extract seconds
+    if (durationString.includes('s')) {
+      const secondsMatch = durationString.match(/(\d+)s/);
+      if (secondsMatch && secondsMatch[1]) {
+        totalSeconds += parseInt(secondsMatch[1], 10);
+      }
+    }
+    
+    return totalSeconds;
+  }
+  
   const parts = durationString.split(':');
   
   if (parts.length === 3) {
@@ -136,4 +173,38 @@ export function formatShortDate(date: Date | string): string {
   }
   
   return dateObj.toLocaleDateString();
+}
+
+/**
+ * Ensure a duration value is properly formatted for display
+ * @param duration Duration in various formats
+ * @returns A formatted duration string or "1m" as default
+ */
+export function ensureValidDuration(duration: any): string {
+  // If null, undefined or empty
+  if (!duration) return "1m";
+  
+  // If it's already a string in our display format (e.g. "2h 30m")
+  if (typeof duration === 'string' && 
+      (duration.includes('h') || duration.includes('m') || duration.includes('s'))) {
+    // Make sure it's not just "0s"
+    if (duration === "0s") return "1m";
+    return duration;
+  }
+  
+  // If it's a number in seconds
+  if (typeof duration === 'number') {
+    if (duration <= 0) return "1m";
+    return formatDuration(duration);
+  }
+  
+  // If it's a string in HH:MM:SS format
+  if (typeof duration === 'string') {
+    const seconds = parseDurationToSeconds(duration);
+    if (seconds <= 0) return "1m";
+    return formatDuration(seconds);
+  }
+  
+  // Default fallback
+  return "1m";
 }

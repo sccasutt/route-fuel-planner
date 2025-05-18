@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Map, TrendingUp, Clock, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { formatDuration } from "@/lib/utils";
+import { formatDuration, ensureValidDuration } from "@/lib/utils";
 
 interface RouteType {
   id: string;
@@ -29,40 +29,45 @@ export function RecentRoutesSection({ routes }: Props) {
         </Link>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {routes.map((route) => (
-          <Card key={route.id} className="overflow-hidden">
-            <div className="h-2 bg-primary" />
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">{route.name}</CardTitle>
-              <CardDescription>{route.date}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex items-center">
-                  <Map className="w-4 h-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{route.distance.toFixed(1)} km</span>
+        {routes.map((route) => {
+          // Make sure duration is never 0s or invalid
+          const displayDuration = ensureValidDuration(route.duration);
+          
+          return (
+            <Card key={route.id} className="overflow-hidden">
+              <div className="h-2 bg-primary" />
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">{route.name}</CardTitle>
+                <CardDescription>{route.date}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center">
+                    <Map className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{route.distance.toFixed(1)} km</span>
+                  </div>
+                  <div className="flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{route.elevation.toFixed(0)} m</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{formatDuration(displayDuration)}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <LineChart className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{route.calories} kcal</span>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <TrendingUp className="w-4 h-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{route.elevation.toFixed(0)} m</span>
-                </div>
-                <div className="flex items-center">
-                  <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{formatDuration(route.duration)}</span>
-                </div>
-                <div className="flex items-center">
-                  <LineChart className="w-4 h-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{route.calories} kcal</span>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Link to={`/routes/${route.id}`}>
-                <Button variant="ghost" size="sm">View Details</Button>
-              </Link>
-            </CardFooter>
-          </Card>
-        ))}
+              </CardContent>
+              <CardFooter>
+                <Link to={`/routes/${route.id}`}>
+                  <Button variant="ghost" size="sm">View Details</Button>
+                </Link>
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
