@@ -42,6 +42,44 @@ export type Database = {
         }
         Relationships: []
       }
+      route_points: {
+        Row: {
+          elevation: number | null
+          id: number
+          lat: number
+          lng: number
+          recorded_at: string | null
+          route_id: string
+          sequence_index: number
+        }
+        Insert: {
+          elevation?: number | null
+          id?: number
+          lat: number
+          lng: number
+          recorded_at?: string | null
+          route_id: string
+          sequence_index: number
+        }
+        Update: {
+          elevation?: number | null
+          id?: number
+          lat?: number
+          lng?: number
+          recorded_at?: string | null
+          route_id?: string
+          sequence_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_points_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       route_weather: {
         Row: {
           conditions: string | null

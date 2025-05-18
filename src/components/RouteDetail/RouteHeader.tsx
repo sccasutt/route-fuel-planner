@@ -1,31 +1,53 @@
 
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
+import { formatShortDate } from "@/lib/utils";
+import { ExtractRouteDataButton } from "./ExtractRouteDataButton";
+import { useState } from "react";
 
 interface RouteHeaderProps {
   name: string;
   date: string;
+  routeId?: string;
+  gpxFileUrl?: string | null;
+  fileUrl?: string | null;
 }
 
-export function RouteHeader({ name, date }: RouteHeaderProps) {
+export function RouteHeader({ 
+  name, 
+  date, 
+  routeId,
+  gpxFileUrl,
+  fileUrl 
+}: RouteHeaderProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  const handleExtractSuccess = () => {
+    // Increment the refresh key to trigger a re-fetch of data in parent components
+    setRefreshKey(prev => prev + 1);
+  };
+
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-      <div className="flex items-center gap-2">
-        <Link to="/dashboard">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold">{name}</h1>
-        <Button variant="ghost" size="icon">
-          <Pencil className="h-4 w-4" />
-        </Button>
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+      <div>
+        <h1 className="text-3xl font-bold mb-2">{name}</h1>
+        <div className="flex items-center text-muted-foreground">
+          <Calendar className="h-4 w-4 mr-2" />
+          <span>{formatShortDate(date)}</span>
+        </div>
       </div>
-      <div className="text-sm text-muted-foreground flex items-center gap-2">
-        <Calendar className="h-4 w-4" />
-        {date}
-      </div>
+      
+      {/* Show the extract button if we have a routeId and file URL */}
+      {routeId && (gpxFileUrl || fileUrl) && (
+        <ExtractRouteDataButton 
+          routeId={routeId}
+          gpxFileUrl={gpxFileUrl}
+          fileUrl={fileUrl}
+          onSuccess={handleExtractSuccess}
+        />
+      )}
+      
+      {/* Hidden element to trigger re-renders */}
+      <input type="hidden" value={refreshKey} />
     </div>
   );
 }

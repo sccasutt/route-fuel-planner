@@ -24,7 +24,13 @@ const RouteDetail = () => {
   return (
     <Layout>
       <div className="container py-8">
-        <RouteHeader name={routeData.name} date={routeData.date} />
+        <RouteHeader 
+          name={routeData.name} 
+          date={routeData.date} 
+          routeId={routeData.id}
+          gpxFileUrl={routeData.gpx_file_url}
+          fileUrl={routeData.file_url}
+        />
         
         <RouteSummaryCards 
           distance={routeData.distance || 0} 
