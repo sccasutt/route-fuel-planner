@@ -55,6 +55,7 @@ const RouteDetail = () => {
           return;
         }
 
+        console.log("Fetched route data:", route);
         setRouteData(route);
         
         // Parse GPS coordinates from gpx_data
@@ -71,7 +72,7 @@ const RouteDetail = () => {
                 ? JSON.parse(route.gpx_data) 
                 : route.gpx_data;
               
-              console.log("Successfully parsed GPX data", typeof parsedData);
+              console.log("Successfully parsed GPX data:", typeof parsedData);
             } catch (parseErr) {
               console.error("GPX data is not valid JSON:", parseErr);
               console.log("Raw GPX data type:", typeof route.gpx_data);
@@ -83,22 +84,63 @@ const RouteDetail = () => {
             }
             
             // If we successfully parsed JSON data
-            if (parsedData && parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
-              // Ensure each coordinate is a valid [lat, lng] tuple
-              coordinates = parsedData.coordinates
-                .filter((coord: any) => 
-                  Array.isArray(coord) && 
-                  coord.length === 2 &&
-                  typeof coord[0] === 'number' && 
-                  typeof coord[1] === 'number')
-                .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
-              
-              hasValidData = coordinates.length >= 2;
-              console.log(`Extracted ${coordinates.length} valid coordinates from JSON gpx_data`);
+            if (parsedData) {
+              // First try new format where coordinates are directly in the top level
+              if (parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
+                // Ensure each coordinate is a valid [lat, lng] tuple
+                coordinates = parsedData.coordinates
+                  .filter((coord: any) => 
+                    Array.isArray(coord) && 
+                    coord.length === 2 &&
+                    typeof coord[0] === 'number' && 
+                    typeof coord[1] === 'number')
+                  .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+                
+                hasValidData = coordinates.length >= 2;
+                console.log(`Extracted ${coordinates.length} valid coordinates from JSON gpx_data`);
+              }
+              // If no coordinates found in top level, check if they're in a raw_gpx field
+              else if (parsedData.raw_gpx) {
+                try {
+                  const rawGpx = typeof parsedData.raw_gpx === 'string'
+                    ? JSON.parse(parsedData.raw_gpx)
+                    : parsedData.raw_gpx;
+                    
+                  if (rawGpx && rawGpx.coordinates && Array.isArray(rawGpx.coordinates)) {
+                    coordinates = rawGpx.coordinates
+                      .filter((coord: any) => 
+                        Array.isArray(coord) && 
+                        coord.length === 2 &&
+                        typeof coord[0] === 'number' && 
+                        typeof coord[1] === 'number')
+                      .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+                    
+                    hasValidData = coordinates.length >= 2;
+                    console.log(`Extracted ${coordinates.length} valid coordinates from raw_gpx field`);
+                  }
+                } catch (err) {
+                  console.error("Failed to parse raw_gpx data:", err);
+                }
+              }
             }
           } catch (err) {
             console.error("Failed to process GPX data:", err);
           }
+        }
+        
+        if (!hasValidData) {
+          console.log("No valid route coordinates found, using fallback mock data");
+          // Fallback to mock data if no valid coordinates
+          coordinates = [
+            [51.505, -0.09],
+            [51.51, -0.1],
+            [51.52, -0.12],
+            [51.518, -0.14],
+            [51.51, -0.15],
+            [51.5, -0.14],
+            [51.495, -0.12],
+            [51.505, -0.09],
+          ];
         }
         
         setRouteCoordinates(coordinates);

@@ -1,4 +1,3 @@
-
 // Formatter for Wahoo activity data
 import { extractNestedValue, formatDurationString, durationToSeconds, parseNumericValue } from "./wahooUtils.ts";
 
@@ -148,13 +147,20 @@ export function formatWahooActivities(activities: any[]) {
       distance = distance / 1000;
     }
     
-    // Extract GPS coordinates from different possible sources based on Wahoo API formats
-    let gpxData = null;
+    // Extract GPS coordinates from different possible sources
+    let coordinates: [number, number][] = [];
+    let gpxRawData = null;
     
-    // First check for route points or coordinates
+    // IMPORTANT: First preserve the original raw GPX data if available
+    // This ensures we keep the complete data for later use
+    if (activity.gpx_data) {
+      gpxRawData = activity.gpx_data;
+    } else if (activity.route_gpx || activity.gpx || activity.gpx_string) {
+      gpxRawData = activity.route_gpx || activity.gpx || activity.gpx_string;
+    }
+    
+    // Next extract route points or coordinates for visualization
     if (activity.route_points || activity.coordinates || activity.latlng || activity.path || activity.points) {
-      let coordinates: [number, number][] = [];
-      
       if (Array.isArray(activity.route_points)) {
         coordinates = activity.route_points
           .filter((point: any) => point.lat && point.lng)
@@ -181,19 +187,14 @@ export function formatWahooActivities(activities: any[]) {
             return [lat, lng] as [number, number];
           });
       }
-      
-      if (coordinates.length > 0) {
-        gpxData = JSON.stringify({ coordinates });
-        console.log(`Extracted ${coordinates.length} coordinates for activity ${id}`);
-      }
     }
     
     // If no coordinates found yet, try track_points
-    if (!gpxData && (activity.track_points || activity.track_data)) {
+    if (coordinates.length === 0 && (activity.track_points || activity.track_data)) {
       const trackData = activity.track_points || activity.track_data;
       if (Array.isArray(trackData)) {
         try {
-          const coordinates = trackData
+          coordinates = trackData
             .filter((point: any) => {
               return (point.lat !== undefined && point.lon !== undefined) || 
                      (point.latitude !== undefined && point.longitude !== undefined);
@@ -203,15 +204,41 @@ export function formatWahooActivities(activities: any[]) {
               const lng = point.lon !== undefined ? point.lon : point.longitude;
               return [lat, lng] as [number, number];
             });
-          
-          if (coordinates.length > 0) {
-            gpxData = JSON.stringify({ coordinates });
-            console.log(`Extracted ${coordinates.length} coordinates from track_points for activity ${id}`);
-          }
         } catch (err) {
           console.error(`Error processing track points for activity ${id}:`, err);
         }
       }
+    }
+    
+    // Create the GPX data object that will be stored in the database
+    // This ensures we store both raw GPX data (if available) and extracted coordinates
+    let gpxData: string | null = null;
+    
+    // If we have coordinates, store them in a standardized format
+    if (coordinates.length > 0) {
+      gpxData = JSON.stringify({ 
+        coordinates,
+        raw_gpx: gpxRawData  // Store the raw GPX data if available
+      });
+      console.log(`Created GPX data with ${coordinates.length} coordinates for activity ${id}`);
+    }
+    // If we only have raw GPX data but no coordinates, still store it
+    else if (gpxRawData) {
+      try {
+        // Check if raw data is already JSON
+        const parsed = typeof gpxRawData === 'string' ? JSON.parse(gpxRawData) : gpxRawData;
+        gpxData = JSON.stringify({
+          coordinates: parsed.coordinates || [],
+          raw_gpx: gpxRawData
+        });
+      } catch (e) {
+        // If not JSON, store as raw string but in our container format
+        gpxData = JSON.stringify({
+          coordinates: [],
+          raw_gpx: gpxRawData
+        });
+      }
+      console.log(`Stored raw GPX data for activity ${id} but no coordinates could be extracted`);
     }
 
     // If we have a gpx_file_url, include that in the metadata
@@ -233,7 +260,7 @@ export function formatWahooActivities(activities: any[]) {
       duration,
       duration_seconds: durationSeconds,
       calories,
-      gpx_data: gpxData || activity.gpx_data || null,
+      gpx_data: gpxData,  // Now consistently storing both coordinates and raw data
       type: activityType,
       gpx_file_url: gpxFileUrl,
       additional_data: {

@@ -52,19 +52,43 @@ export function RecentRoutesSection({ routes }: Props) {
               ? JSON.parse(route.gpx_data) 
               : route.gpx_data;
               
-            if (parsed && parsed.coordinates && Array.isArray(parsed.coordinates)) {
-              // Filter coordinates to ensure they're valid [lat, lng] pairs
-              routeCoords = parsed.coordinates
-                .filter((coord: any) => 
-                  Array.isArray(coord) && 
-                  coord.length === 2 && 
-                  typeof coord[0] === 'number' && 
-                  typeof coord[1] === 'number')
-                .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
-                
-              console.log(`Extracted ${routeCoords.length} valid coordinates for route ${route.id}`);
-            } else {
-              console.log(`Route ${route.id} has gpx_data but no valid coordinates array`, parsed);
+            if (parsed) {
+              // First check for coordinates in the standard format
+              if (parsed.coordinates && Array.isArray(parsed.coordinates)) {
+                routeCoords = parsed.coordinates
+                  .filter((coord: any) => 
+                    Array.isArray(coord) && 
+                    coord.length === 2 && 
+                    typeof coord[0] === 'number' && 
+                    typeof coord[1] === 'number')
+                  .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+                  
+                console.log(`Extracted ${routeCoords.length} valid coordinates for route ${route.id}`);
+              } 
+              // If no coordinates found, check if the raw GPX might have them
+              else if (parsed.raw_gpx) {
+                try {
+                  const rawParsed = typeof parsed.raw_gpx === 'string'
+                    ? JSON.parse(parsed.raw_gpx)
+                    : parsed.raw_gpx;
+                    
+                  if (rawParsed && rawParsed.coordinates && Array.isArray(rawParsed.coordinates)) {
+                    routeCoords = rawParsed.coordinates
+                      .filter((coord: any) => 
+                        Array.isArray(coord) && 
+                        coord.length === 2 && 
+                        typeof coord[0] === 'number' && 
+                        typeof coord[1] === 'number')
+                      .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+                      
+                    console.log(`Extracted ${routeCoords.length} valid coordinates from raw GPX for route ${route.id}`);
+                  }
+                } catch (err) {
+                  console.warn(`Failed to parse raw GPX data for route ${route.id}:`, err);
+                }
+              } else {
+                console.log(`Route ${route.id} has gpx_data but no valid coordinates array`, parsed);
+              }
             }
           } catch (err) {
             console.warn(`Failed to parse GPX data for route ${route.id}:`, err);
