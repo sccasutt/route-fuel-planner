@@ -9,10 +9,17 @@ interface ExtractRouteDataButtonProps {
   routeId: string;
   gpxFileUrl?: string | null;
   fileUrl?: string | null;
+  wahooRouteId?: string | null;
   onSuccess?: () => void;
 }
 
-export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess }: ExtractRouteDataButtonProps) {
+export function ExtractRouteDataButton({ 
+  routeId, 
+  gpxFileUrl, 
+  fileUrl, 
+  wahooRouteId,
+  onSuccess 
+}: ExtractRouteDataButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const { toast } = useToast();
@@ -30,6 +37,7 @@ export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess
       // Log the parameters we're sending
       console.log("Extracting data with params:", {
         route_id: routeId,
+        wahoo_route_id: wahooRouteId,
         gpx_url: gpxFileUrl,
         file_url: fileUrl
       });
@@ -38,6 +46,7 @@ export function ExtractRouteDataButton({ routeId, gpxFileUrl, fileUrl, onSuccess
       const { data, error } = await supabase.functions.invoke("gpx-parser", {
         body: {
           route_id: routeId,
+          wahoo_route_id: wahooRouteId,
           gpx_url: gpxFileUrl,
           file_url: fileUrl
         }

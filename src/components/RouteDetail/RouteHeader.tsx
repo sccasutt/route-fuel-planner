@@ -10,6 +10,7 @@ interface RouteHeaderProps {
   routeId?: string;
   gpxFileUrl?: string | null;
   fileUrl?: string | null;
+  wahooRouteId?: string | null;
 }
 
 export function RouteHeader({ 
@@ -17,7 +18,8 @@ export function RouteHeader({
   date, 
   routeId,
   gpxFileUrl,
-  fileUrl 
+  fileUrl,
+  wahooRouteId
 }: RouteHeaderProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   
@@ -42,6 +44,7 @@ export function RouteHeader({
           routeId={routeId}
           gpxFileUrl={gpxFileUrl}
           fileUrl={fileUrl}
+          wahooRouteId={wahooRouteId}
           onSuccess={handleExtractSuccess}
         />
       )}

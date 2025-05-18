@@ -30,6 +30,7 @@ const RouteDetail = () => {
           routeId={routeData.id}
           gpxFileUrl={routeData.gpx_file_url}
           fileUrl={routeData.file_url}
+          wahooRouteId={routeData.wahoo_route_id}
         />
         
         <RouteSummaryCards 

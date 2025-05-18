@@ -18,8 +18,22 @@ export async function storeRoutePoints(
   console.log(`Storing ${points.length} points for route ${routeId}`);
   
   try {
+    // First delete any existing points for this route to avoid duplicates
+    console.log(`Removing any existing points for route ${routeId}`);
+    const { error: deleteError } = await client
+      .from('route_points')
+      .delete()
+      .eq('route_id', routeId);
+      
+    if (deleteError) {
+      console.error("Error deleting existing route points:", deleteError);
+      // Continue with insertion attempt even if deletion fails
+    } else {
+      console.log("Successfully cleared any existing route points");
+    }
+    
     // Process in batches to avoid potential size limits
-    const batchSize = 100;
+    const batchSize = 50; // Smaller batch size for more reliable processing
     let insertedCount = 0;
     
     for (let i = 0; i < points.length; i += batchSize) {
@@ -33,14 +47,20 @@ export async function storeRoutePoints(
         recorded_at: point.timestamp ? new Date(point.timestamp).toISOString() : null
       }));
       
-      console.log(`Inserting batch ${Math.floor(i / batchSize) + 1} with ${batch.length} points`);
+      console.log(`Inserting batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(points.length / batchSize)} with ${batch.length} points`);
+      
+      // Log sample points for debugging
+      if (values.length > 0) {
+        console.log(`Sample point [0]: lat=${values[0].lat}, lng=${values[0].lng}, ele=${values[0].elevation}`);
+        if (values.length > 1) {
+          const last = values[values.length - 1];
+          console.log(`Sample point [last]: lat=${last.lat}, lng=${last.lng}, ele=${last.elevation}`);
+        }
+      }
       
       const { data, error } = await client
         .from('route_points')
-        .upsert(values, { 
-          onConflict: 'route_id,sequence_index',
-          ignoreDuplicates: false 
-        });
+        .insert(values);
       
       if (error) {
         console.error("Error storing route points batch:", error);

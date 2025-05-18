@@ -13,33 +13,42 @@ Deno.serve(async (req) => {
   try {
     // Parse request body
     const body = await req.json();
-    const { gpx_url, file_url, route_id } = body;
+    const { gpx_url, file_url, route_id, wahoo_route_id } = body;
     
     // Use either gpx_url or file_url (for Wahoo files)
     const url = gpx_url || file_url;
     
     if (!url) {
       return new Response(
-        JSON.stringify({ error: 'No URL provided' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'No URL provided',
+          message: 'No GPX or file URL was provided' 
+        }),
         { status: 400, headers: corsHeaders }
       );
     }
     
     if (!route_id) {
       return new Response(
-        JSON.stringify({ error: 'No route_id provided' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'No route_id provided',
+          message: 'Route ID is required to extract data' 
+        }),
         { status: 400, headers: corsHeaders }
       );
     }
     
-    console.log("Fetching file from URL:", url, "for route:", route_id);
+    console.log(`Processing route [${route_id}] with wahoo_route_id [${wahoo_route_id || 'not provided'}] and file URL: ${url}`);
     
     // Set timeout to prevent infinite waiting
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
     
     try {
       // Extract coordinates and detailed points from the file
+      console.log("Extracting coordinates and detailed points from file...");
       const { coordinates, detailedPoints } = await extractCoordinatesFromFitFile(url);
       
       clearTimeout(timeoutId);
@@ -47,6 +56,7 @@ Deno.serve(async (req) => {
       console.log(`Extracted ${coordinates.length} coordinates and ${detailedPoints.length} detailed points from file`);
       
       // Create Supabase client to store the detailed points
+      console.log("Creating Supabase client...");
       const supabaseClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -55,11 +65,16 @@ Deno.serve(async (req) => {
       // Store the detailed points in the route_points table
       let pointsInserted = 0;
       if (detailedPoints.length > 0) {
+        console.log(`Storing ${detailedPoints.length} detailed points for route ${route_id}...`);
         pointsInserted = await storeRoutePoints(supabaseClient, route_id, detailedPoints);
+        console.log(`Successfully stored ${pointsInserted} points in the database`);
+      } else {
+        console.log("No detailed points found to store");
       }
       
       // Also update the coordinates field in the routes table for quick access
       if (coordinates.length > 0) {
+        console.log("Updating route coordinates in routes table...");
         const { error: updateError } = await supabaseClient
           .from('routes')
           .update({ coordinates })
@@ -67,6 +82,8 @@ Deno.serve(async (req) => {
           
         if (updateError) {
           console.error("Error updating route coordinates:", updateError);
+        } else {
+          console.log("Successfully updated route coordinates");
         }
       }
       
@@ -76,7 +93,11 @@ Deno.serve(async (req) => {
           coordinates,
           source: 'file_url',
           coordinateCount: coordinates.length,
-          pointsInserted
+          pointsInserted,
+          wahoo_route_id: wahoo_route_id || null,
+          message: pointsInserted > 0 
+            ? `Successfully extracted ${pointsInserted} route points` 
+            : "No route points could be extracted"
         }),
         { status: 200, headers: corsHeaders }
       );
@@ -84,6 +105,7 @@ Deno.serve(async (req) => {
       console.error("Error fetching or processing file:", fetchError);
       return new Response(
         JSON.stringify({ 
+          success: false,
           error: 'Error fetching or processing file', 
           details: fetchError.message || String(fetchError)
         }),
@@ -93,7 +115,11 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("Error processing request:", err);
     return new Response(
-      JSON.stringify({ error: 'Server error', details: err.message || String(err) }),
+      JSON.stringify({ 
+        success: false, 
+        error: 'Server error', 
+        details: err.message || String(err) 
+      }),
       { status: 500, headers: corsHeaders }
     );
   }
