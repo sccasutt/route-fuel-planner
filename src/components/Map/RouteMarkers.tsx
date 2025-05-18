@@ -19,66 +19,78 @@ export function RouteMarkers({
   center
 }: RouteMarkersProps) {
   useEffect(() => {
-    if (!map) return;
+    // Safety check - if map isn't initialized yet, don't proceed
+    if (!map || !map.getContainer()) return;
     
-    // Create marker icons
-    const DefaultIcon = createMapIcon({
-      iconUrl: DEFAULT_ICON_URL,
-      shadowUrl: DEFAULT_SHADOW_URL,
-      iconSize: [25, 41],
-      iconAnchor: [12, 41]
-    });
-    
-    // Set default icon for all markers
-    L.Marker.prototype.options.icon = DefaultIcon;
-    
-    const StartIcon = createMapIcon({
-      iconUrl: DEFAULT_ICON_URL,
-      shadowUrl: DEFAULT_SHADOW_URL,
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      className: 'start-icon'
-    });
-    
-    const EndIcon = createMapIcon({
-      iconUrl: DEFAULT_ICON_URL,
-      shadowUrl: DEFAULT_SHADOW_URL,
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      className: 'end-icon'
-    });
-
-    // Add start and end markers if provided
-    if (startPoint) {
-      L.marker(startPoint, { icon: StartIcon }).addTo(map)
-        .bindPopup('Start');
+    // Make sure the map is properly loaded and visible
+    const container = map.getContainer();
+    if (!container || container.clientHeight === 0 || container.clientWidth === 0) {
+      console.log("Map container not ready yet, skipping marker initialization");
+      return;
     }
     
-    if (endPoint) {
-      L.marker(endPoint, { icon: EndIcon }).addTo(map)
-        .bindPopup('Finish');
-    }
-
-    // If we have route coordinates but no explicit start/end points
-    if (routeCoordinates && routeCoordinates.length > 1 && !startPoint && !endPoint) {
-      const firstPoint = routeCoordinates[0];
-      const lastPoint = routeCoordinates[routeCoordinates.length - 1];
+    try {
+      // Create marker icons
+      const DefaultIcon = createMapIcon({
+        iconUrl: DEFAULT_ICON_URL,
+        shadowUrl: DEFAULT_SHADOW_URL,
+        iconSize: [25, 41],
+        iconAnchor: [12, 41]
+      });
       
-      // Add start marker
-      L.marker(firstPoint, { icon: StartIcon }).addTo(map)
-        .bindPopup('Start');
-        
-      // Add end marker
-      L.marker(lastPoint, { icon: EndIcon }).addTo(map)
-        .bindPopup('Finish');
-    }
+      // Set default icon for all markers
+      L.Marker.prototype.options.icon = DefaultIcon;
+      
+      const StartIcon = createMapIcon({
+        iconUrl: DEFAULT_ICON_URL,
+        shadowUrl: DEFAULT_SHADOW_URL,
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        className: 'start-icon'
+      });
+      
+      const EndIcon = createMapIcon({
+        iconUrl: DEFAULT_ICON_URL,
+        shadowUrl: DEFAULT_SHADOW_URL,
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        className: 'end-icon'
+      });
 
-    // If no route coordinates and no start/end points, add a marker at center
-    if ((!routeCoordinates || routeCoordinates.length === 0) && 
-        (!startPoint && !endPoint)) {
-      L.marker(center).addTo(map)
-        .bindPopup('Route location')
-        .openPopup();
+      // Add start and end markers if provided
+      if (startPoint) {
+        L.marker(startPoint, { icon: StartIcon }).addTo(map)
+          .bindPopup('Start');
+      }
+      
+      if (endPoint) {
+        L.marker(endPoint, { icon: EndIcon }).addTo(map)
+          .bindPopup('Finish');
+      }
+
+      // If we have route coordinates but no explicit start/end points
+      if (routeCoordinates && routeCoordinates.length > 1 && !startPoint && !endPoint) {
+        const firstPoint = routeCoordinates[0];
+        const lastPoint = routeCoordinates[routeCoordinates.length - 1];
+        
+        // Add start marker
+        L.marker(firstPoint, { icon: StartIcon }).addTo(map)
+          .bindPopup('Start');
+          
+        // Add end marker
+        L.marker(lastPoint, { icon: EndIcon }).addTo(map)
+          .bindPopup('Finish');
+      }
+
+      // If no route coordinates and no start/end points, add a marker at center
+      if ((!routeCoordinates || routeCoordinates.length === 0) && 
+          (!startPoint && !endPoint)) {
+        L.marker(center).addTo(map)
+          .bindPopup('Route location')
+          .openPopup();
+      }
+    } catch (error) {
+      console.error("Error initializing map markers:", error);
     }
 
     // Cleanup function

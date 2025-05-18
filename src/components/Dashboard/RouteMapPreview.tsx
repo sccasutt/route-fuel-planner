@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import RouteMap from "../Map/RouteMap";
 
 interface RouteMapPreviewProps {
@@ -15,6 +15,14 @@ export function RouteMapPreview({
   height = "100px",
   routeType = "activity"
 }: RouteMapPreviewProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  
+  // Only render map when component is visible
+  useEffect(() => {
+    setIsVisible(true);
+    return () => setIsVisible(false);
+  }, []);
+  
   // Set route style based on route type
   const getRouteStyle = () => {
     switch(routeType?.toLowerCase()) {
@@ -41,16 +49,18 @@ export function RouteMapPreview({
 
   return (
     <div className="h-[100px] w-full mb-2">
-      <RouteMap
-        center={routeCoordinates[0]}
-        zoom={11}
-        height="100%"
-        className="rounded-md border border-border/50"
-        showControls={false}
-        routeCoordinates={routeCoordinates}
-        mapStyle="default"
-        routeStyle={getRouteStyle()}
-      />
+      {isVisible && (
+        <RouteMap
+          center={routeCoordinates[0] || [51.505, -0.09]}
+          zoom={11}
+          height="100%"
+          className="rounded-md border border-border/50"
+          showControls={false}
+          routeCoordinates={routeCoordinates}
+          mapStyle="default"
+          routeStyle={getRouteStyle()}
+        />
+      )}
     </div>
   );
 }
