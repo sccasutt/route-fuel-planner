@@ -134,7 +134,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
         <CardHeader>
           <CardTitle>Recent Route</CardTitle>
           <CardDescription>
-            {mostRecentActivity.name} - {mostRecentActivity.date}
+            {mostRecentActivity.name} - {new Date(mostRecentActivity.date).toLocaleDateString()}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -171,7 +171,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
             <div className="h-2 bg-primary" />
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">{activity.name}</CardTitle>
-              <CardDescription>{activity.date}</CardDescription>
+              <CardDescription>{new Date(activity.date).toLocaleDateString()}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-2">
               <div className="h-[120px] w-full mb-2">

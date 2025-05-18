@@ -11,6 +11,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import RouteDetail from "./pages/RouteDetail";
+import RoutesPage from "./pages/Routes";
 import NotFound from "./pages/NotFound";
 import PreQuestionnaire from "./pages/PreQuestionnaire";
 import AuthPage from "./pages/Auth";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/pre-questionnaire" element={<PreQuestionnaire />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/routes" element={<RoutesPage />} />
             <Route path="/routes/:id" element={<RouteDetail />} />
             <Route path="/wahoo-callback" element={<WahooCallback />} />
             <Route path="*" element={<NotFound />} />

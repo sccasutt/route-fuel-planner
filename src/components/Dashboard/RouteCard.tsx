@@ -36,7 +36,7 @@ export function RouteCard({
   
   return (
     <Card className="overflow-hidden">
-      <Link to={`/route/${id}`} className="block">
+      <Link to={`/routes/${id}`} className="block">
         <div className="relative">
           <RouteMapPreview 
             routeCoordinates={routeCoordinates} 
