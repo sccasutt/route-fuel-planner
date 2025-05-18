@@ -1,5 +1,4 @@
 
-
 // Function that handles inserting or updating profile and routes
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -46,7 +45,25 @@ export async function upsertWahooProfile(client: SupabaseClient, userId: string,
 }
 
 /**
- * Upserts routes for a user
+ * Improved function to parse numeric values safely
+ */
+function parseNumericValue(value: any, defaultValue: number = 0): number {
+  if (value === null || value === undefined) return defaultValue;
+  
+  if (typeof value === 'number') {
+    return !isNaN(value) ? value : defaultValue;
+  }
+  
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return !isNaN(parsed) ? parsed : defaultValue;
+  }
+  
+  return defaultValue;
+}
+
+/**
+ * Upserts routes for a user with improved data parsing
  */
 export async function upsertRoutes(client: SupabaseClient, userId: string, activities: any[]) {
   console.log(`Upserting routes for user: ${userId} Activities count: ${activities.length}`);
@@ -65,55 +82,53 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
     
     // Log sample activity for debugging
     if (i === 0 && batch.length > 0) {
-      console.log(`Sample activity for insertion:`, {
-        id: batch[0].id,
-        name: batch[0].name,
-        distance: batch[0].distance,
-        elevation: batch[0].elevation,
-        calories: batch[0].calories,
-        duration: batch[0].duration,
-        type: typeof batch[0].distance
-      });
+      console.log(`Sample activity for insertion:`, JSON.stringify(batch[0], null, 2));
     }
     
-    // Transform the activities into the routes schema
+    // Transform the activities into the routes schema with improved parsing
     const routes = batch.map(activity => {
-      // Extract numeric values with improved parsing
+      // Extract values with robust parsing
       
-      // Handle distance - try to extract from different possible sources
+      // Parse distance with various fallback paths
       let distance = 0;
-      if (typeof activity.distance === 'number' && !isNaN(activity.distance)) {
-        distance = activity.distance;
-      } else if (typeof activity.distance === 'string') {
-        distance = parseFloat(activity.distance) || 0;
+      if (activity.distance !== undefined) {
+        distance = parseNumericValue(activity.distance);
       } else if (activity.workout_summary?.distance_accum) {
-        distance = parseFloat(activity.workout_summary.distance_accum) || 0;
+        distance = parseNumericValue(activity.workout_summary.distance_accum);
       } else if (activity.distance_accum) {
-        distance = parseFloat(activity.distance_accum) || 0;
+        distance = parseNumericValue(activity.distance_accum);
+      } else if (activity.total_distance) {
+        distance = parseNumericValue(activity.total_distance);
       }
       
-      // Handle elevation - try to extract from different possible sources
+      // Convert distance from meters to kilometers if needed
+      if (distance > 1000 && distance < 1000000) {
+        console.log(`Converting large distance value ${distance} to kilometers`);
+        distance = distance / 1000; // Convert meters to kilometers
+      }
+      
+      // Handle elevation with various fallback paths
       let elevation = 0;
-      if (typeof activity.elevation === 'number' && !isNaN(activity.elevation)) {
-        elevation = activity.elevation;
-      } else if (typeof activity.elevation === 'string') {
-        elevation = parseFloat(activity.elevation) || 0;
+      if (activity.elevation !== undefined) {
+        elevation = parseNumericValue(activity.elevation);
+      } else if (activity.elevation_gain !== undefined) {
+        elevation = parseNumericValue(activity.elevation_gain);
       } else if (activity.workout_summary?.ascent_accum) {
-        elevation = parseFloat(activity.workout_summary.ascent_accum) || 0;
-      } else if (activity.elevation_gain) {
-        elevation = parseFloat(activity.elevation_gain) || 0;
+        elevation = parseNumericValue(activity.workout_summary.ascent_accum);
+      } else if (activity.altitude_gain) {
+        elevation = parseNumericValue(activity.altitude_gain);
+      } else if (activity.total_ascent) {
+        elevation = parseNumericValue(activity.total_ascent);
       }
       
-      // Handle calories - try to extract from different possible sources
+      // Handle calories with various fallback paths
       let calories = 0;
-      if (typeof activity.calories === 'number' && !isNaN(activity.calories)) {
-        calories = activity.calories;
-      } else if (typeof activity.calories === 'string') {
-        calories = parseInt(activity.calories, 10) || 0;
+      if (activity.calories !== undefined) {
+        calories = parseNumericValue(activity.calories, 0);
+      } else if (activity.energy !== undefined) {
+        calories = parseNumericValue(activity.energy, 0);
       } else if (activity.workout_summary?.calories_accum) {
-        calories = parseInt(activity.workout_summary.calories_accum, 10) || 0;
-      } else if (activity.energy) {
-        calories = parseInt(activity.energy, 10) || 0;
+        calories = parseNumericValue(activity.workout_summary.calories_accum, 0);
       }
       
       // Format the date consistently
@@ -135,7 +150,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       let duration = "0:00:00";
       if (activity.duration) {
         if (typeof activity.duration === 'number') {
-          // Convert minutes/seconds to HH:MM:SS format
+          // Convert seconds to HH:MM:SS format
           const totalSeconds = Math.round(activity.duration);
           const hours = Math.floor(totalSeconds / 3600);
           const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -143,6 +158,13 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
           duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         } else if (typeof activity.duration === 'string') {
           duration = activity.duration;
+          
+          // Make sure the string format is HH:MM:SS
+          const parts = duration.split(':');
+          if (parts.length === 2) {
+            // MM:SS format, convert to H:MM:SS
+            duration = `0:${duration}`;
+          }
         }
       } else if (activity.workout_summary?.duration_total_accum) {
         // Convert seconds to HH:MM:SS
@@ -157,25 +179,26 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         duration = `${hours}:${minutes.toString().padStart(2, '0')}:00`;
       }
       
-      // Convert distance from meters to kilometers if needed
-      if (distance > 1000 && activity.workout_summary?.distance_accum) {
-        distance = distance / 1000; // Convert meters to kilometers
-      }
+      // Get a proper ID
+      const id = activity.id?.toString() || activity.workout_id?.toString() || activity.route_id?.toString() || 
+        `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
       // Log the processed values for the first activity
       if (i === 0 && activity === batch[0]) {
         console.log("Processed activity values:", {
+          id,
+          name: activity.name || activity.title || "Unnamed Activity",
+          date: dateObj.toISOString(),
           distance,
           elevation,
           calories,
-          date: dateObj.toISOString(),
           duration
         });
       }
       
       return {
         user_id: userId,
-        wahoo_route_id: activity.id.toString(),
+        wahoo_route_id: id,
         name: activity.name || activity.title || "Unnamed Activity",
         date: dateObj.toISOString(),
         distance: distance,
@@ -207,4 +230,3 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
   console.log(`Successfully upserted ${successCount}/${activities.length} routes for user: ${userId}`);
   return successCount;
 }
-

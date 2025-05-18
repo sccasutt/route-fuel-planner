@@ -46,8 +46,7 @@ export async function fetchWahooActivities(access_token: string) {
   try {
     console.log("Fetching Wahoo activities with access token...");
     
-    // Define multiple endpoints to try in sequence
-    // Add the 'ignore_cache=true' parameter to force fresh data
+    // Define multiple endpoints to try in sequence with cache busting
     const endpoints = [
       "https://api.wahooligan.com/v1/workouts?limit=100&ignore_cache=true",
       "https://api.wahooligan.com/v1/rides?limit=100&ignore_cache=true", 
@@ -55,7 +54,7 @@ export async function fetchWahooActivities(access_token: string) {
       "https://api.wahooligan.com/v1/activities?limit=100&ignore_cache=true"
     ];
     
-    let activitiesRes = null;
+    let activitiesResponse = null;
     let usedEndpoint = "";
     let responseText = "";
     
@@ -72,15 +71,16 @@ export async function fetchWahooActivities(access_token: string) {
         });
         
         console.log(`Endpoint ${endpoint} response status:`, res.status);
-        responseText = await res.text(); // We'll parse this as JSON if successful
         
         if (res.ok) {
-          console.log(`Endpoint ${endpoint} response body first 200 chars:`, responseText.substring(0, 200));
-          activitiesRes = responseText;
+          responseText = await res.text();
+          console.log(`Endpoint ${endpoint} returned success. Response sample:`, responseText.substring(0, 200));
+          activitiesResponse = responseText;
           usedEndpoint = endpoint;
           break;
         } else {
-          console.warn(`Error response from endpoint ${endpoint}:`, responseText.substring(0, 200));
+          const errorText = await res.text();
+          console.warn(`Error response from endpoint ${endpoint}:`, errorText.substring(0, 200));
         }
       } catch (endpointErr) {
         console.warn(`Error with endpoint ${endpoint}:`, endpointErr);
@@ -90,7 +90,7 @@ export async function fetchWahooActivities(access_token: string) {
     
     clearTimeout(timeoutId);
 
-    if (!activitiesRes) {
+    if (!activitiesResponse) {
       throw {
         message: "Failed to fetch Wahoo activities from all endpoints",
         status: 502,
@@ -104,10 +104,10 @@ export async function fetchWahooActivities(access_token: string) {
     // Parse the response text as JSON
     let activitiesData;
     try {
-      activitiesData = JSON.parse(activitiesRes);
+      activitiesData = JSON.parse(activitiesResponse);
     } catch (parseErr) {
       console.error("Failed to parse Wahoo API response:", parseErr);
-      console.error("Response excerpt:", activitiesRes.substring(0, 500));
+      console.error("Response excerpt:", activitiesResponse.substring(0, 500));
       throw {
         message: "Invalid JSON response from Wahoo API",
         status: 502,
@@ -120,153 +120,127 @@ export async function fetchWahooActivities(access_token: string) {
     console.log("Wahoo API response type:", typeof activitiesData);
     console.log("Is array:", Array.isArray(activitiesData));
     console.log("Response structure:", Object.keys(activitiesData));
-    console.log("Response sample:", JSON.stringify(activitiesData).substring(0, 300));
     
-    // Handle different response formats
+    // Handle different response formats to extract activities
     let activities = [];
     
     if (Array.isArray(activitiesData)) {
       // Direct array response
       activities = activitiesData;
     } else if (activitiesData && typeof activitiesData === 'object') {
-      // Check if there's a 'results', 'data', or other arrays that might contain the activities
+      // Check for common container properties
       if (Array.isArray(activitiesData.results)) {
         activities = activitiesData.results;
-        console.log("Found activities in 'results' property, count:", activities.length);
       } else if (Array.isArray(activitiesData.data)) {
         activities = activitiesData.data;
-        console.log("Found activities in 'data' property, count:", activities.length);
       } else if (activitiesData.workouts && Array.isArray(activitiesData.workouts)) {
         activities = activitiesData.workouts;
-        console.log("Found activities in 'workouts' property, count:", activities.length);
       } else {
-        // Log all top-level keys to help debug
-        console.log("All top-level keys in response:", Object.keys(activitiesData));
-        
-        // Try to find any array in the object that might contain activities
+        // Try to find any array property that might contain activities
         for (const key of Object.keys(activitiesData)) {
-          if (Array.isArray(activitiesData[key])) {
-            console.log(`Found array in '${key}' property with ${activitiesData[key].length} items`);
-            if (activitiesData[key].length > 0) {
-              activities = activitiesData[key];
-              console.log(`Using '${key}' as activities source, first item keys:`, Object.keys(activities[0]));
-              break;
-            }
+          if (Array.isArray(activitiesData[key]) && activitiesData[key].length > 0) {
+            activities = activitiesData[key];
+            console.log(`Using '${key}' array with ${activities.length} items as activities source`);
+            break;
           }
-        }
-        
-        if (activities.length === 0) {
-          console.warn("Could not find activities array in response structure");
         }
       }
     }
     
-    // Log the available activities
+    if (activities.length === 0) {
+      console.warn("No activities found in Wahoo API response");
+      return [];
+    }
+    
     console.log(`Processing ${activities.length} Wahoo activities`);
     
     if (activities.length > 0) {
-      console.log("Sample activity:", JSON.stringify(activities[0]));
       console.log("Sample activity keys:", Object.keys(activities[0]));
-    } else {
-      console.warn("No activities found in Wahoo response");
+      console.log("Sample activity (first 1000 chars):", JSON.stringify(activities[0]).substring(0, 1000));
     }
     
-    // Transform activity data to match our expected format
-    const formattedActivities = activities.map(activity => {
-      // Deep dive into nested structures for better data extraction
-      const extractNestedValue = (obj: any, paths: string[]): any => {
-        for (const path of paths) {
-          const parts = path.split('.');
-          let value = obj;
-          let foundPath = true;
-          
-          for (const part of parts) {
-            if (value && value[part] !== undefined) {
-              value = value[part];
-            } else {
-              foundPath = false;
-              break;
-            }
-          }
-          
-          if (foundPath && value !== undefined && value !== null) {
-            return value;
+    // Deep extraction helper function
+    const extractNestedValue = (obj: any, paths: string[]): any => {
+      if (!obj) return null;
+      
+      for (const path of paths) {
+        const parts = path.split('.');
+        let value = obj;
+        let foundPath = true;
+        
+        for (const part of parts) {
+          if (value && value[part] !== undefined) {
+            value = value[part];
+          } else {
+            foundPath = false;
+            break;
           }
         }
-        return null;
-      };
+        
+        if (foundPath && value !== undefined && value !== null) {
+          return value;
+        }
+      }
+      return null;
+    };
+    
+    // Transform activity data with robust fallback extraction
+    const formattedActivities = activities.map(activity => {
+      // Extract ID with fallbacks
+      const id = extractNestedValue(activity, ['id', 'workout_id', 'route_id']) || 
+                `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
-      // Extract key fields with better fallbacks from nested structures
-      const id = activity.id || activity.workout_id || activity.route_id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      // Extract name with fallbacks
+      const name = extractNestedValue(activity, ['name', 'title', 'workout_name']) || "Unnamed Activity";
       
-      const name = activity.name || activity.title || "Unnamed Activity";
-      
+      // Extract date with fallbacks
       const dateValue = extractNestedValue(activity, [
         'start_time', 'starts', 'created_at', 'timestamp', 
-        'workout_summary.created_at'
+        'workout_summary.created_at', 'date'
       ]) || new Date().toISOString();
       
-      // Extract distance with comprehensive fallbacks
+      // Extract distance with fallbacks
       let distance = extractNestedValue(activity, [
         'distance', 
         'workout_summary.distance_accum',
         'summary.distance',
-        'total_distance'
+        'total_distance',
+        'distance_km'
       ]);
       
-      if (typeof distance === 'string') {
-        distance = parseFloat(distance) || 0;
-      } else if (typeof distance !== 'number') {
-        distance = 0;
-      }
-      
-      // Convert to kilometers if needed
-      if (distance > 1000 && distance < 1000000) {
-        console.log(`Converting large distance value ${distance} to kilometers`);
-        distance = distance / 1000;
-      }
-      
-      // Extract elevation with comprehensive fallbacks
+      // Extract elevation with fallbacks
       let elevation = extractNestedValue(activity, [
         'elevation', 
         'elevation_gain',
         'workout_summary.ascent_accum',
         'summary.elevation',
         'altitude_gain',
-        'total_ascent'
+        'total_ascent',
+        'ascent'
       ]);
       
-      if (typeof elevation === 'string') {
-        elevation = parseFloat(elevation) || 0;
-      } else if (typeof elevation !== 'number') {
-        elevation = 0;
-      }
-      
-      // Extract calories with comprehensive fallbacks
+      // Extract calories with fallbacks
       let calories = extractNestedValue(activity, [
         'calories', 
         'energy',
         'workout_summary.calories_accum',
         'summary.calories',
-        'total_calories'
+        'total_calories',
+        'kcal'
       ]);
       
-      if (typeof calories === 'string') {
-        calories = parseInt(calories, 10) || 0;
-      } else if (typeof calories !== 'number') {
-        calories = 0;
-      }
-      
-      // Extract duration with comprehensive fallbacks
-      let duration;
-      const durationValue = extractNestedValue(activity, [
+      // Extract duration with fallbacks
+      let durationValue = extractNestedValue(activity, [
         'duration',
         'workout_summary.duration_total_accum',
         'minutes',
-        'summary.duration'
+        'summary.duration',
+        'duration_seconds',
+        'elapsed_time'
       ]);
       
       // Process duration based on its type
+      let duration;
       if (typeof durationValue === 'number') {
         if (durationValue > 3600) {
           // Likely seconds, convert to HH:MM:SS
@@ -285,8 +259,30 @@ export async function fetchWahooActivities(access_token: string) {
         }
       } else if (typeof durationValue === 'string') {
         duration = durationValue;
+        // Make sure it's properly formatted
+        const parts = duration.split(':');
+        if (parts.length === 2) {
+          duration = `0:${duration}`; // Add leading zero
+        } else if (parts.length !== 3) {
+          duration = "0:00:00"; // Default if format is unrecognized
+        }
       } else {
-        duration = "0:00:00";
+        duration = "0:00:00"; // Default duration
+      }
+      
+      // Convert numeric values correctly
+      if (typeof distance === 'string') distance = parseFloat(distance) || 0;
+      if (typeof elevation === 'string') elevation = parseFloat(elevation) || 0;
+      if (typeof calories === 'string') calories = parseInt(calories, 10) || 0;
+      
+      // Ensure all values are numbers, not null/undefined
+      distance = typeof distance === 'number' && !isNaN(distance) ? distance : 0;
+      elevation = typeof elevation === 'number' && !isNaN(elevation) ? elevation : 0;
+      calories = typeof calories === 'number' && !isNaN(calories) ? calories : 0;
+      
+      // Convert distance to kilometers if needed
+      if (distance > 1000 && distance < 1000000) {
+        distance = distance / 1000;
       }
       
       const formattedActivity = {
@@ -301,16 +297,16 @@ export async function fetchWahooActivities(access_token: string) {
         type: activity.type || activity.workout_type || "activity"
       };
       
-      console.log("Transformed activity:", formattedActivity.id, formattedActivity.name, {
-        distance: formattedActivity.distance,
-        duration: formattedActivity.duration,
-        calories: formattedActivity.calories
-      });
-      
       return formattedActivity;
     });
     
     console.log(`Successfully formatted ${formattedActivities.length} Wahoo activities`);
+    
+    // Log a sample of the formatted activities
+    if (formattedActivities.length > 0) {
+      console.log("Sample formatted activity:", formattedActivities[0]);
+    }
+    
     return formattedActivities;
   } catch (err: any) {
     console.error("Error in fetchWahooActivities:", err);

@@ -63,20 +63,6 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
         ) : activities.length > 0 ? (
           <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
             {activities.slice(0, 3).map((activity) => {
-              // Parse distance for each activity
-              const displayDistance = typeof activity.distance === 'number' 
-                ? !isNaN(activity.distance) ? activity.distance.toFixed(1) : '0.0'
-                : typeof activity.distance === 'string' 
-                  ? parseFloat(activity.distance).toFixed(1)
-                  : '0.0';
-              
-              // Parse calories for each activity  
-              const displayCalories = typeof activity.calories === 'number' 
-                ? !isNaN(activity.calories) ? activity.calories : 0 
-                : typeof activity.calories === 'string'
-                  ? parseInt(activity.calories, 10) || 0
-                  : 0;
-              
               return (
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
                   <div>
@@ -86,7 +72,7 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex items-center text-xs">
                       <Map className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{displayDistance} km</span>
+                      <span>{activity.distance.toFixed(1)} km</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
@@ -94,7 +80,7 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
                     </div>
                     <div className="flex items-center text-xs">
                       <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{displayCalories} kcal</span>
+                      <span>{activity.calories} kcal</span>
                     </div>
                   </div>
                 </div>
