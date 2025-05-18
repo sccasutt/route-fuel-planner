@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Bike, Map, TrendingUp, Clock, LineChart, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWahooSyncHandler } from "@/hooks/wahoo/useWahooSyncHandler";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { formatDuration } from "@/lib/utils";
+import { formatDuration as formatDurationDisplay } from "@/lib/utils";
 
 interface RouteType {
   id: string;
@@ -20,25 +21,6 @@ interface RouteType {
 
 interface Props {
   routes: RouteType[];
-}
-
-// Improved helper function to format duration for display
-function formatDuration(duration: string): string {
-  if (!duration) return "0:00";
-  
-  const parts = duration.split(':');
-  if (parts.length === 3) {
-    // Convert from HH:MM:SS to more readable format
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else {
-      return `${minutes}m ${parts[2]}s`;
-    }
-  }
-  return duration; // Return as is if not in expected format
 }
 
 export function RoutesTabContent({ routes }: Props) {
@@ -160,7 +142,7 @@ export function RoutesTabContent({ routes }: Props) {
                         <Clock className="w-4 h-4 mr-1" />
                         <span>Duration</span>
                       </div>
-                      <p className="font-semibold">{formatDuration(route.duration)}</p>
+                      <p className="font-semibold">{formatDurationDisplay(route.duration)}</p>
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center text-sm text-muted-foreground">

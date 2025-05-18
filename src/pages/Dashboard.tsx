@@ -2,37 +2,21 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useWahooData, WahooActivityData } from "@/hooks/useWahooData";
+import { useWahooData } from "@/hooks/useWahooData";
 import { ConnectedAccountsCard } from "@/components/Dashboard/ConnectedAccountsCard";
 import { RecentActivityCard } from "@/components/Dashboard/RecentActivityCard";
-import { NutritionStatusCard } from "@/components/Dashboard/NutritionStatusCard";
-import { UpcomingRideCard } from "@/components/Dashboard/UpcomingRideCard";
-import { RecentRoutesSection } from "@/components/Dashboard/RecentRoutesSection";
 import { RoutesTabContent } from "@/components/Dashboard/RoutesTabContent";
 import { NutritionTabContent } from "@/components/Dashboard/NutritionTabContent";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { RefreshCcw, AlertCircle, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { WahooResyncButton } from "@/components/Wahoo/WahooResyncButton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { formatDuration, parseDurationToSeconds } from "@/lib/utils";
-
-// Define a type that matches what RecentRoutesSection and RoutesTabContent expect
-interface RouteType {
-  id: string;
-  name: string;
-  date: string;
-  distance: number;
-  elevation: number;
-  duration: string;
-  calories: number;
-}
+import { DashboardHeader } from "@/components/Dashboard/DashboardHeader";
+import { ConnectionAlerts } from "@/components/Dashboard/ConnectionAlerts";
+import { OverviewTabContent } from "@/components/Dashboard/OverviewTabContent";
 
 const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
-  const { isConnected, activities, isLoading, refresh, syncStatus } = useWahooData();
+  const { isConnected, activities, isLoading, refresh } = useWahooData();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -63,54 +47,20 @@ const Dashboard = () => {
   };
 
   // Convert WahooActivityData to RouteType (since they're compatible)
-  const routesData: RouteType[] = activities.map(activity => ({
+  const routesData = activities.map(activity => ({
     ...activity,
     id: activity.id
   }));
 
-  // Calculate total stats
-  const totalDistance = activities.reduce((sum, act) => sum + (typeof act.distance === 'number' ? act.distance : 0), 0);
-  const totalElevation = activities.reduce((sum, act) => sum + (typeof act.elevation === 'number' ? act.elevation : 0), 0);
-  
-  // Calculate average duration if there are activities
-  let averageDuration = "0:00:00";
-  if (activities.length > 0) {
-    const totalSeconds = activities.reduce((sum, act) => sum + parseDurationToSeconds(act.duration || "0:00:00"), 0);
-    const avgSeconds = Math.round(totalSeconds / activities.length);
-    const hours = Math.floor(avgSeconds / 3600);
-    const minutes = Math.floor((avgSeconds % 3600) / 60);
-    const seconds = Math.floor(avgSeconds % 60);
-    averageDuration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-
   return (
     <Layout>
       <div className="container py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Your Dashboard</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-              <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-              {isLoading ? "Refreshing..." : "Refresh Data"}
-            </Button>
-          </div>
-        </div>
+        <DashboardHeader onRefresh={handleRefresh} isLoading={isLoading} />
 
-        {connectionError && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Connection Error</AlertTitle>
-            <AlertDescription>{connectionError}</AlertDescription>
-          </Alert>
-        )}
-
-        {syncComplete && (
-          <Alert variant="default" className="mb-6 bg-green-50 border-green-200">
-            <Check className="h-4 w-4 text-green-500" />
-            <AlertTitle>Sync Complete</AlertTitle>
-            <AlertDescription>Your Wahoo data has been refreshed.</AlertDescription>
-          </Alert>
-        )}
+        <ConnectionAlerts 
+          connectionError={connectionError} 
+          syncComplete={syncComplete} 
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div>
@@ -128,65 +78,11 @@ const Dashboard = () => {
             <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <NutritionStatusCard />
-              <UpcomingRideCard />
-              <div className="bg-card p-6 rounded-lg border shadow-sm">
-                <h3 className="text-lg font-semibold mb-4">Activity Stats</h3>
-                {activities.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-muted/50 p-3 rounded-lg">
-                        <div className="text-muted-foreground text-xs mb-1">Total Distance</div>
-                        <div className="text-xl font-semibold">
-                          {totalDistance.toFixed(1)} km
-                        </div>
-                      </div>
-                      <div className="bg-muted/50 p-3 rounded-lg">
-                        <div className="text-muted-foreground text-xs mb-1">Total Activities</div>
-                        <div className="text-xl font-semibold">{activities.length}</div>
-                      </div>
-                    </div>
-                    {/* Add new stats about time and elevation */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-muted/50 p-3 rounded-lg">
-                        <div className="text-muted-foreground text-xs mb-1">Total Elevation</div>
-                        <div className="text-xl font-semibold">
-                          {totalElevation.toFixed(0)} m
-                        </div>
-                      </div>
-                      <div className="bg-muted/50 p-3 rounded-lg">
-                        <div className="text-muted-foreground text-xs mb-1">Average Duration</div>
-                        <div className="text-xl font-semibold">
-                          {formatDuration(averageDuration)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-muted-foreground">No activity data yet</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            {activities.length > 0 ? (
-              <RecentRoutesSection routes={routesData} />
-            ) : (
-              <div className="p-6 bg-muted rounded-lg border text-center">
-                <h2 className="text-xl font-bold mb-2">Connect Your Wahoo Account</h2>
-                <p className="text-muted-foreground mb-4">
-                  Connect your Wahoo account to see your routes and activities
-                </p>
-                <WahooResyncButton 
-                  setConnectionError={setConnectionError}
-                  variant="default"
-                  size="default"
-                  label="Connect Wahoo"
-                />
-              </div>
-            )}
+          <TabsContent value="overview">
+            <OverviewTabContent 
+              activities={routesData} 
+              setConnectionError={setConnectionError} 
+            />
           </TabsContent>
 
           <TabsContent value="routes">
