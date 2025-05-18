@@ -1,10 +1,10 @@
+
 import React, { useEffect } from "react";
 import { FeaturedRouteMap } from "./FeaturedRouteMap";
 import { EmptyRoutesState } from "./EmptyRoutesState";
 import { RoutesGrid } from "./RoutesGrid";
 import { RoutesLoadingState } from "./RoutesLoadingState";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
 import { RouteType } from "@/types/route";
 
 interface RoutesTabContentProps {
@@ -25,7 +25,8 @@ export function RoutesTabContent({
       console.log("First activity sample:", {
         id: activities[0].id,
         name: activities[0].name,
-        hasCoordinates: activities[0].coordinates?.length || 0,
+        // Using routeCoordinatesMap instead of direct coordinates property
+        hasCoordinates: routeCoordinatesMap[activities[0].id]?.length || 0,
         mapCoordinates: routeCoordinatesMap[activities[0].id]?.length || 0
       });
     }

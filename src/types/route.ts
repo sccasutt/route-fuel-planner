@@ -11,4 +11,5 @@ export interface RouteType {
   gpx_data?: string | null;
   type?: string;
   gpx_file_url?: string | null;
+  coordinates?: [number, number][]; // Adding coordinates property to fix the error
 }
