@@ -1,3 +1,4 @@
+
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { formatDurationString, durationToSeconds, parseNumericValue } from "./wahooUtils.ts";
 
@@ -169,6 +170,70 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       const id = activity.id?.toString() || activity.workout_id?.toString() || activity.route_id?.toString() || 
         `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
+      // Extract GPS data from activity and structure it properly for storage
+      let gpxData = null;
+      if (activity.route_points || activity.coordinates || activity.latlng || activity.path) {
+        // Process route coordinates into a standardized format
+        let coordinates: [number, number][] = [];
+        
+        // Try different sources of coordinate data
+        if (Array.isArray(activity.route_points)) {
+          coordinates = activity.route_points
+            .filter((point: any) => point.lat && point.lng)
+            .map((point: any) => [point.lat, point.lng] as [number, number]);
+        } else if (Array.isArray(activity.coordinates)) {
+          coordinates = activity.coordinates
+            .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
+            .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+        } else if (Array.isArray(activity.latlng)) {
+          coordinates = activity.latlng
+            .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
+            .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+        } else if (Array.isArray(activity.path)) {
+          coordinates = activity.path
+            .filter((point: any) => point.lat && point.lng)
+            .map((point: any) => [point.lat, point.lng] as [number, number]);
+        }
+        
+        if (coordinates.length > 0) {
+          // Create a structured JSON object with the coordinates
+          gpxData = JSON.stringify({ coordinates });
+          console.log(`Extracted ${coordinates.length} coordinates for route ${id}`);
+        }
+      }
+      
+      // If we have no coordinates but have track_points or another format
+      if (!gpxData && (activity.track_points || activity.track_data)) {
+        const trackData = activity.track_points || activity.track_data;
+        if (Array.isArray(trackData)) {
+          try {
+            // Extract coordinates from track points if available
+            const coordinates = trackData
+              .filter((point: any) => {
+                return (point.lat !== undefined && point.lon !== undefined) || 
+                       (point.latitude !== undefined && point.longitude !== undefined);
+              })
+              .map((point: any) => {
+                const lat = point.lat !== undefined ? point.lat : point.latitude;
+                const lng = point.lon !== undefined ? point.lon : point.longitude;
+                return [lat, lng] as [number, number];
+              });
+            
+            if (coordinates.length > 0) {
+              gpxData = JSON.stringify({ coordinates });
+              console.log(`Extracted ${coordinates.length} coordinates from track_points for route ${id}`);
+            }
+          } catch (err) {
+            console.error(`Error processing track points for route ${id}:`, err);
+          }
+        }
+      }
+      
+      // Use existing gpx_data if we haven't been able to extract coordinates
+      if (!gpxData && activity.gpx_data) {
+        gpxData = activity.gpx_data;
+      }
+      
       return {
         user_id: userId,
         wahoo_route_id: id,
@@ -179,7 +244,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         duration: duration,
         duration_seconds: durationSeconds,
         calories: calories,
-        gpx_data: activity.gpx_data || null
+        gpx_data: gpxData
       };
     });
 

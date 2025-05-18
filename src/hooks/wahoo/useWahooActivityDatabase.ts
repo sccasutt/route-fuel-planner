@@ -39,6 +39,28 @@ export function useWahooActivityDatabase() {
       console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
       if (data.length > 0) {
         console.log(`[${hookId}] First raw activity:`, data[0]);
+        
+        // Log information about the gpx_data field
+        const firstActivity = data[0];
+        if (firstActivity.gpx_data) {
+          console.log(`[${hookId}] gpx_data type:`, typeof firstActivity.gpx_data);
+          console.log(`[${hookId}] gpx_data sample:`, 
+            typeof firstActivity.gpx_data === 'string' 
+              ? firstActivity.gpx_data.substring(0, 100) + '...' 
+              : firstActivity.gpx_data);
+          
+          // Try to parse it
+          try {
+            const parsedData = JSON.parse(firstActivity.gpx_data);
+            console.log(`[${hookId}] gpx_data parsed successfully:`, 
+              parsedData?.coordinates?.length || 0, 
+              'coordinates found');
+          } catch (err) {
+            console.log(`[${hookId}] gpx_data is not valid JSON:`, err);
+          }
+        } else {
+          console.log(`[${hookId}] No gpx_data found in route`);
+        }
       }
       
       // Process raw data into typed activities

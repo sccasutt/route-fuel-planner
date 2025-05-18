@@ -58,28 +58,54 @@ const RouteDetail = () => {
 
         setRouteData(route);
         
-        // Parse GPS coordinates if available in gpx_data
+        // Parse GPS coordinates from gpx_data
         let coordinates: [number, number][] = [];
         
         if (route.gpx_data) {
           try {
-            const parsedData = JSON.parse(route.gpx_data);
-            if (parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
+            // Try to parse the gpx_data field
+            let parsedData;
+            try {
+              parsedData = JSON.parse(route.gpx_data);
+            } catch (parseErr) {
+              console.log("GPX data is not valid JSON, using as string:", route.gpx_data);
+              // If not JSON, it might be a string representation or a different format
+              // For debugging, log what we've received
+              console.log("Raw GPX data type:", typeof route.gpx_data);
+              console.log("Raw GPX data sample:", 
+                typeof route.gpx_data === 'string' 
+                  ? route.gpx_data.substring(0, 100) + '...' 
+                  : route.gpx_data
+              );
+            }
+            
+            // If we successfully parsed JSON data
+            if (parsedData && parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
               // Ensure each coordinate is a valid [lat, lng] tuple
               coordinates = parsedData.coordinates
                 .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
                 .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+              
+              console.log(`Extracted ${coordinates.length} coordinates from JSON gpx_data`);
             }
           } catch (err) {
-            console.warn("Failed to parse GPX data:", err);
+            console.warn("Failed to process GPX data:", err);
           }
         }
         
-        // If we couldn't get coordinates, use a default set based on London
+        // If we couldn't get coordinates, use a default set or generate based on route info
         if (coordinates.length < 2) {
+          console.log("No valid coordinates found, generating placeholder route");
+          
+          // Generate a unique but consistent route for this route id
+          const routeIdForSeed = route.id || id;
+          const idSum = routeIdForSeed.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+          const centerLat = 51.505 + (idSum % 10) * 0.01;
+          const centerLng = -0.09 + (idSum % 7) * 0.01;
+          
           // Default circular route around a central point
-          const center: [number, number] = [51.505, -0.09];
-          coordinates = generateSimpleRouteAround(center, 0.03);
+          coordinates = generateSimpleRouteAround([centerLat, centerLng], 0.03);
+          console.log(`Generated ${coordinates.length} placeholder coordinates`);
         }
         
         setRouteCoordinates(coordinates);

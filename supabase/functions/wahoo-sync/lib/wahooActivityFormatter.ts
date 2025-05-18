@@ -1,3 +1,4 @@
+
 // Formatter for Wahoo activity data
 import { extractNestedValue, formatDurationString, durationToSeconds, parseNumericValue } from "./wahooUtils.ts";
 
@@ -120,6 +121,63 @@ export function formatWahooActivities(activities: any[]) {
       distance = distance / 1000;
     }
     
+    // Extract GPS coordinates from different possible sources
+    let gpxData = null;
+    
+    // First check for route points or coordinates
+    if (activity.route_points || activity.coordinates || activity.latlng || activity.path) {
+      let coordinates: [number, number][] = [];
+      
+      if (Array.isArray(activity.route_points)) {
+        coordinates = activity.route_points
+          .filter((point: any) => point.lat && point.lng)
+          .map((point: any) => [point.lat, point.lng] as [number, number]);
+      } else if (Array.isArray(activity.coordinates)) {
+        coordinates = activity.coordinates
+          .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
+          .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+      } else if (Array.isArray(activity.latlng)) {
+        coordinates = activity.latlng
+          .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
+          .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+      } else if (Array.isArray(activity.path)) {
+        coordinates = activity.path
+          .filter((point: any) => point.lat && point.lng)
+          .map((point: any) => [point.lat, point.lng] as [number, number]);
+      }
+      
+      if (coordinates.length > 0) {
+        gpxData = JSON.stringify({ coordinates });
+        console.log(`Extracted ${coordinates.length} coordinates for activity ${id}`);
+      }
+    }
+    
+    // If no coordinates found yet, try track_points
+    if (!gpxData && (activity.track_points || activity.track_data)) {
+      const trackData = activity.track_points || activity.track_data;
+      if (Array.isArray(trackData)) {
+        try {
+          const coordinates = trackData
+            .filter((point: any) => {
+              return (point.lat !== undefined && point.lon !== undefined) || 
+                     (point.latitude !== undefined && point.longitude !== undefined);
+            })
+            .map((point: any) => {
+              const lat = point.lat !== undefined ? point.lat : point.latitude;
+              const lng = point.lon !== undefined ? point.lon : point.longitude;
+              return [lat, lng] as [number, number];
+            });
+          
+          if (coordinates.length > 0) {
+            gpxData = JSON.stringify({ coordinates });
+            console.log(`Extracted ${coordinates.length} coordinates from track_points for activity ${id}`);
+          }
+        } catch (err) {
+          console.error(`Error processing track points for activity ${id}:`, err);
+        }
+      }
+    }
+    
     return {
       id,
       name,
@@ -129,7 +187,7 @@ export function formatWahooActivities(activities: any[]) {
       duration,
       duration_seconds: durationSeconds,
       calories,
-      gpx_data: activity.gpx_data || null,
+      gpx_data: gpxData || activity.gpx_data || null,
       type: activity.type || activity.workout_type || "activity"
     };
   });
