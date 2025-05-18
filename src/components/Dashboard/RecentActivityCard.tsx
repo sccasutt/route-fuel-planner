@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Map, Clock, LineChart, Activity } from "lucide-react";
 import { WahooActivityData } from "@/hooks/useWahooData";
@@ -34,6 +35,13 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
         ) : activities.length > 0 ? (
           <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
             {activities.slice(0, 3).map((activity) => {
+              // Ensure distance is properly converted to km
+              const distanceInKm = typeof activity.distance === 'number' 
+                ? activity.distance >= 1000 
+                  ? (activity.distance / 1000).toFixed(1) 
+                  : activity.distance.toFixed(1)
+                : "0.0";
+                
               return (
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
                   <div>
@@ -43,7 +51,7 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex items-center text-xs">
                       <Map className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{(activity.distance/1000).toFixed(1)} km</span>
+                      <span>{distanceInKm} km</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <Clock className="w-3 h-3 mr-1 text-muted-foreground" />

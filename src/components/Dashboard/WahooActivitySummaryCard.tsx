@@ -1,3 +1,4 @@
+
 import { Bike, Map, Clock, LineChart, Trophy, Calendar } from "lucide-react";
 import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,10 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
     return sum + (isNaN(calories) ? 0 : calories);
   }, 0);
   
-  // Format numbers for display
-  const formattedDistance = totalDistance.toFixed(1);
+  // Format numbers for display - convert to km if needed
+  const formattedDistance = totalDistance >= 1000 
+    ? (totalDistance / 1000).toFixed(1) 
+    : totalDistance.toFixed(1);
   
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
@@ -91,12 +94,19 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
           
           <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
             {activities.slice(0, 5).map((activity) => {
-              // Parse distance for each activity
-              const displayDistance = typeof activity.distance === 'number' 
-                ? !isNaN(activity.distance) ? (activity.distance/1000).toFixed(1) : '0.0'
-                : typeof activity.distance === 'string' 
-                  ? (parseFloat(activity.distance)/1000).toFixed(1)
-                  : '0.0';
+              // Improved distance conversion logic
+              const actDistance = typeof activity.distance === 'number' 
+                ? activity.distance 
+                : typeof activity.distance === 'string'
+                  ? parseFloat(activity.distance)
+                  : 0;
+              
+              // Convert to kilometers if the distance is in meters (greater than 1000)
+              const displayDistance = !isNaN(actDistance)
+                ? actDistance >= 1000
+                  ? (actDistance / 1000).toFixed(1)
+                  : actDistance.toFixed(1)
+                : '0.0';
               
               // Parse calories for each activity  
               const displayCalories = typeof activity.calories === 'number' 
