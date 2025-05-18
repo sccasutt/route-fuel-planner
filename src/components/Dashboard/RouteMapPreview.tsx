@@ -22,10 +22,10 @@ export function RouteMapPreview({
   useEffect(() => {
     setIsVisible(true);
     
-    // Set a small delay to ensure DOM is fully ready
+    // Set a longer delay to ensure DOM is fully ready
     const timer = setTimeout(() => {
       setIsLoaded(true);
-    }, 100);
+    }, 300);
     
     return () => {
       clearTimeout(timer);

@@ -26,20 +26,36 @@ const RouteMap = ({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
+  const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize map when component mounts
   useEffect(() => {
     // Check if element is available and map isn't already initialized
-    if (!mapRef.current || mapInstanceRef.current) return;
-
-    // Wait a bit to ensure the container is fully rendered and sized
-    const initTimer = setTimeout(() => {
+    if (!mapRef.current) return;
+    
+    // Clear any existing map instance first
+    if (mapInstanceRef.current) {
       try {
-        if (!mapRef.current) return;
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      } catch (e) {
+        console.error("Error cleaning up previous map:", e);
+      }
+    }
 
-        // Check if container has size
-        if (mapRef.current.clientHeight === 0 || mapRef.current.clientWidth === 0) {
-          console.log("Map container has zero size, delaying initialization");
+    // Wait a bit longer to ensure the container is fully rendered and sized
+    initTimerRef.current = setTimeout(() => {
+      try {
+        if (!mapRef.current) {
+          console.log("Map container ref is null, skipping initialization");
+          return;
+        }
+
+        // Check if container has size and is in the DOM
+        if (!document.body.contains(mapRef.current) || 
+            mapRef.current.clientHeight === 0 || 
+            mapRef.current.clientWidth === 0) {
+          console.log("Map container has zero size or is not in DOM, delaying initialization");
           return;
         }
 
@@ -61,13 +77,19 @@ const RouteMap = ({
 
         // If we have route coordinates, draw the route path
         if (routeCoordinates && routeCoordinates.length > 1) {
-          const routePath = drawRoutePath(map, routeCoordinates, routeStyle);
-          
-          // Fit the map to the route bounds
           try {
-            map.fitBounds(routePath.getBounds());
+            const routePath = drawRoutePath(map, routeCoordinates, routeStyle);
+            
+            // Fit the map to the route bounds
+            try {
+              map.fitBounds(routePath.getBounds(), {
+                padding: [30, 30]
+              });
+            } catch (e) {
+              console.warn("Could not fit map to bounds:", e);
+            }
           } catch (e) {
-            console.warn("Could not fit map to bounds:", e);
+            console.error("Error drawing route path:", e);
           }
         }
 
@@ -77,25 +99,25 @@ const RouteMap = ({
           console.log("GPX data available for rendering");
         }
 
-        // Signal that map is ready
-        setIsMapReady(true);
-
-        // Force a map size update after a delay to handle cases where
-        // container dimensions change after initialization
+        // Force a map size update to handle container size changes
         setTimeout(() => {
-          if (map && map.getContainer()) {  // Use proper method to check container existence
-            map.invalidateSize();
+          if (map && map.getContainer() && document.body.contains(map.getContainer())) {
+            map.invalidateSize(true);
+            // Signal that map is ready only after we've successfully initialized
+            setIsMapReady(true);
           }
-        }, 250);
+        }, 300);
 
       } catch (error) {
         console.error("Error initializing map:", error);
       }
-    }, 100); // Short delay to ensure container is ready
+    }, 500); // Longer delay to ensure container is ready
 
     // Cleanup on unmount
     return () => {
-      clearTimeout(initTimer);
+      if (initTimerRef.current) {
+        clearTimeout(initTimerRef.current);
+      }
       
       if (mapInstanceRef.current) {
         try {
@@ -113,27 +135,29 @@ const RouteMap = ({
     const map = mapInstanceRef.current;
     if (!map || !isMapReady) return;
 
-    // Clear any existing routes
-    map.eachLayer((layer) => {
-      if (layer instanceof L.Polyline && !(layer instanceof L.TileLayer)) {
-        map.removeLayer(layer);
-      }
-    });
+    try {
+      // Clear any existing routes
+      map.eachLayer((layer) => {
+        if (layer instanceof L.Polyline && !(layer instanceof L.TileLayer)) {
+          map.removeLayer(layer);
+        }
+      });
 
-    // If we have route coordinates, draw the route path
-    if (routeCoordinates && routeCoordinates.length > 1) {
-      try {
+      // If we have route coordinates, draw the route path
+      if (routeCoordinates && routeCoordinates.length > 1) {
         const routePath = drawRoutePath(map, routeCoordinates, routeStyle);
         
         // Fit the map to the route bounds
         try {
-          map.fitBounds(routePath.getBounds());
+          map.fitBounds(routePath.getBounds(), {
+            padding: [30, 30]
+          });
         } catch (e) {
           console.warn("Could not fit map to bounds:", e);
         }
-      } catch (error) {
-        console.error("Error drawing route:", error);
       }
+    } catch (error) {
+      console.error("Error drawing route:", error);
     }
   }, [routeCoordinates, routeStyle, isMapReady]);
 
