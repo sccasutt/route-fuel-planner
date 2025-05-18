@@ -53,7 +53,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
         <CardContent className="p-0">
           <div className="h-[300px] w-full relative">
             <RouteMap
-              center={[51.505, -0.09]} {/* This would be replaced with actual coordinates */}
+              center={[51.505, -0.09]}
               zoom={12}
               height="100%"
               className="rounded-b-lg"

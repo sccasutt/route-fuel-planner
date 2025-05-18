@@ -40,7 +40,7 @@ export function RecentRoutesSection({ routes }: Props) {
           <CardContent className="p-0">
             <div className="h-[240px] w-full">
               <RouteMap
-                center={[51.505, -0.09]} {/* This would be replaced with actual coordinates */}
+                center={[51.505, -0.09]} 
                 zoom={12}
                 height="100%"
                 className="rounded-none"
