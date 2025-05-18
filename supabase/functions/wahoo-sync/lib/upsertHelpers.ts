@@ -102,6 +102,68 @@ function formatDurationString(duration: string | number): string {
 }
 
 /**
+ * Convert duration string to seconds
+ */
+function durationToSeconds(duration: string | number): number {
+  if (!duration) return 60; // Default to 1 minute (60 seconds)
+  
+  // If already a number, assume it's already in seconds
+  if (typeof duration === 'number') {
+    return duration > 0 ? duration : 60;
+  }
+  
+  // Handle string durations in various formats
+  if (typeof duration === 'string') {
+    // Format HH:MM:SS
+    const timeMatch = duration.match(/^(\d+):(\d+):(\d+)$/);
+    if (timeMatch) {
+      const hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      const seconds = parseInt(timeMatch[3], 10);
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+    
+    // Format MM:SS
+    const mmssMatch = duration.match(/^(\d+):(\d+)$/);
+    if (mmssMatch) {
+      const minutes = parseInt(mmssMatch[1], 10);
+      const seconds = parseInt(mmssMatch[2], 10);
+      return minutes * 60 + seconds;
+    }
+    
+    // Format "Xh Ym"
+    const hourMinMatch = duration.match(/^(\d+)h\s*(\d+)m$/);
+    if (hourMinMatch) {
+      const hours = parseInt(hourMinMatch[1], 10);
+      const minutes = parseInt(hourMinMatch[2], 10);
+      return hours * 3600 + minutes * 60;
+    }
+    
+    // Format "Ym Xs"
+    const minSecMatch = duration.match(/^(\d+)m\s*(\d+)s$/);
+    if (minSecMatch) {
+      const minutes = parseInt(minSecMatch[1], 10);
+      const seconds = parseInt(minSecMatch[2], 10);
+      return minutes * 60 + seconds;
+    }
+    
+    // Format just seconds "Xs"
+    const secMatch = duration.match(/^(\d+)s$/);
+    if (secMatch) {
+      return parseInt(secMatch[1], 10);
+    }
+    
+    // Try parsing as a plain number in string form
+    const numericValue = parseFloat(duration);
+    if (!isNaN(numericValue)) {
+      return numericValue > 0 ? numericValue : 60;
+    }
+  }
+  
+  return 60; // Default to 1 minute (60 seconds)
+}
+
+/**
  * Upserts routes for a user with improved data parsing
  */
 export async function upsertRoutes(client: SupabaseClient, userId: string, activities: any[]) {
@@ -185,19 +247,33 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         dateObj = new Date();
       }
       
-      // Handle duration with better parsing
+      // Handle duration with better parsing and store in seconds
       let duration = "0:00:00";
+      let durationSeconds = 60; // Default to 1 minute
+      
       if (activity.duration) {
         duration = formatDurationString(activity.duration);
+        durationSeconds = durationToSeconds(activity.duration);
       } else if (activity.workout_summary?.duration_total_accum) {
         // Convert seconds to HH:MM:SS
-        duration = formatDurationString(parseFloat(activity.workout_summary.duration_total_accum));
+        const seconds = parseFloat(activity.workout_summary.duration_total_accum);
+        durationSeconds = seconds > 0 ? seconds : 60;
+        duration = formatDurationString(durationSeconds);
       } else if (activity.minutes) {
-        duration = formatDurationString(activity.minutes * 60); // Convert minutes to seconds
+        durationSeconds = activity.minutes * 60; // Convert minutes to seconds
+        duration = formatDurationString(durationSeconds);
       } else if (activity.moving_time) {
-        duration = formatDurationString(activity.moving_time);
+        durationSeconds = parseNumericValue(activity.moving_time);
+        duration = formatDurationString(durationSeconds);
       } else if (activity.elapsed_time) {
-        duration = formatDurationString(activity.elapsed_time);
+        durationSeconds = parseNumericValue(activity.elapsed_time);
+        duration = formatDurationString(durationSeconds);
+      }
+      
+      // Ensure duration_seconds is never zero or negative
+      if (durationSeconds <= 0) {
+        durationSeconds = 60; // Minimum 1 minute
+        duration = "0:01:00";
       }
       
       // Get a proper ID
@@ -213,7 +289,8 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
           distance,
           elevation,
           calories,
-          duration
+          duration,
+          durationSeconds
         });
       }
       
@@ -225,6 +302,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         distance: distance,
         elevation: elevation,
         duration: duration,
+        duration_seconds: durationSeconds,
         calories: calories,
         gpx_data: activity.gpx_data || null
       };

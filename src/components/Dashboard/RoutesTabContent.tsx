@@ -16,6 +16,7 @@ interface RouteType {
   distance: number;
   elevation: number;
   duration: string;
+  duration_seconds?: number | null;
   calories: number;
 }
 
@@ -31,15 +32,17 @@ export function RoutesTabContent({ routes }: Props) {
 
   // Ensure routes have proper values
   const validatedRoutes = routes.map(route => {
-    // Make sure duration is never 0s or invalid
-    const validDuration = ensureValidDuration(route.duration);
+    // Prefer numeric duration if available
+    const displayDuration = route.duration_seconds && route.duration_seconds > 0
+      ? secondsToTimeString(route.duration_seconds)
+      : ensureValidDuration(route.duration);
     
     return {
       ...route,
       distance: typeof route.distance === 'number' && !isNaN(route.distance) ? route.distance : 0,
       elevation: typeof route.elevation === 'number' && !isNaN(route.elevation) ? route.elevation : 0,
       calories: typeof route.calories === 'number' && !isNaN(route.calories) ? route.calories : 0,
-      duration: validDuration,
+      duration: displayDuration,
       name: route.name || "Unnamed Route",
       date: route.date || new Date().toISOString().split('T')[0]
     };
@@ -178,4 +181,15 @@ export function RoutesTabContent({ routes }: Props) {
       </div>
     </div>
   );
+}
+
+// Helper function to convert seconds to HH:MM:SS format
+function secondsToTimeString(seconds: number): string {
+  if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

@@ -1,210 +1,192 @@
-
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-/**
- * Convert Date object or ISO string to seconds
- * @param dateTime Date object or ISO string
- * @returns Total seconds as a number
- */
-export function getTimeInSeconds(dateTime: Date | string | number): number {
-  if (typeof dateTime === 'number') return dateTime;
-  
-  const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
-  
-  if (!(date instanceof Date) || isNaN(date.getTime())) {
-    console.warn('Invalid date provided to getTimeInSeconds:', dateTime);
-    return 0;
-  }
-  
-  return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  }).format(amount);
 }
 
-/**
- * Format a duration in seconds to a human-readable string
- * @param seconds Total duration in seconds
- * @returns Formatted duration string (e.g. "2h 30m" or "45m 10s")
- */
-export function formatDuration(seconds: number | string): string {
-  // Convert string to number if needed
-  const totalSeconds = typeof seconds === 'string' 
-    ? parseDurationToSeconds(seconds)
-    : seconds;
+export function calculateBMI(weight: number, height: number): number {
+  // Weight in kg, height in cm
+  if (weight <= 0 || height <= 0) return 0;
+  return weight / Math.pow(height / 100, 2);
+}
+
+export function getBMICategory(bmi: number): string {
+  if (bmi <= 0) return 'Unknown';
+  if (bmi < 18.5) return 'Underweight';
+  if (bmi < 25) return 'Normal weight';
+  if (bmi < 30) return 'Overweight';
+  return 'Obese';
+}
+
+export function calculateCalories(weight: number, height: number, age: number, gender: string, activityLevel: string): number {
+  // BMR calculation using Mifflin-St Jeor Equation
+  if (weight <= 0 || height <= 0 || age <= 0) return 0;
   
-  if (isNaN(totalSeconds) || totalSeconds < 0) return "0m";
-  
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const remainingSeconds = Math.floor(totalSeconds % 60);
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${remainingSeconds}s`;
+  let bmr = 0;
+  if (gender.toLowerCase() === 'male') {
+    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
   } else {
-    return `${remainingSeconds}s`;
+    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
   }
+  
+  // Activity multiplier
+  const activityMultipliers: Record<string, number> = {
+    'sedentary': 1.2,
+    'light': 1.375,
+    'moderate': 1.55,
+    'active': 1.725,
+    'very_active': 1.9
+  };
+  
+  const multiplier = activityMultipliers[activityLevel.toLowerCase()] || 1.2;
+  return Math.round(bmr * multiplier);
 }
 
 /**
- * Parse a duration string into seconds
- * @param durationString Duration string in various formats (HH:MM:SS, MM:SS, or raw seconds)
- * @returns Total seconds as a number
+ * Format duration for display
  */
-export function parseDurationToSeconds(durationString: string): number {
-  if (!durationString) return 0;
-  
-  // If it's already a number as string, parse it directly
-  if (!isNaN(Number(durationString))) {
-    return parseInt(durationString, 10);
-  }
-  
-  // Check if it's just "0s" or similar
-  if (durationString.endsWith('s') && !durationString.includes('m') && !durationString.includes('h')) {
-    const seconds = parseInt(durationString.replace('s', ''), 10);
-    return isNaN(seconds) ? 0 : seconds;
-  }
-  
-  // Handle 1h 30m format
-  if (durationString.includes('h') || durationString.includes('m')) {
-    let totalSeconds = 0;
-    
-    // Extract hours
-    if (durationString.includes('h')) {
-      const hoursMatch = durationString.match(/(\d+)h/);
-      if (hoursMatch && hoursMatch[1]) {
-        totalSeconds += parseInt(hoursMatch[1], 10) * 3600;
-      }
-    }
-    
-    // Extract minutes
-    if (durationString.includes('m')) {
-      const minutesMatch = durationString.match(/(\d+)m/);
-      if (minutesMatch && minutesMatch[1]) {
-        totalSeconds += parseInt(minutesMatch[1], 10) * 60;
-      }
-    }
-    
-    // Extract seconds
-    if (durationString.includes('s')) {
-      const secondsMatch = durationString.match(/(\d+)s/);
-      if (secondsMatch && secondsMatch[1]) {
-        totalSeconds += parseInt(secondsMatch[1], 10);
-      }
-    }
-    
-    return totalSeconds;
-  }
-  
-  const parts = durationString.split(':');
-  
+export function formatDuration(duration: string): string {
+  if (!duration) return "0:00";
+
+  // If it's already in HH:MM:SS format, convert to MM:SS or H:MM
+  const parts = duration.split(":");
   if (parts.length === 3) {
-    // HH:MM:SS format
-    const hours = parseInt(parts[0], 10) || 0;
-    const minutes = parseInt(parts[1], 10) || 0;
-    const seconds = parseInt(parts[2], 10) || 0;
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const seconds = parseInt(parts[2], 10);
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}`;
+    } else {
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    }
+  }
+
+  // If it's already in MM:SS format, return as is
+  if (parts.length === 2) {
+    return duration;
+  }
+
+  return duration;
+}
+
+/**
+ * Format date to a short readable format
+ */
+export function formatShortDate(dateStr: string): string {
+  if (!dateStr) return "";
+  
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
     
-    return hours * 3600 + minutes * 60 + seconds;
-  } else if (parts.length === 2) {
-    // MM:SS format
-    const minutes = parseInt(parts[0], 10) || 0;
-    const seconds = parseInt(parts[1], 10) || 0;
+    return date.toLocaleDateString(undefined, { 
+      month: 'short', 
+      day: 'numeric'
+    });
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+/**
+ * Ensure duration is never zero or invalid
+ */
+export function ensureValidDuration(duration: string): string {
+  if (!duration) return "0:01:00"; // Default to 1 minute
+  
+  if (duration === "0" || duration === "0s" || duration === "0:00:00") {
+    return "0:01:00"; // Default to 1 minute
+  }
+  
+  // Handle HH:MM:SS format
+  const parts = duration.split(':');
+  if (parts.length === 3) {
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const seconds = parseInt(parts[2], 10);
     
-    return minutes * 60 + seconds;
-  }
-  
-  return 0;
-}
-
-/**
- * Format seconds to HH:MM:SS string
- * @param seconds Total seconds
- * @returns Formatted duration string in HH:MM:SS format
- */
-export function formatSecondsToTimeString(seconds: number): string {
-  if (isNaN(seconds) || seconds < 0) return "0:00:00";
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  
-  return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-/**
- * Format a Date object or timestamp to a human-readable date string
- * @param date Date object or timestamp
- * @returns Formatted date string (e.g. "May 18, 2023")
- */
-export function formatDate(date: Date | string): string {
-  if (!date) return "";
-  
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
-    console.warn('Invalid date provided to formatDate:', date);
-    return "";
-  }
-  
-  return dateObj.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-}
-
-/**
- * Format a Date object or timestamp to a short date string
- * @param date Date object or timestamp
- * @returns Formatted date string (e.g. "05/18/2023")
- */
-export function formatShortDate(date: Date | string): string {
-  if (!date) return "";
-  
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
-    console.warn('Invalid date provided to formatShortDate:', date);
-    return "";
-  }
-  
-  return dateObj.toLocaleDateString();
-}
-
-/**
- * Ensure a duration value is properly formatted for display
- * @param duration Duration in various formats
- * @returns A formatted duration string or "1m" as default
- */
-export function ensureValidDuration(duration: any): string {
-  // If null, undefined or empty
-  if (!duration) return "1m";
-  
-  // If it's already a string in our display format (e.g. "2h 30m")
-  if (typeof duration === 'string' && 
-      (duration.includes('h') || duration.includes('m') || duration.includes('s'))) {
-    // Make sure it's not just "0s"
-    if (duration === "0s") return "1m";
+    if (hours === 0 && minutes === 0 && seconds === 0) {
+      return "0:01:00"; // Default to 1 minute
+    }
+    
+    // Keep valid duration
     return duration;
   }
   
-  // If it's a number in seconds
-  if (typeof duration === 'number') {
-    if (duration <= 0) return "1m";
-    return formatDuration(duration);
+  return duration;
+}
+
+/**
+ * Convert seconds to HH:MM:SS format
+ */
+export function secondsToTimeString(seconds: number): string {
+  if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+export function getInitials(name: string): string {
+  if (!name) return '';
+  
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+}
+
+export function truncateText(text: string, maxLength: number): string {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  
+  return text.substring(0, maxLength) + '...';
+}
+
+export function calculatePace(distanceKm: number, durationSeconds: number): string {
+  if (!distanceKm || distanceKm <= 0 || !durationSeconds || durationSeconds <= 0) {
+    return '--:--';
   }
   
-  // If it's a string in HH:MM:SS format
-  if (typeof duration === 'string') {
-    const seconds = parseDurationToSeconds(duration);
-    if (seconds <= 0) return "1m";
-    return formatDuration(seconds);
-  }
+  // Calculate pace in seconds per kilometer
+  const paceSeconds = durationSeconds / distanceKm;
   
-  // Default fallback
-  return "1m";
+  // Convert to minutes and seconds
+  const minutes = Math.floor(paceSeconds / 60);
+  const seconds = Math.floor(paceSeconds % 60);
+  
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  
+  return function(...args: Parameters<T>): void {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+    
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(later, wait);
+  };
 }

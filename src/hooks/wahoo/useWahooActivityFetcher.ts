@@ -32,6 +32,17 @@ export function useWahooActivityFetcher() {
     return "0:01:00"; // Default to 1 minute
   };
 
+  // Helper function to convert seconds to HH:MM:SS format
+  const secondsToTimeString = (seconds: number): string => {
+    if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const fetchWahooActivities = useCallback(async (userId: string, hookId: string) => {
     if (!userId) {
       console.log(`[${hookId}] No user found, not fetching activities`);
@@ -131,27 +142,50 @@ export function useWahooActivityFetcher() {
             calories = !isNaN(parsed) ? parsed : 0;
           }
           
-          // Enhanced duration handling - ensure we never have "0s" duration
+          // Handle numeric duration_seconds first if available
           let duration;
-          if (r.duration === null || r.duration === undefined) {
-            duration = "0:01:00"; // Default 1 minute
-          } else if (r.duration === "0" || r.duration === "0s" || r.duration === "0:00:00" || r.duration === 0) {
-            duration = "0:01:00"; // Use 1 minute instead of zero
-          } else if (typeof r.duration === 'string') {
-            // Format consistently to HH:MM:SS and ensure not zero
-            duration = formatDurationString(r.duration);
-          } else if (typeof r.duration === 'number') {
-            // Convert seconds to HH:MM:SS
-            if (r.duration <= 0) {
-              duration = "0:01:00"; // Use 1 minute instead of zero
-            } else {
-              const hours = Math.floor(r.duration / 3600);
-              const minutes = Math.floor((r.duration % 3600) / 60);
-              const seconds = Math.floor(r.duration % 60);
-              duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }
+          let durationSeconds = r.duration_seconds;
+          
+          if (typeof durationSeconds === 'number' && durationSeconds > 0) {
+            // We have seconds, convert to HH:MM:SS
+            duration = secondsToTimeString(durationSeconds);
           } else {
-            duration = "0:01:00"; // Default 1 minute
+            // Fall back to text-based duration with validation
+            if (r.duration === null || r.duration === undefined) {
+              duration = "0:01:00"; // Default 1 minute
+              durationSeconds = 60;
+            } else if (r.duration === "0" || r.duration === "0s" || r.duration === "0:00:00" || r.duration === 0) {
+              duration = "0:01:00"; // Use 1 minute instead of zero
+              durationSeconds = 60;
+            } else if (typeof r.duration === 'string') {
+              // Format consistently to HH:MM:SS
+              duration = formatDurationString(r.duration);
+              // Try to convert text duration to seconds
+              const parts = duration.split(':');
+              if (parts.length === 3) {
+                durationSeconds = parseInt(parts[0], 10) * 3600 + 
+                                 parseInt(parts[1], 10) * 60 + 
+                                 parseInt(parts[2], 10);
+              }
+            } else if (typeof r.duration === 'number') {
+              // Convert seconds to HH:MM:SS
+              if (r.duration <= 0) {
+                duration = "0:01:00"; // Use 1 minute instead of zero
+                durationSeconds = 60;
+              } else {
+                durationSeconds = r.duration;
+                duration = secondsToTimeString(durationSeconds);
+              }
+            } else {
+              duration = "0:01:00"; // Default 1 minute
+              durationSeconds = 60;
+            }
+          }
+          
+          // Ensure duration_seconds is never zero or negative
+          if (durationSeconds <= 0) {
+            durationSeconds = 60;
+            duration = "0:01:00";
           }
           
           // Format date
@@ -180,6 +214,7 @@ export function useWahooActivityFetcher() {
             distance: distance,
             elevation: elevation,
             duration: duration,
+            duration_seconds: durationSeconds,
             calories: calories,
           };
           

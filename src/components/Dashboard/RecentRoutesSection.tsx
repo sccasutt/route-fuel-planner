@@ -12,6 +12,7 @@ interface RouteType {
   distance: number;
   elevation: number;
   duration: string;
+  duration_seconds?: number | null;
   calories: number;
 }
 
@@ -30,8 +31,10 @@ export function RecentRoutesSection({ routes }: Props) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {routes.map((route) => {
-          // Make sure duration is never 0s or invalid
-          const displayDuration = ensureValidDuration(route.duration);
+          // Prefer numeric duration if available, otherwise use text-based duration
+          const displayDuration = route.duration_seconds && route.duration_seconds > 0
+            ? formatDuration(secondsToTimeString(route.duration_seconds))
+            : formatDuration(ensureValidDuration(route.duration));
           
           return (
             <Card key={route.id} className="overflow-hidden">
@@ -52,7 +55,7 @@ export function RecentRoutesSection({ routes }: Props) {
                   </div>
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{formatDuration(displayDuration)}</span>
+                    <span className="text-sm">{displayDuration}</span>
                   </div>
                   <div className="flex items-center">
                     <LineChart className="w-4 h-4 mr-2 text-muted-foreground" />
@@ -71,4 +74,15 @@ export function RecentRoutesSection({ routes }: Props) {
       </div>
     </div>
   );
+}
+
+// Helper function to convert seconds to HH:MM:SS format
+function secondsToTimeString(seconds: number): string {
+  if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

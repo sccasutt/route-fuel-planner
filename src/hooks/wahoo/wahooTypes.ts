@@ -1,4 +1,14 @@
 
+// Types for Wahoo integration
+
+export interface WahooTokenData {
+  access_token: string;
+  refresh_token: string;
+  expires_at?: number;
+  wahoo_user_id?: string | null;
+  email?: string;
+}
+
 export interface WahooActivityData {
   id: string;
   name: string;
@@ -6,11 +16,18 @@ export interface WahooActivityData {
   distance: number;
   elevation: number;
   duration: string;
+  duration_seconds?: number;
   calories: number;
+  gpx_data?: string | null;
 }
 
-// Global state to prevent redundant API calls across hook instances
+export interface WahooSyncResult {
+  success: boolean;
+  error?: Error;
+}
+
+// Global state to avoid multiple initializations
 export const wahooGlobalState = {
-  lastFetchTimestamp: 0,
-  isInitialized: false
+  isInitialized: false,
+  lastFetchTimestamp: 0
 };

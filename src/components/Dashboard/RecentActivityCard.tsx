@@ -34,8 +34,10 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
         ) : activities.length > 0 ? (
           <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
             {activities.slice(0, 3).map((activity) => {
-              // Ensure we have a valid duration for display
-              const displayDuration = ensureValidDuration(activity.duration);
+              // Prefer duration_seconds if available
+              const displayDuration = activity.duration_seconds && activity.duration_seconds > 0
+                ? secondsToTimeString(activity.duration_seconds)
+                : ensureValidDuration(activity.duration);
               
               return (
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
@@ -70,4 +72,15 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
       </div>
     </Card>
   );
+}
+
+// Helper function to convert seconds to HH:MM:SS format
+function secondsToTimeString(seconds: number): string {
+  if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

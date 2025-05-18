@@ -90,6 +90,7 @@ export type Database = {
           date: string
           distance: number
           duration: string
+          duration_seconds: number | null
           elevation: number
           gpx_data: string | null
           id: string
@@ -104,6 +105,7 @@ export type Database = {
           date: string
           distance: number
           duration: string
+          duration_seconds?: number | null
           elevation: number
           gpx_data?: string | null
           id?: string
@@ -118,6 +120,7 @@ export type Database = {
           date?: string
           distance?: number
           duration?: string
+          duration_seconds?: number | null
           elevation?: number
           gpx_data?: string | null
           id?: string
