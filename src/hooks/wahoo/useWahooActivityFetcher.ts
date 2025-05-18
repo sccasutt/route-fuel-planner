@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,54 +58,76 @@ export function useWahooActivityFetcher() {
         setActivities([]);
       } else {
         console.log(`[${hookId}] Retrieved ${data.length} activities for user`, userId);
-        console.log(`[${hookId}] Sample raw data:`, data[0]);
+        if (data.length > 0) {
+          console.log(`[${hookId}] First raw activity:`, data[0]);
+        }
         
         // Improved conversion logic with more robust parsing
         const typedActivities: WahooActivityData[] = data.map((r: any) => {
-          // Handle distance with better numeric parsing
+          // Ensure we're working with clean numeric values
+          
+          // Handle distance
           let distance = 0;
-          if (typeof r.distance === 'number') {
+          if (typeof r.distance === 'number' && !isNaN(r.distance)) {
             distance = r.distance;
           } else if (typeof r.distance === 'string') {
             const parsed = parseFloat(r.distance);
             distance = !isNaN(parsed) ? parsed : 0;
           }
           
-          // Handle elevation with better numeric parsing
+          // Handle elevation
           let elevation = 0;
-          if (typeof r.elevation === 'number') {
+          if (typeof r.elevation === 'number' && !isNaN(r.elevation)) {
             elevation = r.elevation;
           } else if (typeof r.elevation === 'string') {
             const parsed = parseFloat(r.elevation);
             elevation = !isNaN(parsed) ? parsed : 0;
           }
           
-          // Handle calories with better numeric parsing
+          // Handle calories
           let calories = 0;
-          if (typeof r.calories === 'number') {
+          if (typeof r.calories === 'number' && !isNaN(r.calories)) {
             calories = r.calories;
           } else if (typeof r.calories === 'string') {
             const parsed = parseInt(r.calories, 10);
             calories = !isNaN(parsed) ? parsed : 0;
           }
           
-          // Format duration properly
+          // Handle duration
           let duration = r.duration || "0:00:00";
+          if (duration && typeof duration === 'string') {
+            // Ensure it's a valid format (H:MM:SS or MM:SS)
+            const parts = duration.split(':');
+            if (parts.length === 2) {
+              // MM:SS format, convert to H:MM:SS
+              duration = `0:${duration}`;
+            } else if (parts.length !== 3) {
+              duration = "0:00:00";
+            }
+          } else if (typeof duration === 'number') {
+            // Convert seconds to HH:MM:SS
+            const hours = Math.floor(duration / 3600);
+            const minutes = Math.floor((duration % 3600) / 60);
+            const seconds = Math.floor(duration % 60);
+            duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          }
           
-          // Ensure we have a valid date
+          // Format date
           let dateStr = r.date;
-          if (!(dateStr instanceof Date) && typeof dateStr === 'string') {
+          if (dateStr) {
             try {
               // Try to parse as ISO date
               const dateObj = new Date(dateStr);
               if (!isNaN(dateObj.getTime())) {
-                // Valid date, keep as is
-                dateStr = dateObj.toISOString().split('T')[0];
+                // Valid date
+                dateStr = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
               }
             } catch (e) {
               console.error(`[${hookId}] Error parsing date:`, e);
               dateStr = new Date().toISOString().split('T')[0];
             }
+          } else {
+            dateStr = new Date().toISOString().split('T')[0];
           }
           
           // Create properly typed activity object with sanitized data

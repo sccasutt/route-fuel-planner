@@ -1,4 +1,5 @@
 
+
 import { Bike, Map, Clock, LineChart, Trophy, Calendar } from "lucide-react";
 import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,36 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
   
   // Format numbers for display
   const formattedDistance = totalDistance.toFixed(1);
+  
+  // Helper function to format date string
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString();
+      }
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // Helper function to format duration
+  const formatDuration = (duration: string) => {
+    if (!duration) return "0:00";
+    
+    // Check if it's in HH:MM:SS format and simplify to HH:MM or MM:SS as appropriate
+    const parts = duration.split(':').map(p => parseInt(p, 10));
+    
+    if (parts.length === 3) {
+      if (parts[0] === 0) {
+        return `${parts[1]}:${parts[2].toString().padStart(2, '0')}`; // MM:SS
+      }
+      return `${parts[0]}:${parts[1].toString().padStart(2, '0')}`; // HH:MM
+    }
+    
+    return duration;
+  };
   
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
@@ -76,7 +107,7 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
               <div className="text-muted-foreground text-xs mb-1 flex items-center">
                 <Calendar className="w-3 h-3 mr-1" /> Last Activity
               </div>
-              <div className="text-xl font-semibold">{activities[0]?.date || "N/A"}</div>
+              <div className="text-xl font-semibold">{activities[0]?.date ? formatDate(activities[0].date) : "N/A"}</div>
             </div>
             <div className="bg-muted/50 p-3 rounded-lg">
               <div className="text-muted-foreground text-xs mb-1 flex items-center">
@@ -108,7 +139,7 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
                   <div>
                     <p className="font-medium text-sm">{activity.name}</p>
-                    <p className="text-xs text-muted-foreground">{activity.date}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(activity.date)}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex items-center text-xs">
@@ -117,7 +148,7 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
                     </div>
                     <div className="flex items-center text-xs">
                       <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{activity.duration || "0:00"}</span>
+                      <span>{formatDuration(activity.duration || "0:00")}</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />
@@ -148,3 +179,4 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
     </div>
   );
 }
+

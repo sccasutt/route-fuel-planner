@@ -173,24 +173,140 @@ export async function fetchWahooActivities(access_token: string) {
     
     // Transform activity data to match our expected format
     const formattedActivities = activities.map(activity => {
-      // Extract key fields with fallbacks
+      // Deep dive into nested structures for better data extraction
+      const extractNestedValue = (obj: any, paths: string[]): any => {
+        for (const path of paths) {
+          const parts = path.split('.');
+          let value = obj;
+          let foundPath = true;
+          
+          for (const part of parts) {
+            if (value && value[part] !== undefined) {
+              value = value[part];
+            } else {
+              foundPath = false;
+              break;
+            }
+          }
+          
+          if (foundPath && value !== undefined && value !== null) {
+            return value;
+          }
+        }
+        return null;
+      };
+      
+      // Extract key fields with better fallbacks from nested structures
+      const id = activity.id || activity.workout_id || activity.route_id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      const name = activity.name || activity.title || "Unnamed Activity";
+      
+      const dateValue = extractNestedValue(activity, [
+        'start_time', 'starts', 'created_at', 'timestamp', 
+        'workout_summary.created_at'
+      ]) || new Date().toISOString();
+      
+      // Extract distance with comprehensive fallbacks
+      let distance = extractNestedValue(activity, [
+        'distance', 
+        'workout_summary.distance_accum',
+        'summary.distance',
+        'total_distance'
+      ]);
+      
+      if (typeof distance === 'string') {
+        distance = parseFloat(distance) || 0;
+      } else if (typeof distance !== 'number') {
+        distance = 0;
+      }
+      
+      // Convert to kilometers if needed
+      if (distance > 1000 && distance < 1000000) {
+        console.log(`Converting large distance value ${distance} to kilometers`);
+        distance = distance / 1000;
+      }
+      
+      // Extract elevation with comprehensive fallbacks
+      let elevation = extractNestedValue(activity, [
+        'elevation', 
+        'elevation_gain',
+        'workout_summary.ascent_accum',
+        'summary.elevation',
+        'altitude_gain',
+        'total_ascent'
+      ]);
+      
+      if (typeof elevation === 'string') {
+        elevation = parseFloat(elevation) || 0;
+      } else if (typeof elevation !== 'number') {
+        elevation = 0;
+      }
+      
+      // Extract calories with comprehensive fallbacks
+      let calories = extractNestedValue(activity, [
+        'calories', 
+        'energy',
+        'workout_summary.calories_accum',
+        'summary.calories',
+        'total_calories'
+      ]);
+      
+      if (typeof calories === 'string') {
+        calories = parseInt(calories, 10) || 0;
+      } else if (typeof calories !== 'number') {
+        calories = 0;
+      }
+      
+      // Extract duration with comprehensive fallbacks
+      let duration;
+      const durationValue = extractNestedValue(activity, [
+        'duration',
+        'workout_summary.duration_total_accum',
+        'minutes',
+        'summary.duration'
+      ]);
+      
+      // Process duration based on its type
+      if (typeof durationValue === 'number') {
+        if (durationValue > 3600) {
+          // Likely seconds, convert to HH:MM:SS
+          const hours = Math.floor(durationValue / 3600);
+          const minutes = Math.floor((durationValue % 3600) / 60);
+          const seconds = Math.floor(durationValue % 60);
+          duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        } else if (durationValue > 60) {
+          // Likely minutes, convert to HH:MM:00
+          const hours = Math.floor(durationValue / 60);
+          const minutes = Math.floor(durationValue % 60);
+          duration = `${hours}:${minutes.toString().padStart(2, '0')}:00`;
+        } else {
+          // Assume minutes
+          duration = `0:${Math.floor(durationValue).toString().padStart(2, '0')}:00`;
+        }
+      } else if (typeof durationValue === 'string') {
+        duration = durationValue;
+      } else {
+        duration = "0:00:00";
+      }
+      
       const formattedActivity = {
-        id: activity.id || activity.workout_id || activity.route_id || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        name: activity.name || activity.title || "Unnamed Activity",
-        date: activity.start_time || activity.created_at || activity.timestamp || new Date().toISOString(),
-        distance: typeof activity.distance === 'number' 
-          ? activity.distance 
-          : typeof activity.distance === 'string'
-            ? parseFloat(activity.distance)
-            : 0,
-        elevation: activity.elevation_gain || activity.elevation || 0,
-        duration: activity.duration || "0:00:00",
-        calories: activity.calories || activity.energy || 0,
+        id,
+        name,
+        date: dateValue,
+        distance,
+        elevation,
+        duration,
+        calories,
         gpx_data: activity.gpx_data || null,
         type: activity.type || activity.workout_type || "activity"
       };
       
-      console.log("Transformed activity:", formattedActivity.id, formattedActivity.name);
+      console.log("Transformed activity:", formattedActivity.id, formattedActivity.name, {
+        distance: formattedActivity.distance,
+        duration: formattedActivity.duration,
+        calories: formattedActivity.calories
+      });
+      
       return formattedActivity;
     });
     
