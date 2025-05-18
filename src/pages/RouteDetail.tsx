@@ -1,10 +1,10 @@
-
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Bike, Calendar, Clock, Droplet, LineChart, Map, Pencil, TrendingUp, Utensils, Wind } from "lucide-react";
+import RouteMap from "@/components/Map/RouteMap";
 
 // Sample route data (would come from an API in a real app)
 const sampleRoute = {
@@ -25,7 +25,9 @@ const sampleRoute = {
     protein: 25,
     fat: 15,
     water: 1.5
-  }
+  },
+  // Sample coordinates for the route (would come from API)
+  coordinates: [51.505, -0.09]
 };
 
 const RouteDetail = () => {
@@ -99,12 +101,13 @@ const RouteDetail = () => {
                 <CardTitle>Route Map</CardTitle>
                 <CardDescription>Elevation profile and route details</CardDescription>
               </CardHeader>
-              <CardContent className="p-0 h-[320px] bg-muted flex items-center justify-center">
-                <div className="text-muted-foreground flex flex-col items-center">
-                  <Map className="h-12 w-12 mb-2" />
-                  <p>Map visualization would appear here</p>
-                  <p className="text-sm">(Integration with mapping services)</p>
-                </div>
+              <CardContent className="p-0 h-[320px]">
+                <RouteMap 
+                  center={route.coordinates as [number, number]} 
+                  zoom={13}
+                  height="100%"
+                  className="rounded-b-lg"
+                />
               </CardContent>
             </Card>
           </div>
