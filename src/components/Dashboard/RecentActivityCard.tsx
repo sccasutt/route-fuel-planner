@@ -1,46 +1,113 @@
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Route, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Card } from "@/components/ui/card";
+import { Map, Clock, LineChart, Activity } from "lucide-react";
+import { WahooActivityData } from "@/hooks/useWahooData";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export function RecentActivityCard() {
+interface Props {
+  activities: WahooActivityData[];
+  isLoading: boolean;
+}
+
+export function RecentActivityCard({ activities, isLoading }: Props) {
+  // Helper function to format date string
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString();
+      }
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // Helper function to format duration
+  const formatDuration = (duration: string) => {
+    if (!duration) return "0:00";
+    
+    // Check if it's in HH:MM:SS format and simplify to HH:MM or MM:SS as appropriate
+    const parts = duration.split(':').map(p => parseInt(p, 10));
+    
+    if (parts.length === 3) {
+      if (parts[0] === 0) {
+        return `${parts[1]}:${parts[2].toString().padStart(2, '0')}`; // MM:SS
+      }
+      return `${parts[0]}:${parts[1].toString().padStart(2, '0')}`; // HH:MM
+    }
+    
+    return duration;
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-medium flex items-center">
-          <Route className="w-5 h-5 mr-2 text-primary" />
-          Recent Activity
-        </CardTitle>
-        <CardDescription>Your latest cycling stats</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Total Distance</p>
-            <p className="text-2xl font-bold">112 km</p>
+    <Card className="overflow-hidden h-full">
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold text-lg">Recent Activity</h3>
           </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Rides</p>
-            <p className="text-2xl font-bold">3</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Calories</p>
-            <p className="text-2xl font-bold">2,670</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Elevation</p>
-            <p className="text-2xl font-bold">1,295m</p>
-          </div>
+          {activities.length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {activities.length} activities
+            </span>
+          )}
         </div>
-      </CardContent>
-      <CardFooter>
-        <Link to="/routes">
-          <Button variant="ghost" size="sm" className="gap-1">
-            View all activity <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
-      </CardFooter>
+        
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-[60px] w-full" />
+            <Skeleton className="h-[60px] w-full" />
+          </div>
+        ) : activities.length > 0 ? (
+          <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+            {activities.slice(0, 3).map((activity) => {
+              // Parse distance for each activity
+              const displayDistance = typeof activity.distance === 'number' 
+                ? !isNaN(activity.distance) ? activity.distance.toFixed(1) : '0.0'
+                : typeof activity.distance === 'string' 
+                  ? parseFloat(activity.distance).toFixed(1)
+                  : '0.0';
+              
+              // Parse calories for each activity  
+              const displayCalories = typeof activity.calories === 'number' 
+                ? !isNaN(activity.calories) ? activity.calories : 0 
+                : typeof activity.calories === 'string'
+                  ? parseInt(activity.calories, 10) || 0
+                  : 0;
+              
+              return (
+                <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
+                  <div>
+                    <p className="font-medium text-sm">{activity.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(activity.date)}</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="flex items-center text-xs">
+                      <Map className="w-3 h-3 mr-1 text-muted-foreground" />
+                      <span>{displayDistance} km</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
+                      <span>{formatDuration(activity.duration || "0:00")}</span>
+                    </div>
+                    <div className="flex items-center text-xs">
+                      <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />
+                      <span>{displayCalories} kcal</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-muted-foreground mb-2">No recent activities</p>
+            <p className="text-sm">Connect your Wahoo device to see activities</p>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }

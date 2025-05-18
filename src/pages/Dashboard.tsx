@@ -4,7 +4,6 @@ import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWahooData, WahooActivityData } from "@/hooks/useWahooData";
 import { ConnectedAccountsCard } from "@/components/Dashboard/ConnectedAccountsCard";
-import { WahooActivitySummaryCard } from "@/components/Dashboard/WahooActivitySummaryCard";
 import { RecentActivityCard } from "@/components/Dashboard/RecentActivityCard";
 import { NutritionStatusCard } from "@/components/Dashboard/NutritionStatusCard";
 import { UpcomingRideCard } from "@/components/Dashboard/UpcomingRideCard";
@@ -14,7 +13,7 @@ import { NutritionTabContent } from "@/components/Dashboard/NutritionTabContent"
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Bike, AlertCircle, Check } from "lucide-react";
+import { RefreshCcw, AlertCircle, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { WahooResyncButton } from "@/components/Wahoo/WahooResyncButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -100,7 +99,7 @@ const Dashboard = () => {
             <ConnectedAccountsCard />
           </div>
           <div className="col-span-2">
-            <WahooActivitySummaryCard isLoading={isLoading} activities={activities} />
+            <RecentActivityCard activities={activities} isLoading={isLoading} />
           </div>
         </div>
 
@@ -113,9 +112,31 @@ const Dashboard = () => {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <RecentActivityCard />
               <NutritionStatusCard />
               <UpcomingRideCard />
+              <div className="bg-card p-6 rounded-lg border shadow-sm">
+                <h3 className="text-lg font-semibold mb-4">Activity Stats</h3>
+                {activities.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-muted/50 p-3 rounded-lg">
+                        <div className="text-muted-foreground text-xs mb-1">Total Distance</div>
+                        <div className="text-xl font-semibold">
+                          {activities.reduce((sum, act) => sum + (typeof act.distance === 'number' ? act.distance : 0), 0).toFixed(1)} km
+                        </div>
+                      </div>
+                      <div className="bg-muted/50 p-3 rounded-lg">
+                        <div className="text-muted-foreground text-xs mb-1">Total Activities</div>
+                        <div className="text-xl font-semibold">{activities.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-muted-foreground">No activity data yet</p>
+                  </div>
+                )}
+              </div>
             </div>
             {activities.length > 0 ? (
               <RecentRoutesSection routes={routesData} />
