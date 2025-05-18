@@ -6,13 +6,31 @@ interface RouteMapPreviewProps {
   routeCoordinates?: [number, number][];
   hasValidCoordinates: boolean;
   height?: string;
+  routeType?: string;
 }
 
 export function RouteMapPreview({ 
   routeCoordinates = [], 
   hasValidCoordinates, 
-  height = "100px" 
+  height = "100px",
+  routeType = "activity"
 }: RouteMapPreviewProps) {
+  // Set route style based on route type
+  const getRouteStyle = () => {
+    switch(routeType?.toLowerCase()) {
+      case 'workout': 
+        return { color: "#F59E0B", weight: 3, opacity: 0.8 }; // Amber
+      case 'ride':
+        return { color: "#3B82F6", weight: 3, opacity: 0.8 }; // Blue
+      case 'route':
+        return { color: "#10B981", weight: 3, opacity: 0.8 }; // Green
+      case 'race':
+        return { color: "#EF4444", weight: 3, opacity: 0.8 }; // Red
+      default:
+        return { color: "#8B5CF6", weight: 3, opacity: 0.8 }; // Purple (default)
+    }
+  };
+
   if (!hasValidCoordinates) {
     return (
       <div className="h-[100px] w-full mb-2 flex items-center justify-center bg-muted rounded-md border border-border/50">
@@ -31,11 +49,7 @@ export function RouteMapPreview({
         showControls={false}
         routeCoordinates={routeCoordinates}
         mapStyle="default"
-        routeStyle={{
-          color: "#8B5CF6", // Vivid purple
-          weight: 3,
-          opacity: 0.8
-        }}
+        routeStyle={getRouteStyle()}
       />
     </div>
   );

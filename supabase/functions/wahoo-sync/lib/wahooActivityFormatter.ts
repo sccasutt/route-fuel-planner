@@ -15,26 +15,47 @@ export function formatWahooActivities(activities: any[]) {
   
   // Transform activity data with robust fallback extraction
   const formattedActivities = activities.map(activity => {
-    // Extract ID with fallbacks
-    const id = extractNestedValue(activity, ['id', 'workout_id', 'route_id']) || 
-              `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // Extract ID with fallbacks based on Wahoo API doc field mappings
+    const id = extractNestedValue(activity, [
+      'id', 
+      'workout_id', 
+      'route_id',
+      'workout_history_id',
+      'ride_id'
+    ]) || `wahoo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     // Extract name with fallbacks
-    const name = extractNestedValue(activity, ['name', 'title', 'workout_name']) || "Unnamed Activity";
+    const name = extractNestedValue(activity, [
+      'name', 
+      'title', 
+      'workout_name',
+      'route_name',
+      'ride_name',
+      'workout_title'
+    ]) || "Unnamed Activity";
     
     // Extract date with fallbacks
     const dateValue = extractNestedValue(activity, [
-      'start_time', 'starts', 'created_at', 'timestamp', 
-      'workout_summary.created_at', 'date'
+      'start_time', 
+      'starts', 
+      'created_at', 
+      'timestamp',
+      'date',
+      'workout_date',
+      'ride_date',
+      'completed_on',
+      'workout_summary.created_at'
     ]) || new Date().toISOString();
     
-    // Extract distance with fallbacks
+    // Extract distance with fallbacks (in kilometers)
     let distance = extractNestedValue(activity, [
       'distance', 
       'workout_summary.distance_accum',
       'summary.distance',
       'total_distance',
-      'distance_km'
+      'distance_km',
+      'route_distance',
+      'kilometers'
     ]);
     
     // Extract elevation with fallbacks
@@ -45,7 +66,10 @@ export function formatWahooActivities(activities: any[]) {
       'summary.elevation',
       'altitude_gain',
       'total_ascent',
-      'ascent'
+      'ascent',
+      'route_elevation',
+      'climb',
+      'climbing'
     ]);
     
     // Extract calories with fallbacks
@@ -55,18 +79,21 @@ export function formatWahooActivities(activities: any[]) {
       'workout_summary.calories_accum',
       'summary.calories',
       'total_calories',
-      'kcal'
+      'kcal',
+      'calorie_estimate'
     ]);
     
     // Extract duration with improved fallbacks for various formats
     let durationValue = extractNestedValue(activity, [
       'duration',
       'workout_summary.duration_total_accum',
-      'minutes',
       'summary.duration',
       'duration_seconds',
       'elapsed_time',
-      'moving_time'
+      'moving_time',
+      'minutes',
+      'seconds',
+      'total_time'
     ]);
     
     // Process duration to handle different formats and normalize to H:MM:SS format
@@ -121,11 +148,11 @@ export function formatWahooActivities(activities: any[]) {
       distance = distance / 1000;
     }
     
-    // Extract GPS coordinates from different possible sources
+    // Extract GPS coordinates from different possible sources based on Wahoo API formats
     let gpxData = null;
     
     // First check for route points or coordinates
-    if (activity.route_points || activity.coordinates || activity.latlng || activity.path) {
+    if (activity.route_points || activity.coordinates || activity.latlng || activity.path || activity.points) {
       let coordinates: [number, number][] = [];
       
       if (Array.isArray(activity.route_points)) {
@@ -144,6 +171,15 @@ export function formatWahooActivities(activities: any[]) {
         coordinates = activity.path
           .filter((point: any) => point.lat && point.lng)
           .map((point: any) => [point.lat, point.lng] as [number, number]);
+      } else if (Array.isArray(activity.points)) {
+        coordinates = activity.points
+          .filter((point: any) => (point.lat !== undefined && point.lng !== undefined) || 
+                                 (point.latitude !== undefined && point.longitude !== undefined))
+          .map((point: any) => {
+            const lat = point.lat !== undefined ? point.lat : point.latitude;
+            const lng = point.lng !== undefined ? point.lng : point.longitude;
+            return [lat, lng] as [number, number];
+          });
       }
       
       if (coordinates.length > 0) {
@@ -177,6 +213,16 @@ export function formatWahooActivities(activities: any[]) {
         }
       }
     }
+
+    // If we have a gpx_file_url, include that in the metadata
+    const gpxFileUrl = activity.gpx_file_url || activity.gpx_url;
+    
+    // Determine activity type based on source endpoint or type field
+    const activityType = activity.type || 
+                        activity.workout_type || 
+                        activity.ride_type || 
+                        activity.route_type || 
+                        "activity";
     
     return {
       id,
@@ -188,7 +234,12 @@ export function formatWahooActivities(activities: any[]) {
       duration_seconds: durationSeconds,
       calories,
       gpx_data: gpxData || activity.gpx_data || null,
-      type: activity.type || activity.workout_type || "activity"
+      type: activityType,
+      gpx_file_url: gpxFileUrl,
+      additional_data: {
+        wahoo_type: activityType,
+        source_endpoint: activity._sourceEndpoint // This will be useful for debugging
+      }
     };
   });
   

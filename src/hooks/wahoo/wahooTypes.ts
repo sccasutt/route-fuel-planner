@@ -9,8 +9,20 @@ export interface WahooTokenData {
   email?: string;
 }
 
+export interface WahooWeatherData {
+  id: string;
+  route_id: string; 
+  temperature?: number;
+  wind_speed?: number;
+  humidity?: number;
+  conditions?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface WahooActivityData {
   id: string;
+  wahooRouteId?: string;
   name: string;
   date: string;
   distance: number;
@@ -19,11 +31,21 @@ export interface WahooActivityData {
   duration_seconds?: number;
   calories: number;
   gpx_data?: string | null;
+  coordinates?: [number, number][];
+  gpx_file_url?: string | null;
+  type?: string;
+  weather?: WahooWeatherData | null;
+  metadata?: any;
 }
 
 export interface WahooSyncResult {
   success: boolean;
   error?: Error;
+  data?: {
+    profile?: any;
+    routeCount?: number;
+    activityCount?: number;
+  };
 }
 
 export interface WahooProfileData {

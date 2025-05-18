@@ -14,6 +14,8 @@ interface RouteType {
   duration_seconds?: number | null;
   calories: number;
   gpx_data?: string | null;
+  type?: string;
+  gpx_file_url?: string | null;
 }
 
 interface RoutesGridProps {
@@ -42,6 +44,8 @@ export function RoutesGrid({ routes, routeCoordinates }: RoutesGridProps) {
             duration={route.duration}
             calories={route.calories}
             routeCoordinates={routeCoordinates[route.id] || []}
+            type={route.type}
+            gpxFileUrl={route.gpx_file_url}
           />
         ))}
       </div>

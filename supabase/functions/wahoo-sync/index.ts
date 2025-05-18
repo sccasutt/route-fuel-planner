@@ -1,5 +1,6 @@
 
 // Edge function: Fetches Wahoo user profile and recent routes and stores them in the database
+// Updated to follow Wahoo API documentation workflow
 
 import { parseRequestJson } from './lib/parseRequestJson.ts';
 import { parseJwt, extractUserIdFromJwt } from './lib/jwtHelpers.ts';
@@ -117,10 +118,18 @@ Deno.serve(async (req) => {
       }), { status: 500, headers: corsHeaders });
     }
 
-    // Fetch Wahoo activities (recent rides)
+    // Fetch Wahoo activities (recent rides) with proper source endpoint tracking
     let activities;
     try {
       activities = await fetchWahooActivities(access_token);
+      
+      // Add source endpoint info to each activity
+      if (Array.isArray(activities)) {
+        activities = activities.map(activity => ({
+          ...activity,
+          _sourceEndpoint: "wahoo-api"
+        }));
+      }
     } catch (err: any) {
       console.error("Wahoo activities fetch failed:", err.message);
       return new Response(JSON.stringify({
@@ -146,7 +155,8 @@ Deno.serve(async (req) => {
         JSON.stringify({
           ok: true,
           profile,
-          routeCount
+          routeCount,
+          activityCount: activities.length
         }),
         { status: 200, headers: corsHeaders }
       );

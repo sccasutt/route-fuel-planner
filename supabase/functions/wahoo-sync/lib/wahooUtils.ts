@@ -1,184 +1,103 @@
 
-// Utility functions for Wahoo API integration
+// Utility functions for processing Wahoo data
 
 /**
- * Extracts nested values from an object with fallback paths
+ * Safely extracts a value from a nested object using multiple possible paths
  */
 export const extractNestedValue = (obj: any, paths: string[]): any => {
-  if (!obj) return null;
+  if (!obj || typeof obj !== 'object') return undefined;
   
   for (const path of paths) {
-    const parts = path.split('.');
-    let value = obj;
-    let foundPath = true;
-    
-    for (const part of parts) {
-      if (value && value[part] !== undefined) {
+    // Handle dot notation for nested properties
+    if (path.includes('.')) {
+      const parts = path.split('.');
+      let value = obj;
+      
+      for (const part of parts) {
+        if (value === undefined || value === null) break;
         value = value[part];
-      } else {
-        foundPath = false;
-        break;
       }
-    }
-    
-    if (foundPath && value !== undefined && value !== null) {
-      return value;
+      
+      if (value !== undefined && value !== null) return value;
+    } 
+    // Direct property access
+    else if (obj[path] !== undefined && obj[path] !== null) {
+      return obj[path];
     }
   }
-  return null;
+  
+  return undefined;
 };
 
 /**
- * Format duration string into consistent H:MM:SS format (no leading zero for hours)
+ * Format duration string to consistent HH:MM:SS format
  */
-export function formatDurationString(duration: string | number): string {
+export const formatDurationString = (duration: string): string => {
   if (!duration) return "0:00:00";
   
-  // If duration is a number, assume it's in seconds
-  if (typeof duration === 'number') {
-    const hours = Math.floor(duration / 3600);
-    const minutes = Math.floor((duration % 3600) / 60);
-    const seconds = Math.floor(duration % 60);
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
+  // If already in HH:MM:SS format, return as is
+  if (/^\d+:\d{2}:\d{2}$/.test(duration)) return duration;
   
-  // Handle string durations
-  if (typeof duration === 'string') {
-    // Handle human-readable formats like "2h 30m 15s"
-    if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
-      const hoursMatch = duration.match(/(\d+)h/);
-      const minutesMatch = duration.match(/(\d+)m/);
-      const secondsMatch = duration.match(/(\d+)s/);
-      
-      const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
-      const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
-      const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
-      
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-    
-    // Check if already in H:MM:SS format
-    const timeFormat = duration.match(/^(\d+):(\d+):(\d+)$/);
-    if (timeFormat) {
-      const hours = parseInt(timeFormat[1], 10);
-      const minutes = parseInt(timeFormat[2], 10);
-      const seconds = parseInt(timeFormat[3], 10);
-      
-      // Ensure we use the H:MM:SS format (no leading zero for hours)
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-    
-    const parts = duration.split(':');
-    
-    // Handle different formats
-    if (parts.length === 1) {
-      // Just numeric string, interpret as seconds
-      const seconds = parseInt(parts[0], 10);
-      if (!isNaN(seconds)) {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      }
-      return "0:00:00";
-    } else if (parts.length === 2) {
-      // MM:SS format, add hours
-      return `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-    }
-  }
+  // Try to parse various formats
+  let seconds = durationToSeconds(duration);
   
-  return "0:00:00";
-}
+  // Format as HH:MM:SS
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
 
 /**
- * Convert duration string to seconds
+ * Convert duration string or value to seconds
  */
-export function durationToSeconds(duration: string | number): number {
-  if (!duration) return 60; // Default to 1 minute (60 seconds)
+export const durationToSeconds = (duration: string | number): number => {
+  if (typeof duration === 'number') return duration;
+  if (!duration) return 0;
   
-  // If already a number, assume it's already in seconds
-  if (typeof duration === 'number') {
-    return duration > 0 ? duration : 60;
+  // Check if in HH:MM:SS format
+  const hhmmss = duration.match(/^(\d+):(\d{1,2}):(\d{1,2})$/);
+  if (hhmmss) {
+    return parseInt(hhmmss[1]) * 3600 + parseInt(hhmmss[2]) * 60 + parseInt(hhmmss[3]);
   }
   
-  // Handle string durations in various formats
-  if (typeof duration === 'string') {
-    // Check if it's already in H:MM:SS format
-    const timeFormat = duration.match(/^(\d+):(\d+):(\d+)$/);
-    if (timeFormat) {
-      const hours = parseInt(timeFormat[1], 10);
-      const minutes = parseInt(timeFormat[2], 10);
-      const seconds = parseInt(timeFormat[3], 10);
-      return hours * 3600 + minutes * 60 + seconds;
-    }
-    
-    // Handle human-readable formats like "2h 30m 15s"
-    if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
-      const hoursMatch = duration.match(/(\d+)h/);
-      const minutesMatch = duration.match(/(\d+)m/);
-      const secondsMatch = duration.match(/(\d+)s/);
-      
-      const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
-      const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
-      const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
-      
-      return hours * 3600 + minutes * 60 + seconds;
-    }
-    
-    // Format MM:SS
-    const mmssMatch = duration.match(/^(\d+):(\d+)$/);
-    if (mmssMatch) {
-      const minutes = parseInt(mmssMatch[1], 10);
-      const seconds = parseInt(mmssMatch[2], 10);
-      return minutes * 60 + seconds;
-    }
-    
-    // Format "Xh Ym"
-    const hourMinMatch = duration.match(/^(\d+)h\s*(\d+)m$/);
-    if (hourMinMatch) {
-      const hours = parseInt(hourMinMatch[1], 10);
-      const minutes = parseInt(hourMinMatch[2], 10);
-      return hours * 3600 + minutes * 60;
-    }
-    
-    // Format "Ym Xs"
-    const minSecMatch = duration.match(/^(\d+)m\s*(\d+)s$/);
-    if (minSecMatch) {
-      const minutes = parseInt(minSecMatch[1], 10);
-      const seconds = parseInt(minSecMatch[2], 10);
-      return minutes * 60 + seconds;
-    }
-    
-    // Format just seconds "Xs"
-    const secMatch = duration.match(/^(\d+)s$/);
-    if (secMatch) {
-      return parseInt(secMatch[1], 10);
-    }
-    
-    // Try parsing as a plain number in string form
-    const numericValue = parseFloat(duration);
-    if (!isNaN(numericValue)) {
-      return numericValue > 0 ? numericValue : 60;
-    }
+  // Check if in MM:SS format
+  const mmss = duration.match(/^(\d+):(\d{1,2})$/);
+  if (mmss) {
+    return parseInt(mmss[1]) * 60 + parseInt(mmss[2]);
   }
   
-  return 60; // Default to 1 minute (60 seconds)
-}
+  // Check if it has "hr", "min", "sec" notation
+  let seconds = 0;
+  const hourMatch = duration.match(/(\d+)\s*h(r|our|rs|ours)?/i);
+  const minMatch = duration.match(/(\d+)\s*m(in|inute|ins|inutes)?/i);
+  const secMatch = duration.match(/(\d+)\s*s(ec|econd|ecs|econds)?/i);
+  
+  if (hourMatch) seconds += parseInt(hourMatch[1]) * 3600;
+  if (minMatch) seconds += parseInt(minMatch[1]) * 60;
+  if (secMatch) seconds += parseInt(secMatch[1]);
+  
+  // If nothing matched but it's just a number, assume it's seconds
+  if (seconds === 0 && /^\d+(\.\d+)?$/.test(duration)) {
+    seconds = parseFloat(duration);
+  }
+  
+  return seconds;
+};
 
 /**
- * Improved function to parse numeric values safely
+ * Parse numeric value safely with default
  */
-export function parseNumericValue(value: any, defaultValue: number = 0): number {
-  if (value === null || value === undefined) return defaultValue;
+export const parseNumericValue = (value: any, defaultValue = 0): number => {
+  if (value === undefined || value === null) return defaultValue;
   
-  if (typeof value === 'number') {
-    return !isNaN(value) ? value : defaultValue;
-  }
+  if (typeof value === 'number') return value;
   
   if (typeof value === 'string') {
-    const parsed = parseFloat(value);
-    return !isNaN(parsed) ? parsed : defaultValue;
+    const parsedValue = parseFloat(value);
+    return !isNaN(parsedValue) ? parsedValue : defaultValue;
   }
   
   return defaultValue;
-}
+};

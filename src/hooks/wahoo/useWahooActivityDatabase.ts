@@ -19,10 +19,13 @@ export function useWahooActivityDatabase() {
       // Using RLS policies to get only routes for the current user
       const { data, error } = await supabase
         .from('routes')
-        .select('*')
+        .select(`
+          *,
+          route_weather(*)
+        `)
         .eq("user_id", userId)
         .order("date", { ascending: false })
-        .limit(50);
+        .limit(100); // Increased limit to get more recent activities
 
       if (error) {
         console.error(`[${hookId}] Error fetching routes:`, error);
@@ -116,8 +119,43 @@ export function useWahooActivityDatabase() {
     }
   }, []);
 
+  /**
+   * Fetches a single route by ID
+   */
+  const fetchRouteById = useCallback(async (routeId: string, hookId: string) => {
+    try {
+      console.log(`[${hookId}] Fetching route by ID:`, routeId);
+      
+      const { data, error } = await supabase
+        .from('routes')
+        .select(`
+          *,
+          route_weather(*)
+        `)
+        .eq('id', routeId)
+        .single();
+      
+      if (error) {
+        console.error(`[${hookId}] Error fetching route by ID:`, error);
+        return null;
+      }
+      
+      if (!data) {
+        console.log(`[${hookId}] No route found with ID:`, routeId);
+        return null;
+      }
+      
+      console.log(`[${hookId}] Found route:`, data);
+      return processActivityData(data);
+    } catch (error) {
+      console.error(`[${hookId}] Error in fetchRouteById:`, error);
+      return null;
+    }
+  }, []);
+
   return {
     fetchActivitiesFromDB,
-    fetchWahooProfile
+    fetchWahooProfile,
+    fetchRouteById
   };
 }
