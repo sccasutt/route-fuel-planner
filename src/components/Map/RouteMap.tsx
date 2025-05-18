@@ -13,6 +13,7 @@ interface RouteMapProps {
   height?: string;
   className?: string;
   gpxData?: string | null; // For future GPX route rendering
+  showControls?: boolean;
 }
 
 const RouteMap = ({ 
@@ -20,7 +21,8 @@ const RouteMap = ({
   zoom = 13, 
   height = '320px',
   className = '',
-  gpxData = null
+  gpxData = null,
+  showControls = false
 }: RouteMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -46,6 +48,11 @@ const RouteMap = ({
         maxZoom: 19
       }).addTo(map);
 
+      // Add navigation controls if requested
+      if (showControls) {
+        L.control.zoom({ position: 'topright' }).addTo(map);
+      }
+
       // Add a sample marker at the center position
       L.marker(center).addTo(map)
         .bindPopup('Route location')
@@ -64,7 +71,7 @@ const RouteMap = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [center, zoom, gpxData]);
+  }, [center, zoom, gpxData, showControls]);
 
   return (
     <div className={`route-map ${className}`} style={{ height }}>
