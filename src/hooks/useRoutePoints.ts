@@ -13,6 +13,13 @@ export interface RoutePoint {
   recorded_at: string | null;
 }
 
+export interface RoutePointStats {
+  minElevation: number | null;
+  maxElevation: number | null;
+  totalAscent: number;
+  totalDescent: number;
+}
+
 /**
  * Hook to fetch detailed route points for a given route
  */
@@ -21,12 +28,7 @@ export function useRoutePoints(routeId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const [points, setPoints] = useState<RoutePoint[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<{
-    minElevation: number | null;
-    maxElevation: number | null;
-    totalAscent: number;
-    totalDescent: number;
-  }>({
+  const [stats, setStats] = useState<RoutePointStats>({
     minElevation: null,
     maxElevation: null,
     totalAscent: 0,
