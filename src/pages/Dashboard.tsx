@@ -73,12 +73,10 @@ const Dashboard = () => {
       <div className="container py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Your Dashboard</h1>
-          {isConnected && (
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-              <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-              {isLoading ? "Refreshing..." : "Refresh Data"}
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+            <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            {isLoading ? "Refreshing..." : "Refresh Data"}
+          </Button>
         </div>
 
         {connectionError && (
@@ -101,11 +99,9 @@ const Dashboard = () => {
           <div>
             <ConnectedAccountsCard />
           </div>
-          {isConnected && (
-            <div className="col-span-2">
-              <WahooActivitySummaryCard isLoading={isLoading} activities={activities} />
-            </div>
-          )}
+          <div className="col-span-2">
+            <WahooActivitySummaryCard isLoading={isLoading} activities={activities} />
+          </div>
         </div>
 
         <Tabs defaultValue="overview" onValueChange={setSelectedTab} className="space-y-8">
@@ -125,34 +121,16 @@ const Dashboard = () => {
               <RecentRoutesSection routes={routesData} />
             ) : (
               <div className="p-6 bg-muted rounded-lg border text-center">
-                <h2 className="text-xl font-bold mb-2">No Routes Yet</h2>
+                <h2 className="text-xl font-bold mb-2">Connect Your Wahoo Account</h2>
                 <p className="text-muted-foreground mb-4">
-                  {isConnected 
-                    ? "Your Wahoo account is connected but no activities were found. Try syncing your activities." 
-                    : "Connect your Wahoo account to see your routes here"}
+                  Connect your Wahoo account to see your routes and activities
                 </p>
-                {!isConnected ? (
-                  <Button onClick={() => {
-                    const connectButton = document.querySelector('.wahoo-connect-button');
-                    if (connectButton) {
-                      (connectButton as HTMLButtonElement).click();
-                    }
-                  }}>
-                    Connect Wahoo
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Make sure you have activities in your Wahoo account and click the button below to sync them.
-                    </p>
-                    <WahooResyncButton 
-                      setConnectionError={setConnectionError}
-                      variant="default"
-                      size="default"
-                      label="Sync Wahoo Activities"
-                    />
-                  </div>
-                )}
+                <WahooResyncButton 
+                  setConnectionError={setConnectionError}
+                  variant="default"
+                  size="default"
+                  label="Connect Wahoo"
+                />
               </div>
             )}
           </TabsContent>
