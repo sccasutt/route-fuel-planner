@@ -29,7 +29,9 @@ const Dashboard = () => {
       user: user?.id || "No user",
       loading,
       activitiesLoaded: activities?.length || 0,
-      isWahooLoading: isLoading
+      isWahooLoading: isLoading,
+      currentPath: window.location.pathname,
+      dashboardVisible: document.getElementById('dashboard-container') ? true : false
     });
   }, [user, loading, activities, isLoading]);
 
@@ -125,7 +127,7 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="container py-8">
+      <div id="dashboard-container" className="container py-8">
         <DashboardHeader onRefresh={handleRefresh} isLoading={isLoading} />
 
         <ConnectionAlerts 
