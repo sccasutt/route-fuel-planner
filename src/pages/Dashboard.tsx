@@ -86,7 +86,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="routes">
-            <RoutesTabContent routes={routesData} />
+            <RoutesTabContent activities={routesData} />
           </TabsContent>
 
           <TabsContent value="nutrition">

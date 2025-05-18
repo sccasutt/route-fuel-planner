@@ -139,6 +139,24 @@ export function secondsToTimeString(seconds: number): string {
   return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Format distance values to a user-friendly format
+ * @param distance Distance in meters
+ */
+export function formatDistance(distance: number): string {
+  // Convert to kilometers and format to 1 decimal place
+  return (distance / 1000).toFixed(1);
+}
+
+/**
+ * Format elevation values to a user-friendly format
+ * @param elevation Elevation in meters
+ */
+export function formatElevation(elevation: number): string {
+  // Round to nearest whole number
+  return Math.round(elevation).toString();
+}
+
 export function getInitials(name: string): string {
   if (!name) return '';
   
