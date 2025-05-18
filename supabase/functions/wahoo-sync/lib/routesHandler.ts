@@ -1,4 +1,3 @@
-
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { formatDurationString, durationToSeconds, parseNumericValue } from "./wahooUtils.ts";
 
@@ -86,66 +85,75 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         dateObj = new Date();
       }
       
-      // Handle duration with improved normalization to ensure proper storage format (HH:MM:SS)
-      let duration = "0:00:00";
+      // Handle duration with improved normalization to match app format (H:MM:SS)
+      let duration = "0:01:00"; // Default
       let durationSeconds = 60; // Default to 1 minute
       
       if (activity.duration) {
-        // First normalize the duration string to ensure consistent format
         if (typeof activity.duration === 'string') {
-          // Check if it's already in HH:MM:SS format but has very large hours
-          const largeHourFormat = activity.duration.match(/^(\d+):(\d+):(\d+)$/);
-          if (largeHourFormat) {
-            // Convert large hour values to standard format
-            const hours = parseInt(largeHourFormat[1], 10);
-            const minutes = parseInt(largeHourFormat[2], 10);
-            const seconds = parseInt(largeHourFormat[3], 10);
+          // Check if it's already in H:MM:SS format
+          const timeFormat = activity.duration.match(/^(\d+):(\d+):(\d+)$/);
+          if (timeFormat) {
+            // Keep hours without leading zeros, ensure minutes and seconds have leading zeros
+            const hours = parseInt(timeFormat[1], 10);
+            const minutes = parseInt(timeFormat[2], 10);
+            const seconds = parseInt(timeFormat[3], 10);
             
-            // Normalize the duration to standard HH:MM:SS format
-            // This ensures we don't have durations like "162:26:00"
-            duration = `${hours % 24}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            // Format as H:MM:SS (no leading zero for hours)
+            duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             durationSeconds = hours * 3600 + minutes * 60 + seconds;
           } else {
-            // For other formats, use our formatter function
-            duration = formatDurationString(activity.duration);
+            // For other formats, convert to H:MM:SS
             durationSeconds = durationToSeconds(activity.duration);
+            
+            // Format seconds to H:MM:SS
+            const hours = Math.floor(durationSeconds / 3600);
+            const minutes = Math.floor((durationSeconds % 3600) / 60);
+            const seconds = Math.floor(durationSeconds % 60);
+            
+            duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
           }
         } else if (typeof activity.duration === 'number') {
-          // If duration is a number, assume it's seconds and convert
+          // If duration is a number, assume it's seconds and convert to H:MM:SS
           durationSeconds = activity.duration > 0 ? activity.duration : 60;
-          duration = formatDurationString(durationSeconds);
+          
+          const hours = Math.floor(durationSeconds / 3600);
+          const minutes = Math.floor((durationSeconds % 3600) / 60);
+          const seconds = Math.floor(durationSeconds % 60);
+          
+          duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
       } else if (activity.workout_summary?.duration_total_accum) {
-        // Convert seconds to HH:MM:SS
+        // Convert seconds to H:MM:SS
         const seconds = parseFloat(activity.workout_summary.duration_total_accum);
         durationSeconds = seconds > 0 ? seconds : 60;
         
-        // Format to standard HH:MM:SS
-        const hours = Math.floor(durationSeconds / 3600) % 24;
+        // Format to H:MM:SS
+        const hours = Math.floor(durationSeconds / 3600);
         const minutes = Math.floor((durationSeconds % 3600) / 60);
         const secs = Math.floor(durationSeconds % 60);
         duration = `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       } else if (activity.minutes) {
         durationSeconds = activity.minutes * 60; // Convert minutes to seconds
         
-        // Format to standard HH:MM:SS
-        const hours = Math.floor(durationSeconds / 3600) % 24;
+        // Format to H:MM:SS
+        const hours = Math.floor(durationSeconds / 3600);
         const minutes = Math.floor((durationSeconds % 3600) / 60);
         const secs = Math.floor(durationSeconds % 60);
         duration = `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       } else if (activity.moving_time) {
         durationSeconds = parseNumericValue(activity.moving_time);
         
-        // Format to standard HH:MM:SS
-        const hours = Math.floor(durationSeconds / 3600) % 24;
+        // Format to H:MM:SS
+        const hours = Math.floor(durationSeconds / 3600);
         const minutes = Math.floor((durationSeconds % 3600) / 60);
         const secs = Math.floor(durationSeconds % 60);
         duration = `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       } else if (activity.elapsed_time) {
         durationSeconds = parseNumericValue(activity.elapsed_time);
         
-        // Format to standard HH:MM:SS
-        const hours = Math.floor(durationSeconds / 3600) % 24;
+        // Format to H:MM:SS
+        const hours = Math.floor(durationSeconds / 3600);
         const minutes = Math.floor((durationSeconds % 3600) / 60);
         const secs = Math.floor(durationSeconds % 60);
         duration = `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -155,14 +163,6 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       if (durationSeconds <= 0) {
         durationSeconds = 60; // Minimum 1 minute
         duration = "0:01:00";
-      }
-      
-      // Ensure duration is in the expected format (H:MM:SS)
-      const durationParts = duration.split(':');
-      if (durationParts.length === 3) {
-        // Already in HH:MM:SS format, ensure hours is not excessively large
-        const hours = parseInt(durationParts[0], 10) % 24; // Limit to 24 hour format
-        duration = `${hours}:${durationParts[1].padStart(2, '0')}:${durationParts[2].padStart(2, '0')}`;
       }
       
       // Get a proper ID

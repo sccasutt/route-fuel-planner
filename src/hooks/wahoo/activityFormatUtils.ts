@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for formatting Wahoo activity data
  */
@@ -5,21 +6,21 @@
 import { WahooActivityData } from "./wahooTypes";
 
 /**
- * Converts seconds to HH:MM:SS format string with normalized hours (0-23)
+ * Converts seconds to H:MM:SS format string (no leading zero for hours)
  */
 export function secondsToTimeString(seconds: number): string {
   if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
   
-  // Normalize hours to 0-23 range
-  const hours = Math.floor(seconds / 3600) % 24;
+  const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   
+  // Format as H:MM:SS (no leading zero for hours)
   return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 /**
- * Formats duration string consistently to HH:MM:SS format
+ * Formats duration string consistently to H:MM:SS format (no leading zero for hours)
  */
 export function formatDurationString(duration: string): string {
   if (!duration) return "0:00:00";
@@ -31,14 +32,15 @@ export function formatDurationString(duration: string): string {
     const minutesMatch = duration.match(/(\d+)m/);
     const secondsMatch = duration.match(/(\d+)s/);
     
-    const hours = hoursMatch ? parseInt(hoursMatch[1], 10) % 24 : 0; // Normalize hours
+    const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
     const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
     const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
     
+    // Format as H:MM:SS (no leading zero for hours)
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
   
-  // Make sure the duration is in HH:MM:SS format
+  // Make sure the duration is in H:MM:SS format
   const parts = duration.split(':');
   if (parts.length === 1) {
     // Just seconds
@@ -47,16 +49,20 @@ export function formatDurationString(duration: string): string {
       // Default to 1 minute if duration is zero
       return "0:01:00";
     }
-    const hours = Math.floor(seconds / 3600) % 24; // Normalize hours
+    const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
+    // Format as H:MM:SS (no leading zero for hours)
     return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   } else if (parts.length === 2) {
+    // MM:SS format, add hours
     return `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
   } else if (parts.length === 3) {
-    // Normalize hours to 0-23 range
-    const hours = parseInt(parts[0], 10) % 24;
-    return `${hours}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
+    // HH:MM:SS format, ensure hours have no leading zeros, minutes and seconds have leading zeros
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const seconds = parseInt(parts[2], 10);
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
   
   return "0:01:00"; // Default to 1 minute
@@ -68,12 +74,12 @@ export function formatDurationString(duration: string): string {
 export function durationToSeconds(duration: string): number {
   if (!duration) return 60; // Default to 1 minute
   
-  // Handle HH:MM:SS format with potentially large hour values
-  const largeHourFormat = duration.match(/^(\d+):(\d+):(\d+)$/);
-  if (largeHourFormat) {
-    const hours = parseInt(largeHourFormat[1], 10);
-    const minutes = parseInt(largeHourFormat[2], 10);
-    const seconds = parseInt(largeHourFormat[3], 10);
+  // Handle H:MM:SS format
+  const timeFormat = duration.match(/^(\d+):(\d+):(\d+)$/);
+  if (timeFormat) {
+    const hours = parseInt(timeFormat[1], 10);
+    const minutes = parseInt(timeFormat[2], 10);
+    const seconds = parseInt(timeFormat[3], 10);
     return hours * 3600 + minutes * 60 + seconds;
   }
   
@@ -158,8 +164,8 @@ export function processActivityData(rawActivity: any): WahooActivityData {
   let duration;
   
   if (typeof durationSeconds === 'number' && durationSeconds > 0) {
-    // We have seconds, convert to H:MM:SS (normalized hours)
-    const hours = Math.floor(durationSeconds / 3600) % 24; // Normalize hours to 0-23
+    // We have seconds, convert to H:MM:SS (no leading zero for hours)
+    const hours = Math.floor(durationSeconds / 3600);
     const minutes = Math.floor((durationSeconds % 3600) / 60);
     const secs = Math.floor(durationSeconds % 60);
     duration = `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -167,16 +173,16 @@ export function processActivityData(rawActivity: any): WahooActivityData {
     // Parse duration string, normalize if needed
     const durationStr = rawActivity.duration;
     
-    // Check if this is a large hour duration like "162:26:00"
-    const largeHourFormat = durationStr.match(/^(\d+):(\d+):(\d+)$/);
-    if (largeHourFormat) {
-      const hours = parseInt(largeHourFormat[1], 10) % 24; // Normalize hours
-      const minutes = parseInt(largeHourFormat[2], 10);
-      const seconds = parseInt(largeHourFormat[3], 10);
+    // Check if this is already in H:MM:SS format
+    const timeFormat = durationStr.match(/^(\d+):(\d+):(\d+)$/);
+    if (timeFormat) {
+      const hours = parseInt(timeFormat[1], 10);
+      const minutes = parseInt(timeFormat[2], 10);
+      const seconds = parseInt(timeFormat[3], 10);
       
       // Create normalized duration
       duration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      durationSeconds = parseInt(largeHourFormat[1], 10) * 3600 + minutes * 60 + seconds;
+      durationSeconds = hours * 3600 + minutes * 60 + seconds;
     } else {
       // For other formats, parse and normalize
       duration = formatDurationString(durationStr);

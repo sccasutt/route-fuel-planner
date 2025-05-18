@@ -29,7 +29,7 @@ export const extractNestedValue = (obj: any, paths: string[]): any => {
 };
 
 /**
- * Format duration string into consistent HH:MM:SS format
+ * Format duration string into consistent H:MM:SS format (no leading zero for hours)
  */
 export function formatDurationString(duration: string | number): string {
   if (!duration) return "0:00:00";
@@ -57,24 +57,33 @@ export function formatDurationString(duration: string | number): string {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
     
+    // Check if already in H:MM:SS format
+    const timeFormat = duration.match(/^(\d+):(\d+):(\d+)$/);
+    if (timeFormat) {
+      const hours = parseInt(timeFormat[1], 10);
+      const minutes = parseInt(timeFormat[2], 10);
+      const seconds = parseInt(timeFormat[3], 10);
+      
+      // Ensure we use the H:MM:SS format (no leading zero for hours)
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
     const parts = duration.split(':');
     
     // Handle different formats
     if (parts.length === 1) {
-      // Just numeric string, interpret as minutes
-      const mins = parseInt(parts[0], 10);
-      if (!isNaN(mins)) {
-        const hours = Math.floor(mins / 60);
-        const minutes = mins % 60;
-        return `${hours}:${minutes.toString().padStart(2, '0')}:00`;
+      // Just numeric string, interpret as seconds
+      const seconds = parseInt(parts[0], 10);
+      if (!isNaN(seconds)) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       }
       return "0:00:00";
     } else if (parts.length === 2) {
       // MM:SS format, add hours
       return `0:${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-    } else if (parts.length === 3) {
-      // HH:MM:SS format, ensure padding
-      return `${parts[0]}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
     }
   }
   
@@ -94,6 +103,15 @@ export function durationToSeconds(duration: string | number): number {
   
   // Handle string durations in various formats
   if (typeof duration === 'string') {
+    // Check if it's already in H:MM:SS format
+    const timeFormat = duration.match(/^(\d+):(\d+):(\d+)$/);
+    if (timeFormat) {
+      const hours = parseInt(timeFormat[1], 10);
+      const minutes = parseInt(timeFormat[2], 10);
+      const seconds = parseInt(timeFormat[3], 10);
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+    
     // Handle human-readable formats like "2h 30m 15s"
     if (duration.includes('h') || duration.includes('m') || duration.includes('s')) {
       const hoursMatch = duration.match(/(\d+)h/);
@@ -104,15 +122,6 @@ export function durationToSeconds(duration: string | number): number {
       const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
       const seconds = secondsMatch ? parseInt(secondsMatch[1], 10) : 0;
       
-      return hours * 3600 + minutes * 60 + seconds;
-    }
-    
-    // Format HH:MM:SS
-    const timeMatch = duration.match(/^(\d+):(\d+):(\d+)$/);
-    if (timeMatch) {
-      const hours = parseInt(timeMatch[1], 10);
-      const minutes = parseInt(timeMatch[2], 10);
-      const seconds = parseInt(timeMatch[3], 10);
       return hours * 3600 + minutes * 60 + seconds;
     }
     

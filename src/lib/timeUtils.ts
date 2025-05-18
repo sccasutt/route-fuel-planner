@@ -19,15 +19,15 @@ export function ensureValidDuration(duration: string): string {
       return "0:01:00"; // Default to 1 minute
     }
     
-    // Keep valid duration
-    return duration;
+    // Keep valid duration but ensure it's in H:MM:SS format (not leading zeros for hours)
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
   
   return duration;
 }
 
 /**
- * Convert seconds to HH:MM:SS format
+ * Convert seconds to H:MM:SS format
  */
 export function secondsToTimeString(seconds: number): string {
   if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
@@ -36,6 +36,7 @@ export function secondsToTimeString(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   
+  // Use H:MM:SS format (no leading zero for hours)
   return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
