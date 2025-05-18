@@ -1,10 +1,9 @@
-
 import { Card } from "@/components/ui/card";
 import { Map, Clock, LineChart, Activity } from "lucide-react";
 import { WahooActivityData } from "@/hooks/useWahooData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDuration, formatShortDate, ensureValidDuration } from "@/lib/utils";
-import { secondsToTimeString } from "@/hooks/wahoo/activityFormatUtils";
+import { formatShortDate } from "@/lib/utils";
+import { formatHumanReadableDuration } from "@/lib/durationFormatter";
 
 interface Props {
   activities: WahooActivityData[];
@@ -35,11 +34,6 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
         ) : activities.length > 0 ? (
           <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
             {activities.slice(0, 3).map((activity) => {
-              // Prefer duration_seconds if available
-              const displayDuration = activity.duration_seconds && activity.duration_seconds > 0
-                ? secondsToTimeString(activity.duration_seconds)
-                : ensureValidDuration(activity.duration);
-              
               return (
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
                   <div>
@@ -49,11 +43,11 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex items-center text-xs">
                       <Map className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{activity.distance.toFixed(1)} km</span>
+                      <span>{(activity.distance/1000).toFixed(1)} km</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <Clock className="w-3 h-3 mr-1 text-muted-foreground" />
-                      <span>{displayDuration}</span>
+                      <span>{formatHumanReadableDuration(activity.duration_seconds || 0)}</span>
                     </div>
                     <div className="flex items-center text-xs">
                       <LineChart className="w-3 h-3 mr-1 text-muted-foreground" />

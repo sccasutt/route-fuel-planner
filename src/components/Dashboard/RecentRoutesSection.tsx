@@ -3,8 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Map, TrendingUp, Clock, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { formatDuration, ensureValidDuration } from "@/lib/utils";
-import { secondsToTimeString } from "@/hooks/wahoo/activityFormatUtils";
+import { formatHumanReadableDuration } from "@/lib/durationFormatter";
 
 interface RouteType {
   id: string;
@@ -32,10 +31,8 @@ export function RecentRoutesSection({ routes }: Props) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {routes.map((route) => {
-          // Prefer numeric duration if available, otherwise use text-based duration
-          const displayDuration = route.duration_seconds && route.duration_seconds > 0
-            ? formatDuration(secondsToTimeString(route.duration_seconds))
-            : formatDuration(ensureValidDuration(route.duration));
+          // Use human readable format for duration
+          const displayDuration = formatHumanReadableDuration(route.duration_seconds || 0);
           
           return (
             <Card key={route.id} className="overflow-hidden">
@@ -48,11 +45,11 @@ export function RecentRoutesSection({ routes }: Props) {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center">
                     <Map className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{route.distance.toFixed(1)} km</span>
+                    <span className="text-sm">{(route.distance/1000).toFixed(1)} km</span>
                   </div>
                   <div className="flex items-center">
                     <TrendingUp className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{route.elevation.toFixed(0)} m</span>
+                    <span className="text-sm">{Math.round(route.elevation)} m</span>
                   </div>
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-2 text-muted-foreground" />

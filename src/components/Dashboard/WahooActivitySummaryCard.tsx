@@ -1,9 +1,9 @@
-
 import { Bike, Map, Clock, LineChart, Trophy, Calendar } from "lucide-react";
 import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDuration, formatShortDate, ensureValidDuration } from "@/lib/utils";
+import { formatShortDate } from "@/lib/utils";
+import { formatHumanReadableDuration } from "@/lib/durationFormatter";
 
 interface Props {
   isLoading: boolean;
@@ -93,9 +93,9 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
             {activities.slice(0, 5).map((activity) => {
               // Parse distance for each activity
               const displayDistance = typeof activity.distance === 'number' 
-                ? !isNaN(activity.distance) ? activity.distance.toFixed(1) : '0.0'
+                ? !isNaN(activity.distance) ? (activity.distance/1000).toFixed(1) : '0.0'
                 : typeof activity.distance === 'string' 
-                  ? parseFloat(activity.distance).toFixed(1)
+                  ? (parseFloat(activity.distance)/1000).toFixed(1)
                   : '0.0';
               
               // Parse calories for each activity  
@@ -105,10 +105,8 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
                   ? parseInt(activity.calories, 10) || 0
                   : 0;
               
-              // Prefer duration_seconds if available
-              const displayDuration = activity.duration_seconds && activity.duration_seconds > 0
-                ? secondsToTimeString(activity.duration_seconds)
-                : ensureValidDuration(activity.duration);
+              // Format duration in human readable format
+              const displayDuration = formatHumanReadableDuration(activity.duration_seconds || 0);
               
               return (
                 <div key={activity.id} className="flex items-center justify-between border-b border-muted pb-2">
@@ -153,15 +151,4 @@ export function WahooActivitySummaryCard({ isLoading, activities }: Props) {
       )}
     </div>
   );
-}
-
-// Helper function to convert seconds to HH:MM:SS format
-function secondsToTimeString(seconds: number): string {
-  if (!seconds || seconds <= 0) return "0:01:00"; // Default to 1 minute if no valid value
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  
-  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

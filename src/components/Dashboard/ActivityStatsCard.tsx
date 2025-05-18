@@ -1,6 +1,5 @@
-
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { formatDuration } from "@/lib/utils";
+import { formatHumanReadableDuration } from "@/lib/durationFormatter";
 
 interface ActivityStatsProps {
   activities: Array<{
@@ -10,6 +9,7 @@ interface ActivityStatsProps {
     distance: number;
     elevation: number;
     duration: string;
+    duration_seconds?: number | null;
     calories: number;
   }>;
 }
@@ -19,16 +19,21 @@ export function ActivityStatsCard({ activities }: ActivityStatsProps) {
   const totalDistance = activities.reduce((sum, act) => sum + (typeof act.distance === 'number' ? act.distance : 0), 0);
   const totalElevation = activities.reduce((sum, act) => sum + (typeof act.elevation === 'number' ? act.elevation : 0), 0);
   
-  // Calculate average duration if there are activities
-  let averageDuration = "0:00:00";
+  // Calculate average duration using duration_seconds if available
+  let averageDurationInSeconds = 0;
   if (activities.length > 0) {
     const totalSeconds = activities.reduce((sum, act) => {
+      // Prefer duration_seconds if available
+      if (act.duration_seconds && typeof act.duration_seconds === 'number') {
+        return sum + act.duration_seconds;
+      }
+      
+      // Fall back to parsing duration string
       return sum + (typeof act.duration === 'string' ? 
         parseDurationToSeconds(act.duration || "0:00:00") : 0);
     }, 0);
     
-    const avgSeconds = Math.round(totalSeconds / activities.length);
-    averageDuration = formatSecondsToTimeString(avgSeconds);
+    averageDurationInSeconds = Math.round(totalSeconds / activities.length);
   }
   
   // Helper function to parse duration string to seconds
@@ -60,17 +65,6 @@ export function ActivityStatsCard({ activities }: ActivityStatsProps) {
     return 0;
   }
 
-  // Helper function to format seconds to HH:MM:SS
-  function formatSecondsToTimeString(seconds: number): string {
-    if (isNaN(seconds) || seconds < 0) return "0:00:00";
-    
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  }
-
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -83,7 +77,7 @@ export function ActivityStatsCard({ activities }: ActivityStatsProps) {
               <div className="bg-muted/50 p-3 rounded-lg">
                 <div className="text-muted-foreground text-xs mb-1">Total Distance</div>
                 <div className="text-xl font-semibold">
-                  {totalDistance.toFixed(1)} km
+                  {(totalDistance/1000).toFixed(1)} km
                 </div>
               </div>
               <div className="bg-muted/50 p-3 rounded-lg">
@@ -95,13 +89,13 @@ export function ActivityStatsCard({ activities }: ActivityStatsProps) {
               <div className="bg-muted/50 p-3 rounded-lg">
                 <div className="text-muted-foreground text-xs mb-1">Total Elevation</div>
                 <div className="text-xl font-semibold">
-                  {totalElevation.toFixed(0)} m
+                  {Math.round(totalElevation)} m
                 </div>
               </div>
               <div className="bg-muted/50 p-3 rounded-lg">
                 <div className="text-muted-foreground text-xs mb-1">Average Duration</div>
                 <div className="text-xl font-semibold">
-                  {formatDuration(averageDuration)}
+                  {formatHumanReadableDuration(averageDurationInSeconds)}
                 </div>
               </div>
             </div>

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
 import { formatDistance, formatElevation } from "@/lib/utils";
-import { secondsToTimeString } from "@/hooks/wahoo/activityFormatUtils";
+import { formatHumanReadableDuration } from "@/lib/durationFormatter";
 
 interface RoutesTabContentProps {
   activities: WahooActivityData[];
@@ -57,7 +57,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
             <div className="flex items-center">
               <span className="text-sm font-medium">Duration:</span>
               <span className="ml-1 text-sm text-muted-foreground">
-                {secondsToTimeString(activity.duration_seconds || 0)}
+                {formatHumanReadableDuration(activity.duration_seconds || 0)}
               </span>
             </div>
             <div className="flex items-center">
