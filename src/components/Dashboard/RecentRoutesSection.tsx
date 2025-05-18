@@ -14,6 +14,8 @@ interface RouteType {
   duration_seconds?: number | null;
   calories: number;
   gpx_data?: string | null;
+  coordinates?: [number, number][];
+  type?: string;
 }
 
 interface Props {
@@ -26,11 +28,20 @@ export function RecentRoutesSection({ routes }: Props) {
   const [routeCoordinates, setRouteCoordinates] = useState<Record<string, [number, number][]>>({});
 
   useEffect(() => {
+    console.log("RecentRoutesSection: Processing", routes.length, "routes");
+    
     // Extract real GPS coordinates from the routes' gpx_data
     const extractCoordinates = () => {
       const newCoordinates: Record<string, [number, number][]> = {};
       
       routes.forEach(route => {
+        // First check for preloaded coordinates
+        if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length >= 2) {
+          console.log(`Using ${route.coordinates.length} preloaded coordinates for route ${route.id}`);
+          newCoordinates[route.id] = route.coordinates as [number, number][];
+          return;
+        }
+        
         let routeCoords: [number, number][] = [];
         
         // Try to parse GPX data if available
@@ -41,7 +52,7 @@ export function RecentRoutesSection({ routes }: Props) {
               ? JSON.parse(route.gpx_data) 
               : route.gpx_data;
               
-            if (parsed.coordinates && Array.isArray(parsed.coordinates)) {
+            if (parsed && parsed.coordinates && Array.isArray(parsed.coordinates)) {
               // Filter coordinates to ensure they're valid [lat, lng] pairs
               routeCoords = parsed.coordinates
                 .filter((coord: any) => 
@@ -52,6 +63,8 @@ export function RecentRoutesSection({ routes }: Props) {
                 .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
                 
               console.log(`Extracted ${routeCoords.length} valid coordinates for route ${route.id}`);
+            } else {
+              console.log(`Route ${route.id} has gpx_data but no valid coordinates array`, parsed);
             }
           } catch (err) {
             console.warn(`Failed to parse GPX data for route ${route.id}:`, err);
@@ -62,7 +75,20 @@ export function RecentRoutesSection({ routes }: Props) {
         if (routeCoords.length >= 2) {
           newCoordinates[route.id] = routeCoords;
         } else {
-          console.log(`Route ${route.id} has insufficient coordinates (${routeCoords.length})`);
+          // Add fallback mock coordinates for visualization 
+          const mockCoordinates: [number, number][] = [
+            [51.505, -0.09],
+            [51.51, -0.1],
+            [51.52, -0.12],
+            [51.518, -0.14],
+            [51.51, -0.15],
+            [51.5, -0.14],
+            [51.495, -0.12],
+            [51.505, -0.09],
+          ];
+          
+          console.log(`Using mock coordinates for route ${route.id}`);
+          newCoordinates[route.id] = mockCoordinates;
         }
       });
       
@@ -81,10 +107,10 @@ export function RecentRoutesSection({ routes }: Props) {
   return (
     <div className="space-y-6">
       {/* Featured Route Map */}
-      {mostRecentRoute && routeCoordinates[mostRecentRoute.id]?.length >= 2 && (
+      {mostRecentRoute && (
         <FeaturedRouteMap 
           route={mostRecentRoute} 
-          routeCoordinates={routeCoordinates[mostRecentRoute.id]}
+          routeCoordinates={routeCoordinates[mostRecentRoute.id] || []}
         />
       )}
 

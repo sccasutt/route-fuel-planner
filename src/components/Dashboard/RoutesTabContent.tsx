@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { 
   Card, 
   CardContent,
@@ -12,7 +12,7 @@ import { formatDistance, formatElevation } from "@/lib/utils";
 import { formatHumanReadableDuration } from "@/lib/durationFormatter";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { MapPin, ArrowRight } from "lucide-react";
+import { MapPin, ArrowRight, AlertCircle } from "lucide-react";
 import RouteMap from "../Map/RouteMap";
 
 interface RoutesTabContentProps {
@@ -20,18 +20,54 @@ interface RoutesTabContentProps {
 }
 
 export function RoutesTabContent({ activities }: RoutesTabContentProps) {
-  if (!activities || activities.length === 0) {
+  useEffect(() => {
+    // Add debug logging to help identify issues
+    console.log("RoutesTabContent rendered with", activities?.length || 0, "activities");
+    if (activities && activities.length > 0) {
+      console.log("First activity sample:", {
+        id: activities[0].id,
+        name: activities[0].name,
+        hasCoordinates: activities[0].coordinates?.length || 0
+      });
+    }
+  }, [activities]);
+
+  if (!activities) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Loading Routes</CardTitle>
+          <CardDescription>
+            Please wait while we fetch your route data...
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (activities.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No Routes Available</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            No Routes Available
+          </CardTitle>
           <CardDescription>
             No routes have been synced yet. Connect your Wahoo account to start
             importing your activities.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p>Once you connect your account, your routes will appear here.</p>
+          <p className="mb-4">Once you connect your account, your routes will appear here.</p>
+          <p className="text-sm text-muted-foreground">
+            If you've already connected your account and still don't see routes, try:
+            <ul className="list-disc pl-5 mt-2">
+              <li>Refreshing your data from the dashboard</li>
+              <li>Checking your Wahoo connection status</li>
+              <li>Ensuring you have routes in your Wahoo account</li>
+            </ul>
+          </p>
         </CardContent>
       </Card>
     );
@@ -40,23 +76,29 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
   // Display the most recent activity map
   const mostRecentActivity = activities[0];
 
-  // Sample route coordinates - in a real app, these would come from the route data
-  // This is just a sample circular route around London for demonstration
-  const sampleRouteCoordinates: [number, number][] = [
-    [51.505, -0.09],
-    [51.51, -0.1],
-    [51.52, -0.12],
-    [51.518, -0.14],
-    [51.51, -0.15],
-    [51.5, -0.14],
-    [51.495, -0.12],
-    [51.505, -0.09],
-  ];
-
   // Generate different route shapes for variety
   const getRouteCoordinates = (index: number): [number, number][] => {
     // Base center point
     const basePoint: [number, number] = [51.505, -0.09];
+    
+    // Different route shapes based on index
+    const sampleRouteCoordinates: [number, number][] = [
+      [51.505, -0.09],
+      [51.51, -0.1],
+      [51.52, -0.12],
+      [51.518, -0.14],
+      [51.51, -0.15],
+      [51.5, -0.14],
+      [51.495, -0.12],
+      [51.505, -0.09],
+    ];
+    
+    // If activity has coordinates, try to use them
+    if (activities[index % activities.length]?.coordinates && 
+        Array.isArray(activities[index % activities.length].coordinates) && 
+        activities[index % activities.length].coordinates!.length >= 2) {
+      return activities[index % activities.length].coordinates as [number, number][];
+    }
     
     // Different route shapes based on index
     switch (index % 3) {
@@ -103,7 +145,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
               height="100%"
               className="rounded-b-lg"
               showControls={true}
-              routeCoordinates={sampleRouteCoordinates}
+              routeCoordinates={getRouteCoordinates(0)}
               mapStyle="terrain"
               routeStyle={{
                 color: "#8B5CF6", // Vivid purple
@@ -151,7 +193,7 @@ export function RoutesTabContent({ activities }: RoutesTabContentProps) {
               <div className="flex items-center">
                 <span className="text-sm font-medium">Distance:</span>
                 <span className="ml-1 text-sm text-muted-foreground">
-                  {activity.distance.toFixed(1)} km
+                  {typeof activity.distance === 'number' ? activity.distance.toFixed(1) : '0.0'} km
                 </span>
               </div>
               <div className="flex items-center">

@@ -31,6 +31,7 @@ export function RouteCard({
   type = "activity",
   gpxFileUrl
 }: RouteCardProps) {
+  // Ensure we have valid coordinates (at least 2 points for a line)
   const hasValidCoordinates = routeCoordinates && routeCoordinates.length >= 2;
   
   return (
@@ -46,7 +47,7 @@ export function RouteCard({
         
         <div className="p-3">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium truncate mr-2">{name}</h3>
+            <h3 className="font-medium truncate mr-2">{name || "Unnamed Route"}</h3>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {formatShortDate(date)}
             </span>
