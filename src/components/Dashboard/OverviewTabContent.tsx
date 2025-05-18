@@ -1,19 +1,9 @@
-
 import { NutritionStatusCard } from "./NutritionStatusCard";
 import { UpcomingRideCard } from "./UpcomingRideCard";
 import { ActivityStatsCard } from "./ActivityStatsCard";
 import { RecentRoutesSection } from "./RecentRoutesSection";
 import { WahooConnectPrompt } from "./WahooConnectPrompt";
-
-interface RouteType {
-  id: string;
-  name: string;
-  date: string;
-  distance: number;
-  elevation: number;
-  duration: string;
-  calories: number;
-}
+import { RouteType } from "@/types/route";
 
 interface OverviewTabContentProps {
   activities: RouteType[];

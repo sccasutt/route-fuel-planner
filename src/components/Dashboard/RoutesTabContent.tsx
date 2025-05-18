@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { FeaturedRouteMap } from "./FeaturedRouteMap";
 import { EmptyRoutesState } from "./EmptyRoutesState";
@@ -6,9 +5,10 @@ import { RoutesGrid } from "./RoutesGrid";
 import { RoutesLoadingState } from "./RoutesLoadingState";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { WahooActivityData } from "@/hooks/wahoo/wahooTypes";
+import { RouteType } from "@/types/route";
 
 interface RoutesTabContentProps {
-  activities: WahooActivityData[];
+  activities: RouteType[];
   routeCoordinatesMap?: Record<string, [number, number][]>;
   isLoading?: boolean;
 }
