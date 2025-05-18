@@ -1,5 +1,5 @@
 
-import { RouteMapCard } from "@/components/RouteDetail/RouteMapCard";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 interface RouteMapSectionProps {
   hasRouteData: boolean;
@@ -8,25 +8,22 @@ interface RouteMapSectionProps {
 }
 
 export function RouteMapSection({ 
-  hasRouteData, 
-  mapCenter,
-  displayCoordinates
+  hasRouteData
 }: RouteMapSectionProps) {
-  if (!hasRouteData) {
-    return (
-      <div className="bg-muted border rounded-lg p-6 h-[400px] flex flex-col items-center justify-center">
-        <h3 className="text-lg font-medium mb-2">No Route Data Available</h3>
-        <p className="text-muted-foreground text-center">
-          This activity doesn't have any GPS coordinates to display.
-        </p>
-      </div>
-    );
-  }
-  
   return (
-    <RouteMapCard 
-      coordinates={mapCenter} 
-      routeCoordinates={displayCoordinates} 
-    />
+    <Card>
+      <CardHeader>
+        <CardTitle>Route Map</CardTitle>
+        <CardDescription>Map view is currently disabled</CardDescription>
+      </CardHeader>
+      <CardContent className="h-[320px] bg-muted flex items-center justify-center">
+        <p className="text-muted-foreground">
+          {hasRouteData 
+            ? "Map display is currently disabled." 
+            : "No route data available."
+          }
+        </p>
+      </CardContent>
+    </Card>
   );
 }

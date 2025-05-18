@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { MapPin, ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import RouteMap from "../Map/RouteMap";
 
 interface FeaturedRouteMapProps {
   route: {
@@ -15,8 +14,8 @@ interface FeaturedRouteMapProps {
   routeCoordinates: [number, number][];
 }
 
-export function FeaturedRouteMap({ route, routeCoordinates }: FeaturedRouteMapProps) {
-  if (!route || routeCoordinates.length < 2) {
+export function FeaturedRouteMap({ route }: FeaturedRouteMapProps) {
+  if (!route) {
     return null;
   }
 
@@ -29,21 +28,8 @@ export function FeaturedRouteMap({ route, routeCoordinates }: FeaturedRouteMapPr
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="h-[300px] w-full relative">
-          <RouteMap
-            center={[51.505, -0.09]}
-            zoom={12}
-            height="100%"
-            className="rounded-b-lg"
-            showControls={true}
-            routeCoordinates={routeCoordinates}
-            mapStyle="terrain"
-            routeStyle={{
-              color: "#8B5CF6", // Vivid purple
-              weight: 5,
-              opacity: 0.85
-            }}
-          />
+        <div className="h-[300px] w-full relative bg-muted flex flex-col items-center justify-center">
+          <p className="text-muted-foreground mb-4">Map display is currently disabled</p>
           <div className="absolute bottom-4 right-4">
             <Link to={`/routes/${route.id}`}>
               <Button size="sm" className="gap-2">
