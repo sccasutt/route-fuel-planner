@@ -29,6 +29,8 @@ export async function fetchWahooProfile(access_token: string) {
 
     const profile = await profileRes.json();
     console.log("Successfully fetched Wahoo profile with ID:", profile.id);
+    
+    // Return the full profile object
     return profile;
   } catch (err: any) {
     console.error("Error in fetchWahooProfile:", err);
@@ -307,6 +309,18 @@ export async function fetchWahooActivities(access_token: string) {
       console.log("Sample formatted activity:", formattedActivities[0]);
     }
     
+    // Store the raw and formatted activities for debugging
+    if (typeof window !== 'undefined') {
+      try {
+        // Store the raw response for debugging
+        localStorage.setItem("wahoo_last_activities_raw", activitiesResponse);
+        // Store the formatted activities for the debugger component
+        localStorage.setItem("wahoo_last_activities_response", JSON.stringify(formattedActivities));
+      } catch (storageErr) {
+        console.warn("Failed to store Wahoo activities in localStorage:", storageErr);
+      }
+    }
+
     return formattedActivities;
   } catch (err: any) {
     console.error("Error in fetchWahooActivities:", err);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,10 +12,11 @@ import { NutritionTabContent } from "@/components/Dashboard/NutritionTabContent"
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, AlertCircle, Check } from "lucide-react";
+import { RefreshCcw, AlertCircle, Check, Bug } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { WahooResyncButton } from "@/components/Wahoo/WahooResyncButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { WahooApiDebugger } from "@/components/Wahoo/WahooApiDebugger";
 
 // Define a type that matches what RecentRoutesSection and RoutesTabContent expect
 interface RouteType {
@@ -37,6 +37,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [syncComplete, setSyncComplete] = useState(false);
+  const [showDebugger, setShowDebugger] = useState(false);
 
   // Check authentication and redirect if not logged in
   useEffect(() => {
@@ -72,10 +73,20 @@ const Dashboard = () => {
       <div className="container py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Your Dashboard</h1>
-          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
-            <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            {isLoading ? "Refreshing..." : "Refresh Data"}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowDebugger(!showDebugger)} 
+              title="Toggle API Debugger"
+            >
+              <Bug className={`h-4 w-4 ${showDebugger ? "text-primary" : ""}`} />
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+              <RefreshCcw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              {isLoading ? "Refreshing..." : "Refresh Data"}
+            </Button>
+          </div>
         </div>
 
         {connectionError && (
@@ -92,6 +103,12 @@ const Dashboard = () => {
             <AlertTitle>Sync Complete</AlertTitle>
             <AlertDescription>Your Wahoo data has been refreshed.</AlertDescription>
           </Alert>
+        )}
+
+        {showDebugger && (
+          <div className="mb-6">
+            <WahooApiDebugger />
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

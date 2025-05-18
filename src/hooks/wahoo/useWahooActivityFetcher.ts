@@ -7,6 +7,7 @@ import { WahooActivityData } from "./wahooTypes";
 export function useWahooActivityFetcher() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activities, setActivities] = useState<WahooActivityData[]>([]);
+  const [lastApiResponse, setLastApiResponse] = useState<any>(null);
   const { toast } = useToast();
 
   const fetchWahooActivities = useCallback(async (userId: string, hookId: string) => {
@@ -36,6 +37,13 @@ export function useWahooActivityFetcher() {
           wahooUserId: profileData.wahoo_user_id,
           lastSynced: profileData.last_synced_at
         });
+        
+        // Store the profile response for debugging
+        try {
+          localStorage.setItem("wahoo_last_profile_response", JSON.stringify(profileData));
+        } catch (err) {
+          console.warn("Failed to store profile in localStorage:", err);
+        }
       }
 
       // Using RLS policies to get only routes for the current user
@@ -52,6 +60,14 @@ export function useWahooActivityFetcher() {
       }
       
       console.log(`[${hookId}] Database response:`, data ? `${data.length} records` : 'No data');
+      
+      // Store the raw database response for debugging
+      try {
+        localStorage.setItem("wahoo_last_db_response", JSON.stringify(data || []));
+        setLastApiResponse(data || []);
+      } catch (err) {
+        console.warn("Failed to store DB response in localStorage:", err);
+      }
       
       if (!data || data.length === 0) {
         console.log(`[${hookId}] No activities found for user`, userId);
@@ -168,6 +184,7 @@ export function useWahooActivityFetcher() {
   return {
     activities,
     isLoading,
-    fetchWahooActivities
+    fetchWahooActivities,
+    lastApiResponse
   };
 }
