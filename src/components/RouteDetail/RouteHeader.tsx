@@ -42,7 +42,7 @@ export function RouteHeader({
         body: { 
           gpx_url: gpxFileUrl, 
           file_url: fileUrl,
-          route_id: routeId,
+          route_id: routeId,  // This is the database ID, not the wahoo_route_id
           wahoo_route_id: wahooRouteId
         }
       });
