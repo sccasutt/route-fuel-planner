@@ -17,6 +17,7 @@ import { RefreshCcw, AlertCircle, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { WahooResyncButton } from "@/components/Wahoo/WahooResyncButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatDuration, parseDurationToSeconds } from "@/lib/utils";
 
 // Define a type that matches what RecentRoutesSection and RoutesTabContent expect
 interface RouteType {
@@ -27,25 +28,6 @@ interface RouteType {
   elevation: number;
   duration: string;
   calories: number;
-}
-
-// Helper function to format duration for display
-function formatDuration(duration: string): string {
-  if (!duration) return "0:00";
-  
-  const parts = duration.split(':');
-  if (parts.length === 3) {
-    // Convert from HH:MM:SS to more readable format
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else {
-      return `${minutes}m ${parts[2]}s`;
-    }
-  }
-  return duration; // Return as is if not in expected format
 }
 
 const Dashboard = () => {
@@ -85,6 +67,21 @@ const Dashboard = () => {
     ...activity,
     id: activity.id
   }));
+
+  // Calculate total stats
+  const totalDistance = activities.reduce((sum, act) => sum + (typeof act.distance === 'number' ? act.distance : 0), 0);
+  const totalElevation = activities.reduce((sum, act) => sum + (typeof act.elevation === 'number' ? act.elevation : 0), 0);
+  
+  // Calculate average duration if there are activities
+  let averageDuration = "0:00:00";
+  if (activities.length > 0) {
+    const totalSeconds = activities.reduce((sum, act) => sum + parseDurationToSeconds(act.duration || "0:00:00"), 0);
+    const avgSeconds = Math.round(totalSeconds / activities.length);
+    const hours = Math.floor(avgSeconds / 3600);
+    const minutes = Math.floor((avgSeconds % 3600) / 60);
+    const seconds = Math.floor(avgSeconds % 60);
+    averageDuration = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
 
   return (
     <Layout>
@@ -143,7 +140,7 @@ const Dashboard = () => {
                       <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-muted-foreground text-xs mb-1">Total Distance</div>
                         <div className="text-xl font-semibold">
-                          {activities.reduce((sum, act) => sum + (typeof act.distance === 'number' ? act.distance : 0), 0).toFixed(1)} km
+                          {totalDistance.toFixed(1)} km
                         </div>
                       </div>
                       <div className="bg-muted/50 p-3 rounded-lg">
@@ -156,15 +153,13 @@ const Dashboard = () => {
                       <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-muted-foreground text-xs mb-1">Total Elevation</div>
                         <div className="text-xl font-semibold">
-                          {activities.reduce((sum, act) => sum + (typeof act.elevation === 'number' ? act.elevation : 0), 0).toFixed(0)} m
+                          {totalElevation.toFixed(0)} m
                         </div>
                       </div>
                       <div className="bg-muted/50 p-3 rounded-lg">
                         <div className="text-muted-foreground text-xs mb-1">Average Duration</div>
                         <div className="text-xl font-semibold">
-                          {activities.length > 0 ? 
-                            formatDuration(activities[0].duration) : 
-                            "0:00"}
+                          {formatDuration(averageDuration)}
                         </div>
                       </div>
                     </div>

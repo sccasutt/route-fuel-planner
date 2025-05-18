@@ -22,7 +22,7 @@ interface Props {
   routes: RouteType[];
 }
 
-// Helper function to format duration for display
+// Improved helper function to format duration for display
 function formatDuration(duration: string): string {
   if (!duration) return "0:00";
   
@@ -53,7 +53,7 @@ export function RoutesTabContent({ routes }: Props) {
     distance: typeof route.distance === 'number' && !isNaN(route.distance) ? route.distance : 0,
     elevation: typeof route.elevation === 'number' && !isNaN(route.elevation) ? route.elevation : 0,
     calories: typeof route.calories === 'number' && !isNaN(route.calories) ? route.calories : 0,
-    duration: route.duration || "0:00",
+    duration: route.duration || "0:00:00",
     name: route.name || "Unnamed Route",
     date: route.date || new Date().toISOString().split('T')[0]
   }));

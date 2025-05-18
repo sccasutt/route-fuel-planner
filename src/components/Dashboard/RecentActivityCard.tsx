@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Map, Clock, LineChart, Activity } from "lucide-react";
 import { WahooActivityData } from "@/hooks/useWahooData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDuration } from "@/lib/utils";
 
 interface Props {
   activities: WahooActivityData[];
@@ -21,23 +22,6 @@ export function RecentActivityCard({ activities, isLoading }: Props) {
     } catch (e) {
       return dateStr;
     }
-  };
-
-  // Helper function to format duration
-  const formatDuration = (duration: string) => {
-    if (!duration) return "0:00";
-    
-    // Check if it's in HH:MM:SS format and simplify to HH:MM or MM:SS as appropriate
-    const parts = duration.split(':').map(p => parseInt(p, 10));
-    
-    if (parts.length === 3) {
-      if (parts[0] === 0) {
-        return `${parts[1]}:${parts[2].toString().padStart(2, '0')}`; // MM:SS
-      }
-      return `${parts[0]}:${parts[1].toString().padStart(2, '0')}`; // HH:MM
-    }
-    
-    return duration;
   };
 
   return (

@@ -18,7 +18,7 @@ interface Props {
   routes: RouteType[];
 }
 
-// Helper function to format duration for display
+// Improved helper function to format duration for display
 function formatDuration(duration: string): string {
   if (!duration) return "0:00";
   
