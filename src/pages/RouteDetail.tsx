@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
@@ -20,6 +19,7 @@ const RouteDetail = () => {
   const [loading, setLoading] = useState(true);
   const [routeData, setRouteData] = useState<any>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
+  const [hasRouteData, setHasRouteData] = useState(false);
 
   useEffect(() => {
     const fetchRouteData = async () => {
@@ -60,17 +60,21 @@ const RouteDetail = () => {
         
         // Parse GPS coordinates from gpx_data
         let coordinates: [number, number][] = [];
+        let hasValidData = false;
         
         if (route.gpx_data) {
           try {
             // Try to parse the gpx_data field
             let parsedData;
             try {
-              parsedData = JSON.parse(route.gpx_data);
+              // Handle both string and object formats
+              parsedData = typeof route.gpx_data === 'string' 
+                ? JSON.parse(route.gpx_data) 
+                : route.gpx_data;
+              
+              console.log("Successfully parsed GPX data", typeof parsedData);
             } catch (parseErr) {
-              console.log("GPX data is not valid JSON, using as string:", route.gpx_data);
-              // If not JSON, it might be a string representation or a different format
-              // For debugging, log what we've received
+              console.error("GPX data is not valid JSON:", parseErr);
               console.log("Raw GPX data type:", typeof route.gpx_data);
               console.log("Raw GPX data sample:", 
                 typeof route.gpx_data === 'string' 
@@ -83,32 +87,23 @@ const RouteDetail = () => {
             if (parsedData && parsedData.coordinates && Array.isArray(parsedData.coordinates)) {
               // Ensure each coordinate is a valid [lat, lng] tuple
               coordinates = parsedData.coordinates
-                .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
+                .filter((coord: any) => 
+                  Array.isArray(coord) && 
+                  coord.length === 2 &&
+                  typeof coord[0] === 'number' && 
+                  typeof coord[1] === 'number')
                 .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
               
-              console.log(`Extracted ${coordinates.length} coordinates from JSON gpx_data`);
+              hasValidData = coordinates.length >= 2;
+              console.log(`Extracted ${coordinates.length} valid coordinates from JSON gpx_data`);
             }
           } catch (err) {
-            console.warn("Failed to process GPX data:", err);
+            console.error("Failed to process GPX data:", err);
           }
         }
         
-        // If we couldn't get coordinates, use a default set or generate based on route info
-        if (coordinates.length < 2) {
-          console.log("No valid coordinates found, generating placeholder route");
-          
-          // Generate a unique but consistent route for this route id
-          const routeIdForSeed = route.id || id;
-          const idSum = routeIdForSeed.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-          const centerLat = 51.505 + (idSum % 10) * 0.01;
-          const centerLng = -0.09 + (idSum % 7) * 0.01;
-          
-          // Default circular route around a central point
-          coordinates = generateSimpleRouteAround([centerLat, centerLng], 0.03);
-          console.log(`Generated ${coordinates.length} placeholder coordinates`);
-        }
-        
         setRouteCoordinates(coordinates);
+        setHasRouteData(hasValidData);
       } catch (err) {
         console.error("Error in route data fetch:", err);
         toast({ 
@@ -123,21 +118,6 @@ const RouteDetail = () => {
 
     fetchRouteData();
   }, [id, navigate, toast]);
-
-  // Generate a simple circular route around a center point
-  const generateSimpleRouteAround = (center: [number, number], radius: number): [number, number][] => {
-    const points: [number, number][] = [];
-    const steps = 12;
-    
-    for (let i = 0; i <= steps; i++) {
-      const angle = (i / steps) * Math.PI * 2;
-      const lat = center[0] + Math.sin(angle) * radius;
-      const lng = center[1] + Math.cos(angle) * radius;
-      points.push([lat, lng]);
-    }
-    
-    return points;
-  };
 
   if (loading) {
     return (
@@ -248,7 +228,7 @@ const RouteDetail = () => {
     }
   ];
 
-  // Define weather items for ActivityDataCard - these would ideally come from a weather API
+  // Define weather items for ActivityDataCard
   const weatherItems = [
     {
       label: "Temperature",
@@ -268,10 +248,10 @@ const RouteDetail = () => {
   ];
 
   // Get center coordinates for the map from the route data
-  // Fix: Ensure we have a valid tuple with exactly 2 elements for the map center
+  // Ensure we have a valid tuple with exactly 2 elements for the map center
   const mapCenter: [number, number] = routeCoordinates.length > 0 
     ? [routeCoordinates[0][0], routeCoordinates[0][1]] 
-    : [51.505, -0.09];
+    : [51.505, -0.09]; // Default fallback if no coordinates
 
   return (
     <Layout>
@@ -286,10 +266,19 @@ const RouteDetail = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
-            <RouteMapCard 
-              coordinates={mapCenter} 
-              routeCoordinates={routeCoordinates} 
-            />
+            {hasRouteData ? (
+              <RouteMapCard 
+                coordinates={mapCenter} 
+                routeCoordinates={routeCoordinates} 
+              />
+            ) : (
+              <div className="bg-muted border rounded-lg p-6 h-[400px] flex flex-col items-center justify-center">
+                <h3 className="text-lg font-medium mb-2">No Route Data Available</h3>
+                <p className="text-muted-foreground text-center">
+                  This activity doesn't have any GPS coordinates to display.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">

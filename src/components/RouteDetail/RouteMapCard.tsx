@@ -13,6 +13,9 @@ export function RouteMapCard({
   routeCoordinates, 
   mapStyle = 'terrain' 
 }: RouteMapCardProps) {
+  // Determine if we have valid route coordinates
+  const hasValidRoute = routeCoordinates && routeCoordinates.length >= 2;
+  
   return (
     <Card className="h-[400px]">
       <CardHeader>
@@ -20,20 +23,26 @@ export function RouteMapCard({
         <CardDescription>Elevation profile and route details</CardDescription>
       </CardHeader>
       <CardContent className="p-0 h-[320px]">
-        <RouteMap 
-          center={coordinates} 
-          zoom={13}
-          height="100%"
-          className="rounded-b-lg"
-          routeCoordinates={routeCoordinates}
-          showControls={true}
-          mapStyle={mapStyle}
-          routeStyle={{
-            color: "#8B5CF6", // Vivid purple
-            weight: 5,
-            opacity: 0.85
-          }}
-        />
+        {hasValidRoute ? (
+          <RouteMap 
+            center={coordinates} 
+            zoom={13}
+            height="100%"
+            className="rounded-b-lg"
+            routeCoordinates={routeCoordinates}
+            showControls={true}
+            mapStyle={mapStyle}
+            routeStyle={{
+              color: "#8B5CF6", // Vivid purple
+              weight: 5,
+              opacity: 0.85
+            }}
+          />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center bg-muted rounded-b-lg">
+            <p className="text-muted-foreground">No route data available</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

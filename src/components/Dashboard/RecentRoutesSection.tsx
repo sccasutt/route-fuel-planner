@@ -29,9 +29,8 @@ export function RecentRoutesSection({ routes }: Props) {
   const [routeCoordinates, setRouteCoordinates] = useState<Record<string, [number, number][]>>({});
 
   useEffect(() => {
-    // Generate route coordinates for each route
-    // In a real implementation, these would come from the gpx_data or another source
-    const generateCoordinates = () => {
+    // Extract real GPS coordinates from the routes' gpx_data
+    const extractCoordinates = () => {
       const newCoordinates: Record<string, [number, number][]> = {};
       
       routes.forEach(route => {
@@ -40,52 +39,46 @@ export function RecentRoutesSection({ routes }: Props) {
         // Try to parse GPX data if available
         if (route.gpx_data) {
           try {
-            const parsed = JSON.parse(route.gpx_data);
+            // Handle both string and object formats
+            const parsed = typeof route.gpx_data === 'string' 
+              ? JSON.parse(route.gpx_data) 
+              : route.gpx_data;
+              
             if (parsed.coordinates && Array.isArray(parsed.coordinates)) {
-              routeCoords = parsed.coordinates;
+              // Filter coordinates to ensure they're valid [lat, lng] pairs
+              routeCoords = parsed.coordinates
+                .filter((coord: any) => 
+                  Array.isArray(coord) && 
+                  coord.length === 2 && 
+                  typeof coord[0] === 'number' && 
+                  typeof coord[1] === 'number')
+                .map((coord: number[]) => [coord[0], coord[1]] as [number, number]);
+                
+              console.log(`Extracted ${routeCoords.length} valid coordinates for route ${route.id}`);
             }
           } catch (err) {
             console.warn(`Failed to parse GPX data for route ${route.id}:`, err);
           }
         }
         
-        // If no valid coordinates were found, generate a simple route
-        if (routeCoords.length < 2) {
-          // Generate a unique but consistent route for each id
-          const idSum = route.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-          const centerLat = 51.505 + (idSum % 10) * 0.01;
-          const centerLng = -0.09 + (idSum % 7) * 0.01;
-          routeCoords = generateSimpleRouteAround([centerLat, centerLng], 0.02);
+        // Only add routes with valid coordinates
+        if (routeCoords.length >= 2) {
+          newCoordinates[route.id] = routeCoords;
+        } else {
+          console.log(`Route ${route.id} has insufficient coordinates (${routeCoords.length})`);
         }
-        
-        newCoordinates[route.id] = routeCoords;
       });
       
       setRouteCoordinates(newCoordinates);
     };
     
-    generateCoordinates();
+    extractCoordinates();
   }, [routes]);
-
-  // Generate a simple circular route around a center point
-  const generateSimpleRouteAround = (center: [number, number], radius: number): [number, number][] => {
-    const points: [number, number][] = [];
-    const steps = 12;
-    
-    for (let i = 0; i <= steps; i++) {
-      const angle = (i / steps) * Math.PI * 2;
-      const lat = center[0] + Math.sin(angle) * radius;
-      const lng = center[1] + Math.cos(angle) * radius;
-      points.push([lat, lng]);
-    }
-    
-    return points;
-  };
 
   return (
     <div className="space-y-6">
       {/* Featured Route Map */}
-      {mostRecentRoute && (
+      {mostRecentRoute && routeCoordinates[mostRecentRoute.id]?.length >= 2 && (
         <Card className="overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center">
@@ -97,12 +90,12 @@ export function RecentRoutesSection({ routes }: Props) {
           <CardContent className="p-0">
             <div className="h-[240px] w-full">
               <RouteMap
-                center={routeCoordinates[mostRecentRoute.id]?.[0] || [51.505, -0.09]}
+                center={routeCoordinates[mostRecentRoute.id][0]}
                 zoom={12}
                 height="100%"
                 className="rounded-none"
                 showControls={true}
-                routeCoordinates={routeCoordinates[mostRecentRoute.id] || []}
+                routeCoordinates={routeCoordinates[mostRecentRoute.id]}
                 mapStyle="default"
                 routeStyle={{
                   color: "#0EA5E9", // Ocean blue
@@ -133,6 +126,9 @@ export function RecentRoutesSection({ routes }: Props) {
             // Use human readable format for duration
             const displayDuration = formatHumanReadableDuration(route.duration_seconds || 0);
             
+            // Only render routes with valid GPS data
+            const hasValidCoordinates = routeCoordinates[route.id]?.length >= 2;
+            
             return (
               <Card key={route.id} className="overflow-hidden">
                 <div className="h-2 bg-primary" />
@@ -141,22 +137,28 @@ export function RecentRoutesSection({ routes }: Props) {
                   <CardDescription>{route.date}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <div className="h-[100px] w-full mb-2">
-                    <RouteMap
-                      center={routeCoordinates[route.id]?.[0] || [51.505, -0.09]}
-                      zoom={11}
-                      height="100%"
-                      className="rounded-md border border-border/50"
-                      showControls={false}
-                      routeCoordinates={routeCoordinates[route.id] || []}
-                      mapStyle="default"
-                      routeStyle={{
-                        color: "#8B5CF6", // Vivid purple
-                        weight: 3,
-                        opacity: 0.8
-                      }}
-                    />
-                  </div>
+                  {hasValidCoordinates ? (
+                    <div className="h-[100px] w-full mb-2">
+                      <RouteMap
+                        center={routeCoordinates[route.id][0]}
+                        zoom={11}
+                        height="100%"
+                        className="rounded-md border border-border/50"
+                        showControls={false}
+                        routeCoordinates={routeCoordinates[route.id]}
+                        mapStyle="default"
+                        routeStyle={{
+                          color: "#8B5CF6", // Vivid purple
+                          weight: 3,
+                          opacity: 0.8
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-[100px] w-full mb-2 flex items-center justify-center bg-muted rounded-md border border-border/50">
+                      <p className="text-sm text-muted-foreground">No route data available</p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center">
                       <Map className="w-4 h-4 mr-2 text-muted-foreground" />

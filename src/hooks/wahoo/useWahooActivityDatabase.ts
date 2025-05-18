@@ -40,21 +40,28 @@ export function useWahooActivityDatabase() {
       if (data.length > 0) {
         console.log(`[${hookId}] First raw activity:`, data[0]);
         
-        // Log information about the gpx_data field
+        // More detailed logging for the gpx_data field
         const firstActivity = data[0];
         if (firstActivity.gpx_data) {
           console.log(`[${hookId}] gpx_data type:`, typeof firstActivity.gpx_data);
           console.log(`[${hookId}] gpx_data sample:`, 
             typeof firstActivity.gpx_data === 'string' 
               ? firstActivity.gpx_data.substring(0, 100) + '...' 
-              : firstActivity.gpx_data);
+              : JSON.stringify(firstActivity.gpx_data).substring(0, 100) + '...');
           
           // Try to parse it
           try {
-            const parsedData = JSON.parse(firstActivity.gpx_data);
+            const parsedData = typeof firstActivity.gpx_data === 'string' 
+              ? JSON.parse(firstActivity.gpx_data) 
+              : firstActivity.gpx_data;
+            
             console.log(`[${hookId}] gpx_data parsed successfully:`, 
               parsedData?.coordinates?.length || 0, 
               'coordinates found');
+              
+            if (parsedData?.coordinates?.length > 0) {
+              console.log(`[${hookId}] First coordinate:`, parsedData.coordinates[0]);
+            }
           } catch (err) {
             console.log(`[${hookId}] gpx_data is not valid JSON:`, err);
           }
