@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,7 +68,8 @@ export function useRouteData(routeId: string | undefined) {
           gpx_data: data.gpx_data,
           gpx_file_url: data.gpx_file_url,
           type: data.type,
-          coordinates: data.coordinates as [number, number][] || [], // Type assertion here
+          // Properly type cast coordinates to ensure they're treated as [number, number][]
+          coordinates: Array.isArray(data.coordinates) ? data.coordinates as [number, number][] : [],
           // Include any other fields from the original data
           ...data
         };
