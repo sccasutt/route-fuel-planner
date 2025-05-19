@@ -3,6 +3,7 @@ import { RouteMapSection } from "@/components/RouteDetail/RouteMapSection";
 import { SideBarDataSection } from "@/components/RouteDetail/SideBarDataSection";
 import { ElevationSection } from "@/components/RouteDetail/ElevationSection";
 import { useRoutePoints } from "@/hooks/useRoutePoints";
+import { useEffect } from "react";
 
 interface RouteMainContentProps {
   routeData: any;
@@ -26,6 +27,17 @@ export function RouteMainContent({
     routeCoordinates;
 
   const hasDetailedPoints = points.length > 0;
+  
+  // Log when route points are available
+  useEffect(() => {
+    if (hasDetailedPoints) {
+      console.log(`Using ${points.length} detailed route points for display`);
+    } else if (routeCoordinates.length > 0) {
+      console.log(`No detailed points available, falling back to ${routeCoordinates.length} basic coordinates`);
+    } else {
+      console.log('No route coordinates available for display');
+    }
+  }, [hasDetailedPoints, points.length, routeCoordinates.length]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

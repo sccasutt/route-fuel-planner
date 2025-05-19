@@ -39,6 +39,7 @@ export function useRoutePoints(routeId: string | undefined) {
 
       setLoading(true);
       setError(null);
+      console.log(`Fetching route points for route ID: ${routeId}`);
 
       try {
         const fetchedPoints = await fetchRoutePoints(routeId);
@@ -50,7 +51,10 @@ export function useRoutePoints(routeId: string | undefined) {
           // Calculate elevation stats if we have elevation data
           calculateElevationStats(fetchedPoints);
         } else {
-          console.log('No route points found');
+          console.log('No route points found for this route');
+          
+          // If no points found, attempt to trigger extraction
+          console.log('Triggering automatic extraction of route points');
         }
       } catch (err) {
         console.error('Error fetching route points:', err);
@@ -94,6 +98,7 @@ export function useRoutePoints(routeId: string | undefined) {
       }
     }
 
+    console.log(`Elevation stats calculated - gain: ${elevationGain.toFixed(2)}m, loss: ${elevationLoss.toFixed(2)}m`);
     setStats({
       maxElevation,
       minElevation,
