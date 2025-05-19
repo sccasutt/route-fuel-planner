@@ -26,10 +26,14 @@ export async function processRouteWithWindAndEnergy(routeId: string): Promise<bo
       return false;
     }
     
+    // Check if weather_json exists and has the correct structure
+    const hasExistingWindData = routeData.weather_json && 
+      typeof routeData.weather_json === 'object' && 
+      'wind_data' in routeData.weather_json && 
+      Array.isArray(routeData.weather_json.wind_data);
+    
     // Fetch wind data if not already present
-    if (!routeData.weather_json || 
-        !routeData.weather_json.wind_data || 
-        (typeof routeData.weather_json === 'object' && !routeData.weather_json.wind_data)) {
+    if (!hasExistingWindData) {
       console.log("Fetching wind data for route:", routeData.id);
       const windData = await fetchWindData(
         routeData.start_lat, 
