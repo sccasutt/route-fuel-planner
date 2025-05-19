@@ -20,7 +20,7 @@ export function ElevationDataColumn({ routeData, stats }: ElevationDataColumnPro
     },
     {
       label: "Total Ascent",
-      value: stats.totalAscent > 0 ? formatElevation(stats.totalAscent) : 
+      value: stats.elevationGain > 0 ? formatElevation(stats.elevationGain) : 
              routeData.total_ascent ? formatElevation(routeData.total_ascent) : 
              formatElevation(routeData.elevation || 0),
       icon: Mountain
