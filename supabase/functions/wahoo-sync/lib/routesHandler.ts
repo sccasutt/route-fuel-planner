@@ -47,20 +47,25 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         for (let j = 0; j < batch.length; j++) {
           const activity = batch[j];
           const route = routes[j];
+          const insertedRouteId = data && data[j] ? data[j].id : route.wahoo_route_id;
           
-          if (route.wahoo_route_id) {
+          if (insertedRouteId) {
+            console.log(`Processing trackpoints for route: ${insertedRouteId}`);
+            
             // Process trackpoints first (more detailed data)
-            const trackpointCount = await processAndStoreTrackpoints(client, activity, route.wahoo_route_id);
+            const trackpointCount = await processAndStoreTrackpoints(client, activity, insertedRouteId);
             
             if (trackpointCount > 0) {
-              console.log(`Successfully processed ${trackpointCount} trackpoints for route: ${route.wahoo_route_id}`);
+              console.log(`Successfully processed ${trackpointCount} trackpoints for route: ${insertedRouteId}`);
             } else if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
               // Fall back to basic coordinates if no trackpoints were found
-              const pointCount = await upsertRoutePoints(client, route.wahoo_route_id, route.coordinates);
-              console.log(`Inserted ${pointCount} basic route points for route: ${route.wahoo_route_id}`);
+              const pointCount = await upsertRoutePoints(client, insertedRouteId, route.coordinates);
+              console.log(`Inserted ${pointCount} basic route points for route: ${insertedRouteId}`);
             } else {
-              console.log(`No coordinates found for route: ${route.wahoo_route_id}`);
+              console.log(`No coordinates found for route: ${insertedRouteId}`);
             }
+          } else {
+            console.error(`Could not determine route ID for upsertion result`);
           }
         }
       }

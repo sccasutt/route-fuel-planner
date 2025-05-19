@@ -137,3 +137,4 @@ export async function processAndStoreTrackpoints(client: SupabaseClient, activit
   // Insert the trackpoints as route_points
   return await upsertRoutePoints(client, routeId, trackpoints);
 }
+
