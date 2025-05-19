@@ -1,4 +1,3 @@
-
 // Types for the Wahoo integration
 
 // Global state for tracking Wahoo data loading
@@ -7,32 +6,10 @@ export const wahooGlobalState = {
   lastFetchTimestamp: 0
 };
 
-// Wahoo profile data
-export interface WahooProfileData {
-  id: string;
-  wahooUserId: string | null;
-  weightKg: number | null;
-  lastSyncedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Weather data type
-export interface WeatherData {
-  id: string;
-  routeId: string;
-  temperature: number | null;
-  windSpeed: number | null;
-  humidity: number | null;
-  conditions: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Main activity data type
+// Interface for Wahoo activity data with all necessary fields
 export interface WahooActivityData {
   id: string;
-  wahooRouteId?: string;
+  wahoo_route_id?: string;
   name: string;
   date: string;
   distance: number;
@@ -40,11 +17,46 @@ export interface WahooActivityData {
   duration: string;
   duration_seconds: number;
   calories: number;
-  coordinates: [number, number][];  // Format: [latitude, longitude][]
-  gpx_data: string | null;  // Stored JSON string with coordinates and possibly raw GPX
-  raw_gpx?: any;            // Raw GPX data if available (parsed from gpx_data)
-  gpx_file_url: string | null;
-  type: string;
-  weather?: WeatherData | null;
+  type?: string;
+  coordinates?: [number, number][];
+  gpx_file_url?: string | null;
+  file_url?: string | null;
+  weatherData?: {
+    temperature?: number;
+    conditions?: string;
+    windSpeed?: number;
+    humidity?: number;
+  } | null;
   metadata?: any;
+  start_lat?: number | null;
+  start_lng?: number | null;
+}
+
+// Interface for Wahoo token data
+export interface WahooTokenData {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  wahoo_user_id?: string;
+  email?: string;
+}
+
+// Interface for Wahoo profile data
+export interface WahooProfileData {
+  id: string;
+  wahoo_user_id?: string;
+  weight_kg?: number;
+  last_synced_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Interface for Wahoo authentication state
+export interface WahooAuthState {
+  isAuthenticated: boolean;
+  hasToken: boolean;
+  wahooUserId?: string | null;
+  email?: string | null;
+  expiresAt?: number | null;
+  lastChecked: number;
 }

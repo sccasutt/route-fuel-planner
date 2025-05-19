@@ -25,7 +25,7 @@ export function useProcessWahooCallback({
   const params = useWahooCallbackParams();
   const { exchangeToken } = useWahooTokenExchange();
   const { validateState } = useWahooAuthState();
-  const { syncWahooData } = useWahooSyncHandler();
+  const { handleSync } = useWahooSyncHandler(); // Use handleSync instead of syncWahooData
 
   const processCallback = useCallback(async () => {
     try {
@@ -146,31 +146,23 @@ export function useProcessWahooCallback({
         return;
       }
 
-      // 6. Sync profile and rides
+      // 6. Sync profile and rides - Use handleSync directly instead of syncWahooData
       setStatus("Synchronizing your rides...");
       try {
-        const syncResult = await syncWahooData({
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          expires_at: Date.now() + tokenData.expires_in * 1000,
-          wahoo_user_id: wahooUserId,
-        });
+        // Simply call handleSync() which already contains the sync logic
+        await handleSync();
         
-        if (syncResult.success) {
-          setStatus("Your Wahoo data has been successfully synchronized!");
-          
-          console.log("WahooCallback: Sync successful, navigating to dashboard");
-          successToast(
-            "Wahoo connected",
-            "Your Wahoo account is now connected."
-          );
-          setTimeout(
-            () => navigate("/dashboard", { state: { wahooConnected: true } }),
-            2000
-          );
-        } else {
-          throw syncResult.error;
-        }
+        setStatus("Your Wahoo data has been successfully synchronized!");
+        
+        console.log("WahooCallback: Sync successful, navigating to dashboard");
+        successToast(
+          "Wahoo connected",
+          "Your Wahoo account is now connected."
+        );
+        setTimeout(
+          () => navigate("/dashboard", { state: { wahooConnected: true } }),
+          2000
+        );
       } catch (err) {
         const errMsg =
           err instanceof Error ? err.message : "Error synchronizing rides";
@@ -220,7 +212,7 @@ export function useProcessWahooCallback({
       setTimeout(() => navigate("/dashboard"), 3000);
     }
   // dependencies:
-  }, [navigate, params, setStatus, setError, errorToast, successToast, user, redirectUri, exchangeToken, validateState, syncWahooData]);
+  }, [navigate, params, setStatus, setError, errorToast, successToast, user, redirectUri, exchangeToken, validateState, handleSync]);
 
   return { processCallback };
 }

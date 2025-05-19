@@ -1,73 +1,50 @@
 
 /**
- * Hook for fetching Wahoo activities
+ * Hook to fetch Wahoo activities from the database
  */
 
-import { useState, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect, useCallback } from "react";
 import { WahooActivityData } from "./wahooTypes";
 import { useWahooActivityDatabase } from "./useWahooActivityDatabase";
 
 export function useWahooActivityFetcher() {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activities, setActivities] = useState<WahooActivityData[]>([]);
-  const [lastApiResponse, setLastApiResponse] = useState<any>(null);
-  const { toast } = useToast();
-  const { fetchActivitiesFromDB, fetchWahooProfile } = useWahooActivityDatabase();
-  
-  const fetchWahooActivities = useCallback(async (userId: string, hookId: string) => {
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const { fetchActivitiesFromDB } = useWahooActivityDatabase();
+
+  const fetchWahooActivities = useCallback(async (userId: string, hookId = "default") => {
     if (!userId) {
-      console.log(`[${hookId}] No user found, not fetching activities`);
-      setActivities([]);
-      setIsLoading(false);
-      return;
+      console.log(`[${hookId}] No user ID provided, cannot fetch activities`);
+      return [];
     }
-    
+
     setIsLoading(true);
+    setError(null);
+
     try {
-      console.log(`[${hookId}] Fetching Wahoo activities for user`, userId);
-
-      // First check if the wahoo_profiles table has a record for this user
-      const profileData = await fetchWahooProfile(userId, hookId);
+      console.log(`[${hookId}] Fetching Wahoo activities for user:`, userId);
       
-      // Store the profile response for debugging
-      try {
-        if (profileData) {
-          localStorage.setItem("wahoo_last_profile_response", JSON.stringify(profileData));
-        }
-      } catch (err) {
-        console.warn("Failed to store profile in localStorage:", err);
-      }
-
-      // Get activities from database
-      const typedActivities = await fetchActivitiesFromDB(userId, hookId);
+      const fetchedActivities = await fetchActivitiesFromDB(userId, hookId);
       
-      // Store the raw database response for debugging
-      try {
-        localStorage.setItem("wahoo_last_db_response", JSON.stringify(typedActivities || []));
-        setLastApiResponse(typedActivities || []);
-      } catch (err) {
-        console.warn("Failed to store DB response in localStorage:", err);
-      }
+      console.log(`[${hookId}] Fetched ${fetchedActivities.length} activities`);
+      setActivities(fetchedActivities);
       
-      setActivities(typedActivities);
-    } catch (error) {
-      console.error(`[${hookId}] Error fetching Wahoo activities:`, error);
-      toast({
-        title: "Error",
-        description: "Failed to load Wahoo activities",
-        variant: "destructive",
-      });
-      setActivities([]);
+      return fetchedActivities;
+    } catch (err: any) {
+      const errMessage = err instanceof Error ? err.message : "Unknown error";
+      console.error(`[${hookId}] Error fetching activities:`, err);
+      setError(errMessage);
+      return [];
     } finally {
       setIsLoading(false);
     }
-  }, [toast, fetchActivitiesFromDB, fetchWahooProfile]);
+  }, [fetchActivitiesFromDB]);
 
   return {
     activities,
     isLoading,
-    fetchWahooActivities,
-    lastApiResponse
+    error,
+    fetchWahooActivities
   };
 }

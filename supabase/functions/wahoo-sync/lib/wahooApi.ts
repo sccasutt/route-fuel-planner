@@ -1,3 +1,4 @@
+
 // Wahoo API endpoint handlers
 import { formatWahooActivities } from "./wahooActivityFormatter.ts";
 
@@ -107,17 +108,67 @@ export async function fetchWahooActivities(access_token: string) {
             }
           }
           
-          // Process file URLs if available
-          items = items.map(item => {
+          // Process items to get FIT files where available
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            
+            // Check if item has a FIT file URL
             if (item.file?.url) {
               console.log(`Found file URL: ${item.file.url} for item: ${item.id}`);
-              return {
-                ...item,
-                gpx_file_url: item.file.url
-              };
+              // Try to fetch FIT file data (if available)
+              try {
+                const fitFileRes = await fetch(item.file.url, {
+                  headers: { "Authorization": `Bearer ${access_token}` },
+                  signal: controller.signal,
+                });
+                
+                if (fitFileRes.ok) {
+                  // Check content type to determine if it's a FIT file
+                  const contentType = fitFileRes.headers.get("content-type");
+                  
+                  if (contentType && 
+                      (contentType.includes("application/octet-stream") || 
+                       contentType.includes("application/fit") ||
+                       contentType.includes("application/vnd.ant.fit"))) {
+                    // Store the URL for later processing by the gpx-parser function
+                    items[i] = {
+                      ...items[i],
+                      gpx_file_url: item.file.url,
+                      file_type: "fit"
+                    };
+                  }
+                  // If it's possibly a GPX file
+                  else if (contentType && 
+                          (contentType.includes("application/gpx") || 
+                           contentType.includes("text/xml") || 
+                           contentType.includes("application/xml"))) {
+                    items[i] = {
+                      ...items[i],
+                      gpx_file_url: item.file.url,
+                      file_type: "gpx"
+                    };
+                  }
+                  // For other types just store the URL
+                  else {
+                    items[i] = {
+                      ...items[i],
+                      gpx_file_url: item.file.url,
+                      file_type: "unknown"
+                    };
+                  }
+                } else {
+                  console.warn(`Could not fetch file at ${item.file.url}: ${fitFileRes.status}`);
+                }
+              } catch (fileErr) {
+                console.warn(`Error fetching file at ${item.file.url}:`, fileErr);
+                // Still store the URL even if fetch failed
+                items[i] = {
+                  ...items[i],
+                  gpx_file_url: item.file.url
+                };
+              }
             }
-            return item;
-          });
+          }
           
           if (items.length > 0) {
             console.log(`Found ${items.length} items from endpoint ${endpoint}`);
@@ -164,5 +215,40 @@ export async function fetchWahooActivities(access_token: string) {
       status: 502,
       details: err.details || err
     };
+  }
+}
+
+// Helper function to download FIT file and extract coordinates
+export async function downloadAndProcessFitFile(url: string, access_token: string) {
+  try {
+    console.log(`Downloading file from ${url}...`);
+    
+    const fileRes = await fetch(url, {
+      headers: {
+        "Authorization": `Bearer ${access_token}`,
+        "Accept": "*/*"
+      }
+    });
+    
+    if (!fileRes.ok) {
+      console.error(`Failed to download file: ${fileRes.status}`);
+      return null;
+    }
+
+    // Extract file as blob
+    const fileBlob = await fileRes.blob();
+    
+    // We'll handle the file processing and parsing in the existing gpx-parser function
+    // Return the file content as ArrayBuffer ready for processing
+    const fileBuffer = await fileBlob.arrayBuffer();
+    
+    return {
+      buffer: fileBuffer,
+      contentType: fileRes.headers.get("content-type") || "application/octet-stream",
+      url: url
+    };
+  } catch (error) {
+    console.error(`Error downloading file from ${url}:`, error);
+    return null;
   }
 }
