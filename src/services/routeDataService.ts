@@ -43,6 +43,31 @@ export async function fetchRouteData(routeId: string): Promise<RouteData | null>
 }
 
 /**
+ * Fetch route points from the route_points table
+ * @param routeId The ID of the route to fetch points for
+ * @returns Array of route points with lat, lng, elevation
+ */
+export async function fetchRoutePoints(routeId: string) {
+  if (!routeId) return [];
+  
+  console.log("Fetching route points for route:", routeId);
+  
+  const { data, error } = await supabase
+    .from('route_points')
+    .select('lat, lng, elevation, sequence_index')
+    .eq('route_id', routeId)
+    .order('sequence_index', { ascending: true });
+    
+  if (error) {
+    console.error("Error fetching route points:", error);
+    return [];
+  }
+  
+  console.log(`Fetched ${data?.length || 0} route points`);
+  return data || [];
+}
+
+/**
  * Extract coordinates from various sources in the route data
  * @param routeData The route data object
  * @returns Array of [lat, lng] coordinates and a flag indicating if data is valid
@@ -176,3 +201,4 @@ export async function fetchCoordinatesFromFileUrl(
   
   return [];
 }
+
