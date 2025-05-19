@@ -8,7 +8,11 @@ interface WeatherDataCardProps {
   windDirection?: string;
 }
 
-export function WeatherDataCard({ temperature = "18°C", windSpeed = "12 km/h", windDirection = "NE" }: WeatherDataCardProps) {
+export function WeatherDataCard({ 
+  temperature = "18°C", 
+  windSpeed = "12 km/h", 
+  windDirection = "NE" 
+}: WeatherDataCardProps) {
   const weatherItems = [
     {
       label: "Temperature",

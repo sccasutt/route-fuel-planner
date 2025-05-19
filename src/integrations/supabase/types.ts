@@ -124,6 +124,9 @@ export type Database = {
       routes: {
         Row: {
           calories: number | null
+          calories_estimated: number | null
+          calories_power_based: number | null
+          carb_grams: number | null
           coordinates: Json | null
           created_at: string
           date: string
@@ -132,21 +135,27 @@ export type Database = {
           duration: string
           duration_seconds: number | null
           elevation: number
+          fat_grams: number | null
           file_url: string | null
           gpx_data: string | null
           gpx_file_url: string | null
           id: string
           metadata: Json | null
           name: string
+          protein_grams: number | null
           start_lat: number | null
           start_lng: number | null
           type: string | null
           updated_at: string
           user_id: string
           wahoo_route_id: string
+          weather_json: Json | null
         }
         Insert: {
           calories?: number | null
+          calories_estimated?: number | null
+          calories_power_based?: number | null
+          carb_grams?: number | null
           coordinates?: Json | null
           created_at?: string
           date: string
@@ -155,21 +164,27 @@ export type Database = {
           duration: string
           duration_seconds?: number | null
           elevation: number
+          fat_grams?: number | null
           file_url?: string | null
           gpx_data?: string | null
           gpx_file_url?: string | null
           id?: string
           metadata?: Json | null
           name: string
+          protein_grams?: number | null
           start_lat?: number | null
           start_lng?: number | null
           type?: string | null
           updated_at?: string
           user_id: string
           wahoo_route_id: string
+          weather_json?: Json | null
         }
         Update: {
           calories?: number | null
+          calories_estimated?: number | null
+          calories_power_based?: number | null
+          carb_grams?: number | null
           coordinates?: Json | null
           created_at?: string
           date?: string
@@ -178,18 +193,21 @@ export type Database = {
           duration?: string
           duration_seconds?: number | null
           elevation?: number
+          fat_grams?: number | null
           file_url?: string | null
           gpx_data?: string | null
           gpx_file_url?: string | null
           id?: string
           metadata?: Json | null
           name?: string
+          protein_grams?: number | null
           start_lat?: number | null
           start_lng?: number | null
           type?: string | null
           updated_at?: string
           user_id?: string
           wahoo_route_id?: string
+          weather_json?: Json | null
         }
         Relationships: []
       }

@@ -3,6 +3,8 @@ import { useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useWahooSyncHandler } from "./useWahooSyncHandler";
 import { useWahooCallbackNavigation } from "./useWahooCallbackNavigation";
+import { processRouteBatch } from "@/utils/routeProcessing";
+import { supabase } from "@/integrations/supabase/client";
 
 export function useWahooCallbackSync() {
   const { user } = useAuth();
@@ -20,7 +22,29 @@ export function useWahooCallbackSync() {
     // Sync profile and rides
     setStatus("Synchronizing your rides...");
     try {
-      await handleSync();
+      const result = await handleSync();
+      
+      // If sync was successful, trigger background energy calculation for routes
+      if (result && result.success && result.data?.routeCount > 0) {
+        setStatus("Calculating energy and nutrition data...");
+        
+        // Get recently synced routes
+        const { data: routes } = await supabase
+          .from('routes')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+          
+        if (routes && routes.length > 0) {
+          // Process routes in background
+          const routeIds = routes.map(route => route.id);
+          // We don't await this to avoid blocking the UI
+          processRouteBatch(routeIds).then(({ success, failed }) => {
+            console.log(`Processed energy data for ${success} routes, ${failed} failed`);
+          });
+        }
+      }
       
       setStatus("Your Wahoo data has been successfully synchronized!");
       

@@ -83,6 +83,12 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         );
       }
       
+      // Extract power data if available for energy calculations
+      const avgPower = parseNumericValue(activity.average_power) || parseNumericValue(activity.avg_power);
+      
+      // Extract or calculate calories if available
+      const calories = parseNumericValue(activity.calories) || parseNumericValue(activity.kcal) || 0;
+      
       return {
         user_id: userId,
         wahoo_route_id: id,
@@ -93,6 +99,15 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         duration: activity.duration || "0:01:00",
         duration_seconds: durationSeconds || 60,
         calories: parseNumericValue(activity.calories),
+        // Add new fields for energy calculations
+        calories_power_based: avgPower ? (avgPower * durationSeconds * 0.24) / 3600 : null,
+        calories_estimated: !avgPower ? calories : null,
+        // Store initial macronutrient values (will be refined by the worker job)
+        fat_grams: calories ? (calories * 0.3) / 9 : null,
+        carb_grams: calories ? (calories * 0.65) / 4 : null,
+        protein_grams: calories ? (calories * 0.05) / 4 : null,
+        // Add average power if available
+        average_power: avgPower,
         gpx_data: gpxData,
         // Store coordinates directly in the JSONB field
         coordinates: coordinates,
