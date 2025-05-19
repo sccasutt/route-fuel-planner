@@ -103,7 +103,7 @@ export function WahooResyncButton({
       }
 
       // Sync with Wahoo
-      const result = await syncWahooProfileAndRoutes(token);
+      const result = await syncWahooProfileAndRoutes();
       
       if (!result) {
         throw new Error("No response from Wahoo sync");

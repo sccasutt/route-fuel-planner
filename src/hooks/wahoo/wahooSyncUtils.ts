@@ -1,34 +1,35 @@
 
+import { WahooSyncResult } from "@/components/Wahoo/WahooSyncApi";
 import { syncWahooProfileAndRoutes } from "@/components/Wahoo/WahooSyncApi";
+import { useToast } from "@/hooks/use-toast";
 
-export async function syncWahooWithProfile(tokenObj: any) {
+// Helper function to format sync results for display
+export function formatSyncResults(result: WahooSyncResult): string {
+  if (!result.success || !result.data) {
+    return "Sync failed. Please try again.";
+  }
+  
+  const routeCount = result.data.routeCount || 0;
+  const activityCount = result.data.activityCount || 0;
+  
+  if (routeCount === 0 && activityCount === 0) {
+    return "Sync completed. No new activities found.";
+  }
+  
+  return `Sync completed. Found ${routeCount} routes and ${activityCount} activities.`;
+}
+
+// Sync function with proper error handling
+export async function performWahooSync(): Promise<WahooSyncResult> {
   try {
-    console.log("Starting Wahoo sync with profile...", {
-      hasAccessToken: !!tokenObj.access_token,
-      hasRefreshToken: !!tokenObj.refresh_token,
-      hasWahooUserId: !!tokenObj.wahoo_user_id,
-      expiresAt: tokenObj.expires_at ? new Date(tokenObj.expires_at).toISOString() : 'none'
-    });
-    
-    // Validate token object
-    if (!tokenObj.access_token || !tokenObj.refresh_token) {
-      throw new Error("Invalid token structure for Wahoo sync");
-    }
-    
-    const result = await syncWahooProfileAndRoutes(tokenObj);
-    console.log("Wahoo sync completed successfully");
+    const result = await syncWahooProfileAndRoutes();
     return result;
   } catch (error) {
-    console.error("Error in Wahoo sync:", error);
-    
-    // Check if this is a token-related error that might need re-auth
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("token") && errorMessage.includes("invalid")) {
-      console.warn("Token appears to be invalid, removing local token");
-      localStorage.removeItem("wahoo_token");
-      window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
-    }
-    
-    throw error;
+    console.error("Error during Wahoo sync:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false,
+      error: message
+    };
   }
 }

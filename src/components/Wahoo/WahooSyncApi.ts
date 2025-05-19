@@ -2,8 +2,19 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Define better types for the response
+export interface WahooSyncResult {
+  success: boolean;
+  data?: {
+    profile?: any;
+    routeCount?: number;
+    activityCount?: number;
+  };
+  error?: string;
+}
+
 // Function to initiate Wahoo data sync
-export async function syncWahooProfileAndRoutes() {
+export async function syncWahooProfileAndRoutes(): Promise<WahooSyncResult> {
   console.log("Syncing Wahoo profile and routes");
   
   try {

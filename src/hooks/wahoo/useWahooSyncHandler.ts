@@ -1,81 +1,73 @@
 
-import { syncWahooWithProfile } from "./wahooSyncUtils";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-interface SyncOptions {
-  access_token: string;
-  refresh_token: string;
-  expires_at: number;
-  wahoo_user_id?: string | null;
-}
+import { WahooSyncResult } from "@/components/Wahoo/WahooSyncApi";
+import { performWahooSync, formatSyncResults } from "./wahooSyncUtils";
 
 export function useWahooSyncHandler() {
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<WahooSyncResult | null>(null);
   const { toast } = useToast();
 
-  const syncWahooData = async (options: SyncOptions) => {
+  const handleSync = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
     try {
-      console.log("Starting Wahoo sync with handler", {
-        hasAccessToken: !!options.access_token,
-        hasRefreshToken: !!options.refresh_token,
-        hasWahooUserId: !!options.wahoo_user_id,
-        expiresAt: options.expires_at
-      });
+      const result = await performWahooSync();
+      setLastSyncResult(result);
       
-      const result = await syncWahooWithProfile(options);
-      
-      console.log("Wahoo sync completed successfully via handler", {
-        profileFound: !!result?.profile,
-        routeCount: result?.routeCount || 0,
-        activityCount: result?.activityCount || 0
-      });
-      
-      // Show success toast with route count
-      if (result?.routeCount) {
-        toast({
-          title: "Wahoo Sync Complete",
-          description: `Successfully synced ${result.routeCount} routes from your Wahoo account.`,
-          variant: "default"
-        });
-      }
-      
-      return {
-        success: true,
-        data: result
-      };
-    } catch (error) {
-      console.error("Error in Wahoo sync handler:", error);
-      
-      // Get readable error message
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      // Determine if this is a token-related error requiring re-auth
-      if (errorMessage.includes("token") && errorMessage.includes("invalid")) {
-        console.warn("Token appears to be invalid via handler, removing local token");
-        localStorage.removeItem("wahoo_token");
-        window.dispatchEvent(new CustomEvent("wahoo_connection_changed"));
+      if (result.success && result.data) {
+        // Check if we received profile, routes, or activities
+        const hasProfile = !!result.data.profile;
+        const routes = result.data.routeCount || 0;
+        const activities = result.data.activityCount || 0;
+        
+        let description = "Your Wahoo data has been synced.";
+        
+        if (routes > 0) {
+          description = `${routes} route${routes !== 1 ? 's' : ''} synced from Wahoo.`;
+        }
         
         toast({
-          title: "Wahoo Connection Issue",
-          description: "Your Wahoo connection has expired. Please reconnect.",
-          variant: "destructive"
+          title: "Sync Successful",
+          description,
+          variant: "default",
         });
+        
+        // Dispatch event to notify other components about the sync
+        window.dispatchEvent(new CustomEvent("wahoo_connection_changed", {
+          detail: { timestamp: Date.now() }
+        }));
       } else {
-        // Generic error toast
         toast({
           title: "Sync Failed",
-          description: errorMessage || "Failed to sync with Wahoo",
-          variant: "destructive"
+          description: result.error || "Could not sync data from Wahoo",
+          variant: "destructive",
         });
       }
+    } catch (error) {
+      console.error("Error during Wahoo sync:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
       
-      return {
+      toast({
+        title: "Sync Failed",
+        description: message,
+        variant: "destructive",
+      });
+      
+      setLastSyncResult({
         success: false,
-        error
-      };
+        error: message
+      });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
   return {
-    syncWahooData
+    handleSync,
+    isSyncing,
+    lastSyncResult
   };
 }
