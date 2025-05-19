@@ -22,7 +22,10 @@ export function SideBarDataSection({ routeData, stats }: SideBarDataSectionProps
         weatherJson={routeData.weather_json}
       />
       <EnergyPowerDataColumn routeData={routeData} />
-      <ElevationDataColumn routeData={routeData} stats={stats} />
+      <ElevationDataColumn 
+        elevation={routeData.elevation}
+        stats={stats} 
+      />
       <WeatherDataCard 
         temperature={routeData.weather_json?.average_temperature || "18°C"}
         windSpeed={routeData.weather_json?.average_wind_speed || "12 km/h"}
