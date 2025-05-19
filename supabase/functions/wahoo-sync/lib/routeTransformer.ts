@@ -17,8 +17,30 @@ export function transformActivityToRoute(activity: any, userId: string): any {
   // Store file URL if available
   const gpxFileUrl = activity.gpx_file_url || activity.file?.url || null;
   
-  // Get coordinates
-  const coordinates = processCoordinates(activity);
+  // Get coordinates - add more detailed logging
+  console.log(`Processing coordinates for activity ID: ${id}`);
+  let coordinates = null;
+  
+  // First, try to extract from trackpoints or waypoints
+  if (activity.trackpoints || activity.waypoints) {
+    console.log(`Activity has ${activity.trackpoints?.length || 0} trackpoints or ${activity.waypoints?.length || 0} waypoints`);
+    const points = activity.trackpoints || activity.waypoints;
+    if (Array.isArray(points) && points.length > 0) {
+      coordinates = points.map((point: any) => {
+        const lat = parseNumericValue(point.lat || point.latitude);
+        const lng = parseNumericValue(point.lng || point.longitude);
+        const ele = parseNumericValue(point.elevation || point.ele || point.alt);
+        return [lat, lng, ele];
+      }).filter((coord: any[]) => coord[0] && coord[1]);
+      console.log(`Extracted ${coordinates.length} coordinates from trackpoints/waypoints`);
+    }
+  }
+  
+  // If no coordinates yet, try other methods
+  if (!coordinates || coordinates.length === 0) {
+    coordinates = processCoordinates(activity);
+    console.log(`Processed coordinates result: ${coordinates ? coordinates.length : 'none'} points found`);
+  }
   
   // Calculate duration_seconds if it doesn't exist
   let durationSeconds = parseNumericValue(activity.duration_seconds);
@@ -35,6 +57,9 @@ export function transformActivityToRoute(activity: any, userId: string): any {
   
   // Process energy data
   const energyData = processEnergyData(activity);
+
+  // Log what we're about to return
+  console.log(`Transformed route ${id} has ${coordinates ? coordinates.length : 0} coordinates`);
   
   return {
     user_id: userId,

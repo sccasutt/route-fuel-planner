@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useWahooSyncHandler } from "./useWahooSyncHandler";
 import { useWahooCallbackNavigation } from "./useWahooCallbackNavigation";
-import { processRouteBatch } from "@/utils/routeProcessing";
+import { processRouteBatch, extractAndStoreRoutePoints } from "@/utils/routeProcessing";
 import { supabase } from "@/integrations/supabase/client";
 import { WahooSyncResult } from "@/components/Wahoo/WahooSyncApi";
 
@@ -25,9 +25,9 @@ export function useWahooCallbackSync() {
     try {
       const result: WahooSyncResult = await handleSync();
       
-      // If sync was successful and has route data, trigger background energy calculation
+      // If sync was successful and has route data, trigger background processing
       if (result.success === true && result.data && result.data.routeCount > 0) {
-        setStatus("Calculating energy and nutrition data...");
+        setStatus("Processing route data and extracting coordinates...");
         
         // Get recently synced routes
         const { data: routes } = await supabase
@@ -35,15 +35,22 @@ export function useWahooCallbackSync() {
           .select('id')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(20); // Increased limit to process more routes
           
         if (routes && routes.length > 0) {
-          // Process routes in background
           const routeIds = routes.map(route => route.id);
-          // We don't await this to avoid blocking the UI
+          
+          // Process route energy data in background
           processRouteBatch(routeIds).then(({ success, failed }) => {
             console.log(`Processed energy data for ${success} routes, ${failed} failed`);
           });
+          
+          // Process route points extraction in background
+          Promise.all(routeIds.map(id => extractAndStoreRoutePoints(id)))
+            .then(results => {
+              const successCount = results.filter(Boolean).length;
+              console.log(`Extracted and stored point data for ${successCount}/${routeIds.length} routes`);
+            });
         }
       }
       

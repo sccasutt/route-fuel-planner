@@ -33,7 +33,8 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       const { data, error } = await client
         .from('routes')
         .upsert(routes, {
-          onConflict: 'user_id,wahoo_route_id'
+          onConflict: 'user_id,wahoo_route_id',
+          returning: 'minimal'
         });
 
       if (error) {
@@ -45,7 +46,10 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         // After successfully upserting routes, process their coordinates
         for (const route of routes) {
           if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
-            await upsertRoutePoints(client, route.wahoo_route_id, route.coordinates);
+            const pointCount = await upsertRoutePoints(client, route.wahoo_route_id, route.coordinates);
+            console.log(`Inserted ${pointCount} route points for route: ${route.wahoo_route_id}`);
+          } else {
+            console.log(`No coordinates found for route: ${route.wahoo_route_id}`);
           }
         }
       }

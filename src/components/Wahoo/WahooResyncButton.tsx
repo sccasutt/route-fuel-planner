@@ -6,6 +6,8 @@ import { syncWahooProfileAndRoutes, disconnectWahooAccount } from "./WahooSyncAp
 import { useAuth } from "@/hooks/useAuth";
 import { RefreshCw, Bike } from "lucide-react";
 import { getWahooEmail } from "@/hooks/wahoo/wahooTokenUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { extractAndStoreRoutePoints } from "@/utils/routeProcessing";
 
 interface WahooResyncButtonProps {
   setConnectionError: (v: string | null) => void;
@@ -109,14 +111,46 @@ export function WahooResyncButton({
         throw new Error("No response from Wahoo sync");
       }
 
-      toast({ 
-        title: "Wahoo Synced", 
-        description: "Your rides and profile have been updated." 
-      });
+      // Process route points after successful sync
+      if (result.success && result.data && result.data.routeCount > 0) {
+        toast({ 
+          title: "Wahoo Synced", 
+          description: "Processing route data..." 
+        });
+
+        // Get latest routes and extract route points
+        const { data: routes } = await supabase
+          .from('routes')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (routes && routes.length > 0) {
+          const routeIds = routes.map(route => route.id);
+          
+          // Process route points in background
+          Promise.all(routeIds.map(id => extractAndStoreRoutePoints(id)))
+            .then(results => {
+              const successCount = results.filter(Boolean).length;
+              console.log(`Extracted route points for ${successCount}/${routeIds.length} routes`);
+              
+              toast({ 
+                title: "Processing Complete", 
+                description: `Route data has been processed for ${successCount} routes.` 
+              });
+            });
+        }
+      } else {
+        toast({ 
+          title: "Wahoo Synced", 
+          description: "Your rides and profile have been updated." 
+        });
+      }
 
       // Notify other components that connection status may have changed
       window.dispatchEvent(new CustomEvent("wahoo_connection_changed", {
-        detail: { timestamp: Date.now() }
+        detail: { timestamp: Date.now(), userId: user.id }
       }));
       
       // Force reload to make sure we see the latest data

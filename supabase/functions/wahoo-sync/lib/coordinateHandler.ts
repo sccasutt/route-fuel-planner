@@ -45,35 +45,42 @@ export async function upsertRoutePoints(client: any, routeId: string, coordinate
       return 0;
     }
     
-    console.log(`Upserting ${coordinates.length} route points for route: ${routeId}`);
+    console.log(`Starting to upsert ${coordinates.length} route points for route: ${routeId}`);
+    
+    // Delete existing points first to avoid duplicates
+    const { error: deleteError } = await client
+      .from('route_points')
+      .delete()
+      .eq('route_id', routeId);
+      
+    if (deleteError) {
+      console.error(`Error deleting existing route points:`, deleteError);
+    }
     
     // Process in batches to avoid size limits
     const batchSize = 100;
     let successCount = 0;
-    
-    // First, check if points already exist for this route to avoid duplicates
-    const { data: existingPoints, error: checkError } = await client
-      .from('route_points')
-      .select('count')
-      .eq('route_id', routeId);
-    
-    if (checkError) {
-      console.error(`Error checking existing points:`, checkError);
-      // Continue anyway and try to insert
-    } else if (existingPoints && existingPoints.length > 0 && existingPoints[0].count > 0) {
-      console.log(`${existingPoints[0].count} points already exist for route ${routeId}, skipping insertion`);
-      return 0;
-    }
     
     for (let i = 0; i < coordinates.length; i += batchSize) {
       const batch = coordinates.slice(i, i + batchSize);
       
       // Transform coordinates into route_points schema
       const points = batch.map((coord, index) => {
-        const latitude = parseNumericValue(coord[0]);
-        const longitude = parseNumericValue(coord[1]);
-        const elevation = coord.length > 2 ? parseNumericValue(coord[2]) : null;
-        const time = coord.length > 3 ? coord[3] : null;
+        let latitude, longitude, elevation = null, time = null;
+        
+        // Handle different coordinate formats
+        if (Array.isArray(coord)) {
+          latitude = parseNumericValue(coord[0]);
+          longitude = parseNumericValue(coord[1]);
+          elevation = coord.length > 2 ? parseNumericValue(coord[2]) : null;
+          time = coord.length > 3 ? coord[3] : null;
+        } else if (typeof coord === 'object') {
+          // Object format like {lat: x, lng: y}
+          latitude = parseNumericValue(coord.lat !== undefined ? coord.lat : coord.latitude);
+          longitude = parseNumericValue(coord.lng !== undefined ? coord.lng : coord.longitude);
+          elevation = parseNumericValue(coord.ele !== undefined ? coord.ele : coord.elevation);
+          time = coord.time || coord.timestamp || null;
+        }
         
         return {
           route_id: routeId,
