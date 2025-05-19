@@ -54,8 +54,8 @@ export async function updateRouteEnergyData(routeId: string): Promise<boolean> {
     }
     
     // Extract or calculate required values
-    // Use type assertion for properties that TypeScript doesn't recognize
-    const avgPower = routeData?.average_power || (routeData as any)?.avg_power;
+    // Use safe property access and type assertions for properties that TypeScript doesn't recognize
+    const avgPower = routeData.average_power || routeData.avg_power || null;
     const durationSeconds = routeData.duration_seconds || 0;
     const distance = routeData.distance || 0;
     const elevation = routeData.elevation || 0;
