@@ -72,10 +72,17 @@ export async function storeWindData(
       return false;
     }
     
+    // Convert WindData array to a JSON-compatible format
+    const windDataJson = windData.map(item => ({
+      timestamp: item.timestamp,
+      speed: item.speed,
+      direction: item.direction
+    }));
+    
     const { error } = await supabase
       .from('routes')
       .update({
-        weather_json: { wind_data: windData }
+        weather_json: { wind_data: windDataJson }
       })
       .eq('id', routeId);
       

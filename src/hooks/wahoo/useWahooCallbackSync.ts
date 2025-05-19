@@ -24,8 +24,8 @@ export function useWahooCallbackSync() {
     try {
       const result = await handleSync();
       
-      // If sync was successful, trigger background energy calculation for routes
-      if (result && result.success && result.data?.routeCount > 0) {
+      // If sync was successful and has route data, trigger background energy calculation
+      if (result && result.success === true && result.data && result.data.routeCount > 0) {
         setStatus("Calculating energy and nutrition data...");
         
         // Get recently synced routes
