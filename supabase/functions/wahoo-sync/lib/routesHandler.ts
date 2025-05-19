@@ -1,7 +1,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { transformActivityToRoute } from "./routeTransformer.ts";
-import { upsertRoutePoints } from "./coordinateHandler.ts";
+import { upsertRoutePoints, processAndStoreTrackpoints } from "./coordinateHandler.ts";
 
 /**
  * Upserts routes for a user with improved data parsing according to Wahoo API documentation
@@ -34,7 +34,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         .from('routes')
         .upsert(routes, {
           onConflict: 'user_id,wahoo_route_id',
-          returning: 'minimal'
+          returning: 'representation'
         });
 
       if (error) {
@@ -43,13 +43,24 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         successCount += routes.length;
         console.log(`Successfully upserted batch ${i / batchSize + 1} with ${routes.length} routes`);
 
-        // After successfully upserting routes, process their coordinates
-        for (const route of routes) {
-          if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
-            const pointCount = await upsertRoutePoints(client, route.wahoo_route_id, route.coordinates);
-            console.log(`Inserted ${pointCount} route points for route: ${route.wahoo_route_id}`);
-          } else {
-            console.log(`No coordinates found for route: ${route.wahoo_route_id}`);
+        // After successfully upserting routes, process their coordinates and trackpoints
+        for (let j = 0; j < batch.length; j++) {
+          const activity = batch[j];
+          const route = routes[j];
+          
+          if (route.wahoo_route_id) {
+            // Process trackpoints first (more detailed data)
+            const trackpointCount = await processAndStoreTrackpoints(client, activity, route.wahoo_route_id);
+            
+            if (trackpointCount > 0) {
+              console.log(`Successfully processed ${trackpointCount} trackpoints for route: ${route.wahoo_route_id}`);
+            } else if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
+              // Fall back to basic coordinates if no trackpoints were found
+              const pointCount = await upsertRoutePoints(client, route.wahoo_route_id, route.coordinates);
+              console.log(`Inserted ${pointCount} basic route points for route: ${route.wahoo_route_id}`);
+            } else {
+              console.log(`No coordinates found for route: ${route.wahoo_route_id}`);
+            }
           }
         }
       }

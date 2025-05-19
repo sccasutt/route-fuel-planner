@@ -7,6 +7,10 @@ export interface RoutePoint {
   lng: number;
   elevation: number | null;
   sequence_index?: number;
+  recorded_at?: string | null;
+  power?: number | null;
+  heart_rate?: number | null;
+  cadence?: number | null;
 }
 
 export interface RoutePointStats {
@@ -46,6 +50,9 @@ export function useRoutePoints(routeId: string | undefined) {
         console.log(`Fetched ${fetchedPoints.length} route points for route ${routeId}`);
         
         if (fetchedPoints.length > 0) {
+          // Sample the first point to see its structure
+          console.log(`Sample route point:`, fetchedPoints[0]);
+          
           setPoints(fetchedPoints);
           
           // Calculate elevation stats if we have elevation data
@@ -53,8 +60,8 @@ export function useRoutePoints(routeId: string | undefined) {
         } else {
           console.log('No route points found for this route');
           
-          // If no points found, attempt to trigger extraction
-          console.log('Triggering automatic extraction of route points');
+          // If no points found, attempt to trigger extraction (handled in RouteHeader now)
+          console.log('Route header component will handle point extraction');
         }
       } catch (err) {
         console.error('Error fetching route points:', err);

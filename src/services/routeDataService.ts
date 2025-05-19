@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { RouteData } from "@/types/routeData";
 import { parseCoordinatesArray } from "@/utils/coordinateUtils";
+import { RoutePoint } from "@/hooks/useRoutePoints";
 
 /**
  * Fetch route data from the database
@@ -47,24 +47,42 @@ export async function fetchRouteData(routeId: string): Promise<RouteData | null>
  * @param routeId The ID of the route to fetch points for
  * @returns Array of route points with lat, lng, elevation
  */
-export async function fetchRoutePoints(routeId: string) {
-  if (!routeId) return [];
-  
-  console.log("Fetching route points for route:", routeId);
-  
-  const { data, error } = await supabase
-    .from('route_points')
-    .select('lat, lng, elevation, sequence_index')
-    .eq('route_id', routeId)
-    .order('sequence_index', { ascending: true });
+export async function fetchRoutePoints(routeId: string): Promise<RoutePoint[]> {
+  try {
+    console.log(`Fetching route points from database for route: ${routeId}`);
     
-  if (error) {
-    console.error("Error fetching route points:", error);
-    return [];
+    const { data, error } = await supabase
+      .from('route_points')
+      .select('*')
+      .eq('route_id', routeId)
+      .order('sequence_index', { ascending: true });
+      
+    if (error) {
+      console.error('Error fetching route points:', error);
+      throw new Error(`Failed to fetch route points: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) {
+      console.log(`No route points found in database for route: ${routeId}`);
+      return [];
+    }
+    
+    console.log(`Found ${data.length} route points in database for route: ${routeId}`);
+    
+    // Map the data to the RoutePoint interface
+    const points: RoutePoint[] = data.map(point => ({
+      lat: point.lat,
+      lng: point.lng,
+      elevation: point.elevation,
+      sequence_index: point.sequence_index,
+      recorded_at: point.recorded_at
+    }));
+    
+    return points;
+  } catch (error) {
+    console.error('Error in fetchRoutePoints:', error);
+    throw error;
   }
-  
-  console.log(`Fetched ${data?.length || 0} route points`);
-  return data || [];
 }
 
 /**
@@ -201,4 +219,3 @@ export async function fetchCoordinatesFromFileUrl(
   
   return [];
 }
-

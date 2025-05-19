@@ -1,31 +1,33 @@
 
-import { Mountain } from "lucide-react";
-import { ActivityDataCard } from "@/components/RouteDetail/ActivityDataCard";
 import { formatElevation } from "@/lib/utils";
 import { RoutePointStats } from "@/hooks/useRoutePoints";
 
 interface ElevationDataColumnProps {
-  routeData: any;
-  stats: RoutePointStats;
+  elevation?: number | null;
+  stats?: RoutePointStats | null;
 }
 
-export function ElevationDataColumn({ routeData, stats }: ElevationDataColumnProps) {
-  // Define elevation items for ActivityDataCard
-  const elevationItems = [
-    {
-      label: "Max Elevation",
-      value: stats.maxElevation ? formatElevation(stats.maxElevation) : 
-             routeData.max_elevation ? formatElevation(routeData.max_elevation) : "N/A",
-      icon: Mountain
-    },
-    {
-      label: "Total Ascent",
-      value: stats.elevationGain > 0 ? formatElevation(stats.elevationGain) : 
-             routeData.total_ascent ? formatElevation(routeData.total_ascent) : 
-             formatElevation(routeData.elevation || 0),
-      icon: Mountain
-    }
-  ];
-
-  return <ActivityDataCard title="Elevation" items={elevationItems} />;
+export function ElevationDataColumn({ elevation, stats }: ElevationDataColumnProps) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-muted-foreground text-sm mb-1">Elevation</span>
+      <div className="text-lg font-semibold">
+        {formatElevation(elevation || 0)}
+      </div>
+      
+      {stats?.elevationGain && (
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+          <span className="flex items-center">
+            <span className="text-emerald-500 mr-1">↑</span>
+            {formatElevation(stats.elevationGain)}
+          </span>
+          
+          <span className="flex items-center">
+            <span className="text-rose-500 mr-1">↓</span>
+            {formatElevation(stats.elevationLoss || 0)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }

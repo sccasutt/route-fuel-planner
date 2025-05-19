@@ -1,6 +1,6 @@
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 interface RouteMapSectionProps {
@@ -16,6 +16,18 @@ export function RouteMapSection({
   displayCoordinates,
   routeId
 }: RouteMapSectionProps) {
+  const [pointCount, setPointCount] = useState<number>(0);
+
+  // Update point count when coordinates change
+  useEffect(() => {
+    if (displayCoordinates && displayCoordinates.length > 0) {
+      setPointCount(displayCoordinates.length);
+      console.log(`RouteMapSection: ${displayCoordinates.length} route points available`);
+    } else {
+      console.log(`RouteMapSection: No route points available`);
+    }
+  }, [displayCoordinates]);
+
   return (
     <Card>
       <CardHeader>
@@ -24,7 +36,7 @@ export function RouteMapSection({
             <CardTitle>Route Map</CardTitle>
             <CardDescription>
               {hasRouteData && displayCoordinates && displayCoordinates.length > 0 
-                ? `${displayCoordinates.length} route points available`
+                ? `${pointCount} route points available`
                 : "Map view is currently disabled"}
             </CardDescription>
           </div>
@@ -38,7 +50,7 @@ export function RouteMapSection({
           </div>
         ) : (
           <p className="text-muted-foreground">
-            {`Map display is currently disabled. ${displayCoordinates?.length || 0} points loaded.`}
+            {`Map display is currently disabled. ${pointCount} points loaded.`}
           </p>
         )}
       </CardContent>
