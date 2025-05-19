@@ -2,6 +2,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { transformActivityToRoute } from "./routeTransformer.ts";
 import { upsertRoutePoints, processAndStoreTrackpoints } from "./coordinateHandler.ts";
+import { insertTrackpointsForRoute } from "./trackpointsHandler.ts";
 
 /**
  * Upserts routes for a user with improved data parsing according to Wahoo API documentation
@@ -50,9 +51,14 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
           const insertedRouteId = data && data[j] ? data[j].id : route.wahoo_route_id;
           
           if (insertedRouteId) {
-            console.log(`Processing trackpoints for route: ${insertedRouteId}`);
+            console.log(`Processing data for route: ${insertedRouteId}`);
             
-            // Process trackpoints first (more detailed data)
+            // 1. Insert trackpoints directly from activity
+            if (activity.trackpoints && Array.isArray(activity.trackpoints)) {
+              await insertTrackpointsForRoute(client, insertedRouteId, activity.trackpoints);
+            }
+            
+            // 2. Process and store detailed route points
             const trackpointCount = await processAndStoreTrackpoints(client, activity, insertedRouteId);
             
             if (trackpointCount > 0) {
