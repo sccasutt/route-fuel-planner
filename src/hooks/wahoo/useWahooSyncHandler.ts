@@ -2,16 +2,23 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { WahooSyncResult } from "@/components/Wahoo/WahooSyncApi";
-import { performWahooSync, formatSyncResults } from "./wahooSyncUtils";
+import { performWahooSync } from "./wahooSyncUtils";
+import { useAuth } from "@/hooks/useAuth";
 
 export function useWahooSyncHandler() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<WahooSyncResult | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth(); // Get the authenticated user
 
   const handleSync = async (): Promise<WahooSyncResult> => {
     if (isSyncing) {
       return { success: false, error: "Sync already in progress" };
+    }
+    
+    // Check if user is authenticated
+    if (!user) {
+      return { success: false, error: "User must be logged in to sync Wahoo data" };
     }
     
     setIsSyncing(true);
@@ -39,7 +46,7 @@ export function useWahooSyncHandler() {
         
         // Dispatch event to notify other components about the sync
         window.dispatchEvent(new CustomEvent("wahoo_connection_changed", {
-          detail: { timestamp: Date.now() }
+          detail: { timestamp: Date.now(), userId: user.id }
         }));
       } else {
         toast({
