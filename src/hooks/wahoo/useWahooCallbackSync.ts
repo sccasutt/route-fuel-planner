@@ -5,6 +5,7 @@ import { useWahooSyncHandler } from "./useWahooSyncHandler";
 import { useWahooCallbackNavigation } from "./useWahooCallbackNavigation";
 import { processRouteBatch } from "@/utils/routeProcessing";
 import { supabase } from "@/integrations/supabase/client";
+import { WahooSyncResult } from "@/components/Wahoo/WahooSyncApi";
 
 export function useWahooCallbackSync() {
   const { user } = useAuth();
@@ -22,10 +23,10 @@ export function useWahooCallbackSync() {
     // Sync profile and rides
     setStatus("Synchronizing your rides...");
     try {
-      const result = await handleSync();
+      const result: WahooSyncResult = await handleSync();
       
       // If sync was successful and has route data, trigger background energy calculation
-      if (result && result.success === true && result.data && result.data.routeCount > 0) {
+      if (result.success === true && result.data && result.data.routeCount > 0) {
         setStatus("Calculating energy and nutrition data...");
         
         // Get recently synced routes

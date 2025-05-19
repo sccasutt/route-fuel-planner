@@ -9,8 +9,10 @@ export function useWahooSyncHandler() {
   const [lastSyncResult, setLastSyncResult] = useState<WahooSyncResult | null>(null);
   const { toast } = useToast();
 
-  const handleSync = async () => {
-    if (isSyncing) return;
+  const handleSync = async (): Promise<WahooSyncResult> => {
+    if (isSyncing) {
+      return { success: false, error: "Sync already in progress" };
+    }
     
     setIsSyncing(true);
     try {
@@ -46,6 +48,8 @@ export function useWahooSyncHandler() {
           variant: "destructive",
         });
       }
+      
+      return result;
     } catch (error) {
       console.error("Error during Wahoo sync:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -56,10 +60,13 @@ export function useWahooSyncHandler() {
         variant: "destructive",
       });
       
-      setLastSyncResult({
+      const errorResult: WahooSyncResult = {
         success: false,
         error: message
-      });
+      };
+      
+      setLastSyncResult(errorResult);
+      return errorResult;
     } finally {
       setIsSyncing(false);
     }
