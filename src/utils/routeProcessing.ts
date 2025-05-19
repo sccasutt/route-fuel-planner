@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { fetchWindData, storeWindData } from "./weatherUtils";
 import { updateRouteEnergyData } from "./energyCalculations";
@@ -97,6 +98,8 @@ export async function processRouteBatch(routeIds: string[]): Promise<{
  */
 export async function extractAndStoreRoutePoints(routeId: string): Promise<boolean> {
   try {
+    console.log(`Starting point extraction for route: ${routeId}`);
+    
     // Fetch route data
     const { data: routeData, error: routeError } = await supabase
       .from('routes')
@@ -109,6 +112,8 @@ export async function extractAndStoreRoutePoints(routeId: string): Promise<boole
       return false;
     }
     
+    console.log(`Route data fetched: ${routeData.name}, checking for coordinates...`);
+    
     // Extract coordinates
     let coordinates = null;
     
@@ -118,6 +123,8 @@ export async function extractAndStoreRoutePoints(routeId: string): Promise<boole
         coordinates = typeof routeData.coordinates === 'string' 
           ? JSON.parse(routeData.coordinates) 
           : routeData.coordinates;
+          
+        console.log(`Found coordinates in coordinates field: ${coordinates.length} points`);
       } catch (e) {
         console.error("Error parsing coordinates:", e);
       }
@@ -125,13 +132,22 @@ export async function extractAndStoreRoutePoints(routeId: string): Promise<boole
     
     // If no coordinates, try to extract from gpx_data
     if (!coordinates && routeData.gpx_data) {
+      console.log("Attempting to extract coordinates from gpx_data");
       try {
         const gpxData = typeof routeData.gpx_data === 'string'
           ? JSON.parse(routeData.gpx_data)
           : routeData.gpx_data;
         
-        if (gpxData.coordinates) {
+        if (gpxData && gpxData.coordinates) {
           coordinates = gpxData.coordinates;
+          console.log(`Found ${coordinates.length} coordinates in gpx_data.coordinates`);
+        } else if (gpxData && gpxData.trackpoints) {
+          coordinates = gpxData.trackpoints.map((tp: any) => [
+            tp.lat !== undefined ? tp.lat : tp.latitude,
+            tp.lng !== undefined ? tp.lng : tp.longitude,
+            tp.elevation || tp.ele || null
+          ]);
+          console.log(`Extracted ${coordinates.length} coordinates from gpx_data.trackpoints`);
         }
       } catch (e) {
         console.error("Error parsing gpx_data:", e);
@@ -143,11 +159,20 @@ export async function extractAndStoreRoutePoints(routeId: string): Promise<boole
       return false;
     }
     
+    console.log(`Processing ${coordinates.length} coordinates for insertion into route_points table`);
+    
     // Delete existing points first to avoid duplicates
-    await supabase
+    const { error: deleteError } = await supabase
       .from('route_points')
       .delete()
       .eq('route_id', routeId);
+      
+    if (deleteError) {
+      console.error("Error deleting existing route points:", deleteError);
+      return false;
+    }
+    
+    console.log("Successfully deleted any existing route points");
     
     // Process in batches to avoid size limits
     const batchSize = 100;
@@ -183,6 +208,11 @@ export async function extractAndStoreRoutePoints(routeId: string): Promise<boole
       
       if (points.length === 0) continue;
       
+      // Log a sample point for debugging
+      if (i === 0) {
+        console.log("Sample route point for insertion:", JSON.stringify(points[0]));
+      }
+      
       const { error } = await supabase
         .from('route_points')
         .insert(points);
@@ -191,6 +221,7 @@ export async function extractAndStoreRoutePoints(routeId: string): Promise<boole
         console.error("Error inserting route points:", error);
       } else {
         totalInserted += points.length;
+        console.log(`Inserted batch ${i/batchSize + 1}: ${points.length} points`);
       }
     }
     

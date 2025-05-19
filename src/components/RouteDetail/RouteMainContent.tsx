@@ -34,6 +34,7 @@ export function RouteMainContent({
           hasRouteData={hasRouteData}
           mapCenter={mapCenter}
           displayCoordinates={displayCoordinates}
+          routeId={routeData?.id}
         />
         
         <ElevationSection 
