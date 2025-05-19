@@ -1,6 +1,4 @@
-
-import { WahooSyncResult } from "@/components/Wahoo/WahooSyncApi";
-import { syncWahooProfileAndRoutes } from "@/components/Wahoo/WahooSyncApi";
+import { syncWahooProfileAndRoutes, WahooSyncResult } from "@/components/Wahoo/WahooSyncApi";
 import { useToast } from "@/hooks/use-toast";
 
 // Helper function to format sync results for display
@@ -22,47 +20,11 @@ export function formatSyncResults(result: WahooSyncResult): string {
 // Sync function with proper error handling
 export async function performWahooSync(): Promise<WahooSyncResult> {
   try {
-    console.log("Initiating Wahoo sync process...");
-    
-    // Check if we have a valid token first
-    const tokenString = localStorage.getItem("wahoo_token");
-    if (!tokenString) {
-      console.error("No Wahoo token found in local storage");
-      return {
-        success: false,
-        error: "No Wahoo authentication token found. Please reconnect your account."
-      };
-    }
-    
-    // Perform the actual sync
-    const result = await syncWahooProfileAndRoutes();
-    
-    // Log success details
-    if (result.success && result.data) {
-      console.log("Wahoo sync completed successfully:", {
-        routeCount: result.data.routeCount || 0,
-        activityCount: result.data.activityCount || 0,
-        hasProfile: !!result.data.profile,
-      });
-      
-      // Fire an event to notify components that new data is available
-      window.dispatchEvent(new CustomEvent("wahoo_sync_completed", {
-        detail: { 
-          timestamp: Date.now(),
-          result: result
-        }
-      }));
-    }
-    
-    return result;
+    return await syncWahooProfileAndRoutes();
   } catch (error) {
     console.error("Error during Wahoo sync:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    
-    return {
-      success: false,
-      error: message
-    };
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return { success: false, error: errorMessage };
   }
 }
 

@@ -54,7 +54,8 @@ export async function updateRouteEnergyData(routeId: string): Promise<boolean> {
     }
     
     // Extract or calculate required values
-    const avgPower = routeData.average_power || routeData.avg_power;
+    // Use type assertion for properties that TypeScript doesn't recognize
+    const avgPower = routeData?.average_power || (routeData as any)?.avg_power;
     const durationSeconds = routeData.duration_seconds || 0;
     const distance = routeData.distance || 0;
     const elevation = routeData.elevation || 0;
@@ -69,7 +70,13 @@ export async function updateRouteEnergyData(routeId: string): Promise<boolean> {
     let caloriesEstimated = null;
     if (!avgPower && distance > 0) {
       // Get wind data if available
-      const windData = routeData.weather_json?.wind_data || [];
+      const weatherJson = routeData.weather_json || {};
+      
+      // Safely access wind_data with type checking
+      const windData = typeof weatherJson === 'object' && weatherJson !== null 
+        ? (weatherJson as any).wind_data || [] 
+        : [];
+      
       const avgWindSpeed = windData.length > 0 
         ? windData.reduce((sum: number, item: any) => sum + item.speed, 0) / windData.length 
         : 0;
@@ -81,7 +88,7 @@ export async function updateRouteEnergyData(routeId: string): Promise<boolean> {
         distance, 
         elevation, 
         durationSeconds,
-        routeData.rider_weight || 75,
+        (routeData as any).rider_weight || 75,
         avgWindSpeed,
         avgWindDirection
       );
