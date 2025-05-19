@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { fetchWindData, storeWindData } from "./weatherUtils";
+import { updateRouteEnergyData } from "./energyProcessing";
 
 /**
  * Process a route by fetching wind data and calculating energy information
