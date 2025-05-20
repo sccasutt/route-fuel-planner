@@ -25,6 +25,16 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
     // Log sample activity for debugging
     if (i === 0 && batch.length > 0) {
       console.log(`Sample activity for insertion:`, JSON.stringify(batch[0], null, 2));
+      
+      // Check if the sample has trackpoints
+      if (batch[0].trackpoints && Array.isArray(batch[0].trackpoints)) {
+        console.log(`Sample activity has ${batch[0].trackpoints.length} trackpoints`);
+        if (batch[0].trackpoints.length > 0) {
+          console.log('First trackpoint sample:', JSON.stringify(batch[0].trackpoints[0]));
+        }
+      } else {
+        console.log('Sample activity has no trackpoints array');
+      }
     }
     
     // Transform the activities into the routes schema
@@ -48,14 +58,20 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         for (let j = 0; j < batch.length; j++) {
           const activity = batch[j];
           const route = routes[j];
-          const insertedRouteId = data && data[j] ? data[j].id : route.wahoo_route_id;
+          
+          // Get the route ID from the response data if available, otherwise use the wahoo_route_id
+          const insertedRouteData = data && data[j];
+          const insertedRouteId = insertedRouteData ? insertedRouteData.id : route.wahoo_route_id;
           
           if (insertedRouteId) {
             console.log(`Processing data for route: ${insertedRouteId}`);
             
             // 1. Insert trackpoints directly from activity
             if (activity.trackpoints && Array.isArray(activity.trackpoints)) {
+              console.log(`Found ${activity.trackpoints.length} trackpoints in activity, inserting...`);
               await insertTrackpointsForRoute(client, insertedRouteId, activity.trackpoints);
+            } else {
+              console.log(`No trackpoints array found in activity for route ${insertedRouteId}`);
             }
             
             // 2. Process and store detailed route points

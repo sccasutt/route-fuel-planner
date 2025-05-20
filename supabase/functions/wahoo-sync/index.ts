@@ -129,6 +129,19 @@ Deno.serve(async (req) => {
           ...activity,
           _sourceEndpoint: "wahoo-api"
         }));
+        
+        // Log sample trackpoints for debugging
+        if (activities.length > 0) {
+          const sampleActivity = activities[0];
+          if (sampleActivity.trackpoints && Array.isArray(sampleActivity.trackpoints)) {
+            console.log(`Sample activity has ${sampleActivity.trackpoints.length} trackpoints`);
+            if (sampleActivity.trackpoints.length > 0) {
+              console.log('First trackpoint sample:', JSON.stringify(sampleActivity.trackpoints[0]));
+            }
+          } else {
+            console.log('First activity has no trackpoints array');
+          }
+        }
       }
     } catch (err: any) {
       console.error("Wahoo activities fetch failed:", err.message);
@@ -146,6 +159,19 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
+
+      // First check if trackpoints table exists, if not, display an error
+      const { error: tableCheckError } = await client
+        .from('trackpoints')
+        .select('route_id')
+        .limit(1);
+
+      if (tableCheckError) {
+        console.error('CRITICAL ERROR: The trackpoints table does not exist or is inaccessible:', tableCheckError.message);
+        console.error('Please create the trackpoints table in your Supabase database first!');
+        
+        // We'll continue with the sync but warn the user
+      }
 
       await upsertWahooProfile(client, user_id, wahooProfileId, profile);
       const routeCount = await upsertRoutes(client, user_id, activities);

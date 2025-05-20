@@ -20,6 +20,24 @@ export async function insertTrackpointsForRoute(
 
   console.log(`Processing ${trackpoints.length} trackpoints for route ${routeId}`);
 
+  // First check if the trackpoints table exists
+  try {
+    const { error: tableCheckError } = await client
+      .from('trackpoints')
+      .select('route_id')
+      .limit(1);
+
+    if (tableCheckError) {
+      console.error('Error checking trackpoints table:', tableCheckError);
+      console.error('The trackpoints table may not exist - you need to create it first!');
+      return 0;
+    }
+  } catch (tableErr) {
+    console.error('Exception checking trackpoints table:', tableErr);
+    return 0;
+  }
+
+  // Format trackpoints data for insertion
   const formatted = trackpoints
     .filter((p) => p.lat !== undefined && (p.lon !== undefined || p.lng !== undefined))
     .map((p) => ({
@@ -38,6 +56,9 @@ export async function insertTrackpointsForRoute(
     return 0;
   }
 
+  // Log sample data to help debug
+  console.log('Sample trackpoint data:', JSON.stringify(formatted[0]));
+
   try {
     // Process in batches to avoid payload size limits
     const batchSize = 100; 
@@ -46,13 +67,25 @@ export async function insertTrackpointsForRoute(
     for (let i = 0; i < formatted.length; i += batchSize) {
       const batch = formatted.slice(i, i + batchSize);
       
-      const { error } = await client.from("trackpoints").insert(batch);
+      const { data, error } = await client
+        .from("trackpoints")
+        .insert(batch)
+        .select('id');
       
       if (error) {
         console.error(`Failed to insert trackpoints batch ${i/batchSize + 1}:`, error);
+        
+        // More detailed error info
+        if (error.message.includes('does not exist')) {
+          console.error('The trackpoints table does not exist');
+        } else if (error.message.includes('violates foreign key constraint')) {
+          console.error(`Invalid route ID: ${routeId}`);
+        } else if (error.message.includes('missing required column')) {
+          console.error('Schema mismatch - check column requirements');
+        }
       } else {
         insertedCount += batch.length;
-        console.log(`Inserted ${batch.length} trackpoints for batch ${i/batchSize + 1}`);
+        console.log(`Inserted ${batch.length} trackpoints for batch ${i/batchSize + 1}, first ID: ${data?.[0]?.id}`);
       }
     }
 
