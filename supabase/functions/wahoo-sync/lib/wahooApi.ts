@@ -1,5 +1,5 @@
 
-// Wahoo API endpoint handlers
+// Wahoo API endpoint handlers with workout-first approach
 import { formatWahooActivities } from "./wahooActivityFormatter.ts";
 import { fetchWahooActivitiesWithDetails } from "./wahooDetailedApi.ts";
 
@@ -45,21 +45,22 @@ export async function fetchWahooProfile(access_token: string) {
 }
 
 export async function fetchWahooActivities(access_token: string) {
-  console.log("=== ENHANCED WAHOO ACTIVITIES FETCHER ===");
-  console.log("Using new detailed data extraction approach...");
+  console.log("=== WORKOUT-FIRST WAHOO ACTIVITIES FETCHER ===");
+  console.log("Using new workout-first approach to get activities with route FIT files...");
   
   try {
-    // Use the new enhanced fetcher that gets detailed trackpoint data
+    // Use the new workout-first fetcher that gets detailed trackpoint data
     const activities = await fetchWahooActivitiesWithDetails(access_token);
     
     console.log(`=== FINAL RESULT ===`);
-    console.log(`Successfully fetched ${activities.length} activities with enhanced data`);
+    console.log(`Successfully fetched ${activities.length} activities with workout-first approach`);
     
     // Log statistics about what data we got
     let activitiesWithTrackpoints = 0;
     let activitiesWithCoordinates = 0;
     let activitiesWithPower = 0;
     let activitiesWithFitFiles = 0;
+    let activitiesWithRouteData = 0;
     
     activities.forEach((activity, index) => {
       if (activity.trackpoints && Array.isArray(activity.trackpoints) && activity.trackpoints.length > 0) {
@@ -74,16 +75,23 @@ export async function fetchWahooActivities(access_token: string) {
         activitiesWithCoordinates++;
       }
       
-      if (activity.fit_file_data || activity.needs_fit_processing) {
+      if (activity.fit_file_url || activity.file_url || activity.needs_fit_processing) {
         activitiesWithFitFiles++;
+      }
+      
+      if (activity._has_route_data || activity._enhanced_with_route) {
+        activitiesWithRouteData++;
       }
       
       // Log first few activities in detail
       if (index < 3) {
         console.log(`Activity ${index + 1} (${activity.id || activity.name}):`);
+        console.log(`  - Enhanced with route: ${!!(activity._enhanced_with_route)}`);
+        console.log(`  - Route ID: ${activity._route_id || 'none'}`);
         console.log(`  - Trackpoints: ${activity.trackpoints?.length || 0}`);
         console.log(`  - Coordinates: ${activity.coordinates?.length || 0}`);
-        console.log(`  - Has FIT file: ${!!(activity.fit_file_data || activity.needs_fit_processing)}`);
+        console.log(`  - Has FIT file: ${!!(activity.fit_file_url || activity.file_url || activity.needs_fit_processing)}`);
+        console.log(`  - FIT file URL: ${activity.fit_file_url || activity.file_url || 'none'}`);
         console.log(`  - Has power data: ${activity.trackpoints?.some((tp: any) => tp.power > 0) || false}`);
         console.log(`  - Duration: ${activity.duration || 'unknown'}`);
         console.log(`  - Distance: ${activity.distance || 'unknown'}km`);
@@ -91,6 +99,7 @@ export async function fetchWahooActivities(access_token: string) {
     });
     
     console.log(`=== DATA QUALITY SUMMARY ===`);
+    console.log(`Activities enhanced with route data: ${activitiesWithRouteData}/${activities.length}`);
     console.log(`Activities with trackpoints: ${activitiesWithTrackpoints}/${activities.length}`);
     console.log(`Activities with coordinates: ${activitiesWithCoordinates}/${activities.length}`);
     console.log(`Activities with power data: ${activitiesWithPower}/${activities.length}`);
@@ -98,7 +107,7 @@ export async function fetchWahooActivities(access_token: string) {
     
     return activities;
   } catch (err: any) {
-    console.error("Error in enhanced fetchWahooActivities:", err);
+    console.error("Error in workout-first fetchWahooActivities:", err);
     throw {
       message: err.message || "Connection error with Wahoo API",
       status: 502,

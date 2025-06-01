@@ -1,5 +1,5 @@
 
-// Enhanced Wahoo API detailed data fetchers with proper FIT file handling
+// Enhanced Wahoo API detailed data fetchers with workout-first approach
 import { formatWahooActivities } from "./wahooActivityFormatter.ts";
 
 /**
@@ -78,6 +78,123 @@ export async function fetchWahooWorkoutDetails(access_token: string, workoutId: 
     console.error(`Error fetching workout details for ${workoutId}:`, err);
     return null;
   }
+}
+
+/**
+ * Extract route IDs from workout data
+ */
+export function extractRouteIdsFromWorkouts(workouts: any[]): { workoutId: string, routeId: string }[] {
+  console.log(`=== EXTRACTING ROUTE IDS FROM ${workouts.length} WORKOUTS ===`);
+  
+  const routeIds: { workoutId: string, routeId: string }[] = [];
+  
+  for (const workout of workouts) {
+    const workoutId = workout.id || workout.workout_id || workout.activity_id;
+    
+    // Check various possible fields for route ID
+    const routeId = workout.route_id || 
+                   workout.route?.id || 
+                   workout.activity?.route_id ||
+                   workout.segment_id ||
+                   workout.course_id;
+    
+    if (workoutId && routeId) {
+      routeIds.push({ workoutId: workoutId.toString(), routeId: routeId.toString() });
+      console.log(`Found route ID ${routeId} for workout ${workoutId}`);
+    } else {
+      console.log(`No route ID found for workout ${workoutId}`);
+      console.log('Workout keys:', Object.keys(workout));
+      if (workout.route) {
+        console.log('Route object keys:', Object.keys(workout.route));
+      }
+    }
+  }
+  
+  console.log(`Extracted ${routeIds.length} route IDs from ${workouts.length} workouts`);
+  return routeIds;
+}
+
+/**
+ * Batch fetch route details using route IDs
+ */
+export async function fetchRouteDetailsBatch(access_token: string, routeIds: string[]): Promise<Map<string, any>> {
+  console.log(`=== BATCH FETCHING ${routeIds.length} ROUTE DETAILS ===`);
+  
+  const routeDetailsMap = new Map<string, any>();
+  
+  // Process in smaller batches to avoid overwhelming the API
+  const batchSize = 5;
+  for (let i = 0; i < routeIds.length; i += batchSize) {
+    const batch = routeIds.slice(i, i + batchSize);
+    console.log(`Processing batch ${i / batchSize + 1}: routes ${batch.join(', ')}`);
+    
+    const batchPromises = batch.map(async (routeId) => {
+      try {
+        const routeDetail = await fetchRouteDetail(access_token, routeId);
+        if (routeDetail) {
+          routeDetailsMap.set(routeId, routeDetail);
+          console.log(`✓ Fetched route detail for ${routeId}`);
+        } else {
+          console.log(`✗ Failed to fetch route detail for ${routeId}`);
+        }
+      } catch (error) {
+        console.error(`Error fetching route ${routeId}:`, error);
+      }
+    });
+    
+    await Promise.all(batchPromises);
+    
+    // Small delay between batches to be respectful to the API
+    if (i + batchSize < routeIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  
+  console.log(`Successfully fetched ${routeDetailsMap.size}/${routeIds.length} route details`);
+  return routeDetailsMap;
+}
+
+/**
+ * Fetch individual route detail
+ */
+export async function fetchRouteDetail(access_token: string, routeId: string): Promise<any> {
+  const endpoints = [
+    `https://api.wahooligan.com/v1/routes/${routeId}?include_files=true`,
+    `https://api.wahooligan.com/v1/routes/${routeId}`,
+    `https://api.wahooligan.com/v1/segments/${routeId}?include_files=true`,
+    `https://api.wahooligan.com/v1/courses/${routeId}?include_files=true`
+  ];
+  
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        headers: {
+          "Authorization": `Bearer ${access_token}`,
+          "Accept": "application/json"
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log(`Route ${routeId} fetched from ${endpoint}`);
+        
+        // Extract FIT file URL
+        const fitFileUrl = extractFitFileUrl(data);
+        if (fitFileUrl) {
+          data.fit_file_url = fitFileUrl;
+          data.file_url = fitFileUrl;
+          console.log(`Route ${routeId} has FIT file: ${fitFileUrl}`);
+        }
+        
+        return data;
+      }
+    } catch (error) {
+      console.log(`Error with route endpoint ${endpoint}:`, error);
+      continue;
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -210,141 +327,54 @@ export async function downloadFitFile(url: string, access_token: string): Promis
 }
 
 /**
- * Enhanced activity fetcher with better debugging for routes endpoint
+ * NEW: Enhanced activity fetcher with workout-first approach
  */
 export async function fetchWahooActivitiesWithDetails(access_token: string) {
-  console.log("=== FETCHING WAHOO ACTIVITIES WITH ENHANCED FIT FILE PROCESSING ===");
+  console.log("=== WORKOUT-FIRST WAHOO ACTIVITIES FETCHER ===");
   
-  // First get the summary list with enhanced debugging
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased timeout for complex workflow
   
   try {
-    // CRITICAL: Try routes endpoint ONLY first with detailed debugging
-    console.log("=== STEP 1: TRYING ROUTES ENDPOINT ===");
-    const routesEndpoint = "https://api.wahooligan.com/v1/routes?limit=25&ignore_cache=true";
+    // STEP 1: Fetch workouts first
+    console.log("=== STEP 1: FETCHING WORKOUTS ===");
+    const workouts = await fetchWorkouts(access_token);
     
-    try {
-      console.log(`Making request to routes endpoint: ${routesEndpoint}`);
-      const routesRes = await fetch(routesEndpoint, {
-        headers: {
-          "Authorization": `Bearer ${access_token}`,
-          "Accept": "application/json"
-        },
-        signal: controller.signal,
-      });
-      
-      console.log(`Routes endpoint response status: ${routesRes.status} ${routesRes.statusText}`);
-      console.log(`Routes endpoint response headers:`, Object.fromEntries(routesRes.headers.entries()));
-      
-      if (routesRes.ok) {
-        const routesData = await routesRes.json();
-        console.log(`Routes endpoint raw response:`, JSON.stringify(routesData, null, 2));
-        
-        let routesItems = [];
-        if (Array.isArray(routesData)) {
-          routesItems = routesData;
-          console.log(`Routes data is direct array with ${routesItems.length} items`);
-        } else if (routesData?.results && Array.isArray(routesData.results)) {
-          routesItems = routesData.results;
-          console.log(`Routes data has results array with ${routesItems.length} items`);
-        } else if (routesData?.data && Array.isArray(routesData.data)) {
-          routesItems = routesData.data;
-          console.log(`Routes data has data array with ${routesItems.length} items`);
-        } else if (routesData?.routes && Array.isArray(routesData.routes)) {
-          routesItems = routesData.routes;
-          console.log(`Routes data has routes array with ${routesItems.length} items`);
-        } else {
-          console.log(`Routes response structure not recognized:`, Object.keys(routesData));
-        }
-        
-        if (routesItems.length > 0) {
-          console.log(`✓ SUCCESS: Found ${routesItems.length} routes from routes endpoint`);
-          console.log(`Sample route data:`, JSON.stringify(routesItems[0], null, 2));
-          
-          // Process routes with detailed data
-          const detailedRoutes = await processRoutesWithDetails(routesItems, access_token);
-          
-          clearTimeout(timeoutId);
-          const formattedActivities = formatWahooActivities(detailedRoutes);
-          console.log(`Formatted ${formattedActivities.length} route activities`);
-          
-          return formattedActivities;
-        } else {
-          console.log(`✗ Routes endpoint returned empty array`);
-        }
-      } else {
-        const errorText = await routesRes.text();
-        console.log(`✗ Routes endpoint failed: ${routesRes.status} - ${errorText}`);
-      }
-    } catch (routesError) {
-      console.error(`✗ Routes endpoint exception:`, routesError);
+    if (workouts.length === 0) {
+      console.log("No workouts found, trying fallback approach");
+      clearTimeout(timeoutId);
+      return await fallbackToRoutesOnly(access_token);
     }
     
-    // Only if routes endpoint fails, try fallback endpoints
-    console.log("=== STEP 2: TRYING FALLBACK ENDPOINTS ===");
-    const fallbackEndpoints = [
-      "https://api.wahooligan.com/v1/workouts?limit=25&ignore_cache=true",
-      "https://api.wahooligan.com/v1/workout_history?limit=25&ignore_cache=true", 
-      "https://api.wahooligan.com/v1/rides?limit=25&ignore_cache=true"
-    ];
+    // STEP 2: Extract route IDs from workouts
+    console.log("=== STEP 2: EXTRACTING ROUTE IDS ===");
+    const workoutRouteMapping = extractRouteIdsFromWorkouts(workouts);
     
-    let summaryActivities = [];
-    
-    for (const endpoint of fallbackEndpoints) {
-      try {
-        console.log(`Trying fallback endpoint: ${endpoint}`);
-        const res = await fetch(endpoint, {
-          headers: {
-            "Authorization": `Bearer ${access_token}`,
-            "Accept": "application/json"
-          },
-          signal: controller.signal,
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          
-          let items = [];
-          if (Array.isArray(data)) {
-            items = data;
-          } else if (data?.results && Array.isArray(data.results)) {
-            items = data.results;
-          } else if (data?.data && Array.isArray(data.data)) {
-            items = data.data;
-          }
-          
-          if (items.length > 0) {
-            console.log(`Found ${items.length} activities from fallback ${endpoint}`);
-            summaryActivities = [...summaryActivities, ...items];
-            break; // Use first successful endpoint
-          }
-        }
-      } catch (err) {
-        console.log(`Fallback endpoint failed: ${endpoint}`, err);
-        continue;
-      }
+    if (workoutRouteMapping.length === 0) {
+      console.log("No route IDs found in workouts, processing workouts as-is");
+      clearTimeout(timeoutId);
+      const formattedActivities = formatWahooActivities(workouts);
+      return formattedActivities;
     }
+    
+    // STEP 3: Batch fetch route details
+    console.log("=== STEP 3: BATCH FETCHING ROUTE DETAILS ===");
+    const routeIds = workoutRouteMapping.map(mapping => mapping.routeId);
+    const routeDetailsMap = await fetchRouteDetailsBatch(access_token, routeIds);
+    
+    // STEP 4: Merge workout data with route details
+    console.log("=== STEP 4: MERGING WORKOUT AND ROUTE DATA ===");
+    const enhancedWorkouts = mergeWorkoutsWithRoutes(workouts, workoutRouteMapping, routeDetailsMap);
     
     clearTimeout(timeoutId);
-    
-    if (summaryActivities.length === 0) {
-      console.log("✗ No activities found from any endpoint");
-      return [];
-    }
-    
-    console.log(`Got ${summaryActivities.length} fallback activities, processing detailed data...`);
-    
-    // Now fetch detailed data for fallback activities
-    const detailedActivities = await processActivitiesWithDetails(summaryActivities, access_token);
-    
-    const formattedActivities = formatWahooActivities(detailedActivities);
-    console.log(`Formatted ${formattedActivities.length} fallback activities`);
+    const formattedActivities = formatWahooActivities(enhancedWorkouts);
+    console.log(`Successfully processed ${formattedActivities.length} activities with workout-first approach`);
     
     return formattedActivities;
     
   } catch (err: any) {
-    console.error("Error in fetchWahooActivitiesWithDetails:", err);
+    clearTimeout(timeoutId);
+    console.error("Error in workout-first fetcher:", err);
     throw {
       message: err.message || "Connection error with Wahoo API",
       status: 502,
@@ -354,131 +384,144 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
 }
 
 /**
- * Process routes with detailed data (for routes endpoint)
+ * Fetch workouts from Wahoo API
  */
-async function processRoutesWithDetails(routes: any[], access_token: string): Promise<any[]> {
-  console.log(`=== PROCESSING ${routes.length} ROUTES WITH DETAILED DATA ===`);
+async function fetchWorkouts(access_token: string): Promise<any[]> {
+  const workoutEndpoints = [
+    "https://api.wahooligan.com/v1/workouts?limit=25&ignore_cache=true",
+    "https://api.wahooligan.com/v1/workout_history?limit=25&ignore_cache=true",
+    "https://api.wahooligan.com/v1/rides?limit=25&ignore_cache=true",
+    "https://api.wahooligan.com/v1/activities?limit=25&ignore_cache=true"
+  ];
   
-  const detailedRoutes = [];
-  const maxDetailsToFetch = 15;
-  
-  for (let i = 0; i < Math.min(routes.length, maxDetailsToFetch); i++) {
-    const route = routes[i];
-    const routeId = route.id || route.route_id;
-    
-    if (!routeId) {
-      console.log(`Skipping route ${i} - no ID found`);
-      detailedRoutes.push(route);
+  for (const endpoint of workoutEndpoints) {
+    try {
+      console.log(`Trying workout endpoint: ${endpoint}`);
+      
+      const res = await fetch(endpoint, {
+        headers: {
+          "Authorization": `Bearer ${access_token}`,
+          "Accept": "application/json"
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        
+        let workouts = [];
+        if (Array.isArray(data)) {
+          workouts = data;
+        } else if (data?.results && Array.isArray(data.results)) {
+          workouts = data.results;
+        } else if (data?.data && Array.isArray(data.data)) {
+          workouts = data.data;
+        }
+        
+        if (workouts.length > 0) {
+          console.log(`✓ Found ${workouts.length} workouts from ${endpoint}`);
+          console.log(`Sample workout:`, JSON.stringify(workouts[0], null, 2));
+          return workouts;
+        }
+      } else {
+        console.log(`Workout endpoint ${endpoint} returned ${res.status}`);
+      }
+    } catch (error) {
+      console.log(`Error with workout endpoint ${endpoint}:`, error);
       continue;
     }
-    
-    console.log(`=== PROCESSING ROUTE ${i + 1}/${Math.min(routes.length, maxDetailsToFetch)}: ${routeId} ===`);
-    
-    // For routes, the summary data might already contain file URLs
-    if (route.file?.url) {
-      console.log(`✓ Route ${routeId} already has file URL: ${route.file.url}`);
-      route.fit_file_url = route.file.url;
-      route.file_url = route.file.url;
-      route.needs_fit_processing = true;
-    }
-    
-    // Get detailed data
-    const detailedData = await fetchWahooWorkoutDetails(access_token, routeId);
-    
-    // Merge all data
-    let enhancedRoute = { ...route };
-    
-    if (detailedData) {
-      enhancedRoute = { 
-        ...enhancedRoute, 
-        ...detailedData,
-        _hasDetailedData: true 
-      };
-      
-      // Extract FIT file URL
-      const fitFileUrl = extractFitFileUrl(detailedData);
-      if (fitFileUrl) {
-        enhancedRoute.fit_file_url = fitFileUrl;
-        enhancedRoute.file_url = fitFileUrl;
-        enhancedRoute.needs_fit_processing = true;
-        console.log(`✓ Route ${routeId} has FIT file URL: ${fitFileUrl}`);
-      }
-      
-      // Ensure trackpoints are properly structured
-      if (detailedData.trackpoints && Array.isArray(detailedData.trackpoints)) {
-        enhancedRoute.trackpoints = detailedData.trackpoints;
-        console.log(`Enhanced route ${routeId} with ${detailedData.trackpoints.length} trackpoints`);
-      }
-    }
-    
-    detailedRoutes.push(enhancedRoute);
   }
   
-  // Add remaining routes without detailed data
-  for (let i = maxDetailsToFetch; i < routes.length; i++) {
-    detailedRoutes.push(routes[i]);
-  }
-  
-  return detailedRoutes;
+  console.log("No workouts found from any endpoint");
+  return [];
 }
 
 /**
- * Process activities with detailed data (for fallback endpoints)
+ * Merge workout data with route details
  */
-async function processActivitiesWithDetails(activities: any[], access_token: string): Promise<any[]> {
-  console.log(`=== PROCESSING ${activities.length} ACTIVITIES WITH DETAILED DATA ===`);
+function mergeWorkoutsWithRoutes(
+  workouts: any[], 
+  workoutRouteMapping: { workoutId: string, routeId: string }[], 
+  routeDetailsMap: Map<string, any>
+): any[] {
+  console.log(`Merging ${workouts.length} workouts with route details`);
   
-  const detailedActivities = [];
-  const maxDetailsToFetch = 15;
-  
-  for (let i = 0; i < Math.min(activities.length, maxDetailsToFetch); i++) {
-    const activity = activities[i];
-    const activityId = activity.id || activity.workout_id || activity.ride_id;
+  const enhancedWorkouts = workouts.map(workout => {
+    const workoutId = (workout.id || workout.workout_id || workout.activity_id)?.toString();
     
-    if (!activityId) {
-      console.log(`Skipping activity ${i} - no ID found`);
-      detailedActivities.push(activity);
-      continue;
-    }
+    // Find the route mapping for this workout
+    const mapping = workoutRouteMapping.find(m => m.workoutId === workoutId);
     
-    console.log(`=== PROCESSING ACTIVITY ${i + 1}/${Math.min(activities.length, maxDetailsToFetch)}: ${activityId} ===`);
-    
-    // Get detailed data
-    const detailedData = await fetchWahooWorkoutDetails(access_token, activityId);
-    
-    // Merge all data
-    let enhancedActivity = { ...activity };
-    
-    if (detailedData) {
-      enhancedActivity = { 
-        ...enhancedActivity, 
-        ...detailedData,
-        _hasDetailedData: true 
+    if (mapping && routeDetailsMap.has(mapping.routeId)) {
+      const routeDetail = routeDetailsMap.get(mapping.routeId);
+      console.log(`Enhancing workout ${workoutId} with route ${mapping.routeId}`);
+      
+      // Merge workout with route details, prioritizing workout data for conflicts
+      const enhanced = {
+        ...routeDetail, // Route details (including FIT file URLs)
+        ...workout, // Workout data (activity metadata)
+        _route_id: mapping.routeId,
+        _has_route_data: true,
+        _enhanced_with_route: true
       };
       
-      // Extract FIT file URL
-      const fitFileUrl = extractFitFileUrl(detailedData);
-      if (fitFileUrl) {
-        enhancedActivity.fit_file_url = fitFileUrl;
-        enhancedActivity.file_url = fitFileUrl;
-        enhancedActivity.needs_fit_processing = true;
-        console.log(`✓ Activity ${activityId} has FIT file URL: ${fitFileUrl}`);
+      // Ensure FIT file URL is available
+      if (routeDetail.fit_file_url) {
+        enhanced.fit_file_url = routeDetail.fit_file_url;
+        enhanced.file_url = routeDetail.fit_file_url;
+        enhanced.needs_fit_processing = true;
       }
       
-      // Ensure trackpoints are properly structured
-      if (detailedData.trackpoints && Array.isArray(detailedData.trackpoints)) {
-        enhancedActivity.trackpoints = detailedData.trackpoints;
-        console.log(`Enhanced activity ${activityId} with ${detailedData.trackpoints.length} trackpoints`);
-      }
+      return enhanced;
+    } else {
+      console.log(`No route detail found for workout ${workoutId}`);
+      return {
+        ...workout,
+        _has_route_data: false
+      };
     }
+  });
+  
+  const enhancedCount = enhancedWorkouts.filter(w => w._has_route_data).length;
+  console.log(`Enhanced ${enhancedCount}/${workouts.length} workouts with route data`);
+  
+  return enhancedWorkouts;
+}
+
+/**
+ * Fallback to routes-only approach if no workouts found
+ */
+async function fallbackToRoutesOnly(access_token: string): Promise<any[]> {
+  console.log("=== FALLBACK: ROUTES-ONLY APPROACH ===");
+  
+  try {
+    const routesEndpoint = "https://api.wahooligan.com/v1/routes?limit=25&ignore_cache=true";
     
-    detailedActivities.push(enhancedActivity);
+    const res = await fetch(routesEndpoint, {
+      headers: {
+        "Authorization": `Bearer ${access_token}`,
+        "Accept": "application/json"
+      }
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      
+      let routes = [];
+      if (Array.isArray(data)) {
+        routes = data;
+      } else if (data?.results && Array.isArray(data.results)) {
+        routes = data.results;
+      } else if (data?.data && Array.isArray(data.data)) {
+        routes = data.data;
+      }
+      
+      console.log(`Fallback found ${routes.length} routes`);
+      const formattedActivities = formatWahooActivities(routes);
+      return formattedActivities;
+    }
+  } catch (error) {
+    console.error("Fallback routes approach failed:", error);
   }
   
-  // Add remaining activities without detailed data
-  for (let i = maxDetailsToFetch; i < activities.length; i++) {
-    detailedActivities.push(activities[i]);
-  }
-  
-  return detailedActivities;
+  return [];
 }
