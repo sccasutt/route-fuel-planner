@@ -19,7 +19,9 @@ export async function fetchWahooWorkoutDetails(access_token: string, workoutId: 
       `https://api.wahooligan.com/v1/workouts/${workoutId}`,
       `https://api.wahooligan.com/v1/rides/${workoutId}?include_trackpoints=true&include_files=true`,
       `https://api.wahooligan.com/v1/rides/${workoutId}/details`,
-      `https://api.wahooligan.com/v1/rides/${workoutId}`
+      `https://api.wahooligan.com/v1/rides/${workoutId}`,
+      `https://api.wahooligan.com/v1/workouts/${workoutId}/files`,
+      `https://api.wahooligan.com/v1/rides/${workoutId}/files`
     ];
     
     for (const endpoint of detailEndpoints) {
@@ -38,44 +40,20 @@ export async function fetchWahooWorkoutDetails(access_token: string, workoutId: 
           const data = await res.json();
           console.log(`SUCCESS: Got detailed data from ${endpoint}`);
           
-          // Log the structure to understand what we got
-          console.log('Response structure:', {
-            hasTrackpoints: !!data.trackpoints,
-            trackpointsCount: data.trackpoints?.length || 0,
-            hasFiles: !!data.files,
-            filesCount: data.files?.length || 0,
-            hasFile: !!data.file,
-            hasFitFile: !!data.fit_file,
-            hasGpxFile: !!data.gpx_file,
-            hasDownloadUrl: !!data.download_url,
-            hasFileUrl: !!data.file_url
-          });
+          // Log the complete response structure to understand what we got
+          console.log('Full response structure:', JSON.stringify(data, null, 2));
           
           // Look for FIT file references in various formats
-          if (data.files && Array.isArray(data.files)) {
-            console.log(`Found ${data.files.length} files in response`);
-            data.files.forEach((file: any, index: number) => {
-              console.log(`File ${index}:`, {
-                url: file.url,
-                type: file.type,
-                format: file.format,
-                downloadUrl: file.download_url
-              });
-            });
-          }
-          
-          if (data.file) {
-            console.log('Found file object:', {
-              url: data.file.url,
-              type: data.file.type,
-              downloadUrl: data.file.download_url
-            });
+          const fitFileUrl = extractFitFileUrl(data);
+          if (fitFileUrl) {
+            data.fit_file_url = fitFileUrl;
+            console.log(`Found FIT file URL for workout ${workoutId}: ${fitFileUrl}`);
           }
           
           clearTimeout(timeoutId);
           return data;
         } else {
-          console.log(`Endpoint ${endpoint} returned ${res.status}`);
+          console.log(`Endpoint ${endpoint} returned ${res.status}: ${res.statusText}`);
         }
       } catch (endpointErr) {
         console.log(`Error with endpoint ${endpoint}:`, endpointErr);
@@ -94,9 +72,11 @@ export async function fetchWahooWorkoutDetails(access_token: string, workoutId: 
 }
 
 /**
- * Extract FIT file URL from workout data
+ * Extract FIT file URL from workout data with enhanced detection
  */
 export function extractFitFileUrl(workoutData: any): string | null {
+  console.log('Extracting FIT file URL from workout data...');
+  
   // Check various possible locations for FIT file URL
   const possibleUrls = [
     workoutData.fit_file?.url,
@@ -105,32 +85,59 @@ export function extractFitFileUrl(workoutData: any): string | null {
     workoutData.file?.download_url,
     workoutData.download_url,
     workoutData.file_url,
-    workoutData.gpx_file_url // Sometimes FIT files are labeled as GPX
+    workoutData.gpx_file_url,
+    workoutData.export_url,
+    workoutData.data_file_url
   ];
   
   // Check files array
   if (workoutData.files && Array.isArray(workoutData.files)) {
+    console.log(`Found ${workoutData.files.length} files in response`);
     for (const file of workoutData.files) {
-      if (file.type === 'fit' || file.format === 'fit' || file.url?.includes('.fit')) {
+      console.log('File object:', {
+        url: file.url,
+        type: file.type,
+        format: file.format,
+        downloadUrl: file.download_url,
+        name: file.name
+      });
+      
+      if (file.type === 'fit' || file.format === 'fit' || 
+          file.url?.includes('.fit') || file.name?.includes('.fit')) {
         possibleUrls.push(file.url, file.download_url);
       }
+      
+      // Sometimes FIT files are labeled differently
+      if (file.type === 'tcx' || file.type === 'gpx' || file.type === 'data') {
+        possibleUrls.push(file.url, file.download_url);
+      }
+    }
+  }
+  
+  // Check exports array
+  if (workoutData.exports && Array.isArray(workoutData.exports)) {
+    console.log(`Found ${workoutData.exports.length} exports in response`);
+    for (const exportItem of workoutData.exports) {
+      console.log('Export object:', exportItem);
+      possibleUrls.push(exportItem.url, exportItem.download_url);
     }
   }
   
   // Find the first valid URL
   for (const url of possibleUrls) {
     if (url && typeof url === 'string' && url.length > 0) {
-      console.log(`Found FIT file URL: ${url}`);
+      console.log(`Found potential file URL: ${url}`);
       return url;
     }
   }
   
-  console.log('No FIT file URL found in workout data');
+  console.log('No file URL found in workout data');
+  console.log('Available keys in workout data:', Object.keys(workoutData));
   return null;
 }
 
 /**
- * Download FIT file content
+ * Download FIT file content with enhanced error handling
  */
 export async function downloadFitFile(url: string, access_token: string): Promise<ArrayBuffer | null> {
   try {
@@ -139,17 +146,36 @@ export async function downloadFitFile(url: string, access_token: string): Promis
     const response = await fetch(url, {
       headers: {
         "Authorization": `Bearer ${access_token}`,
-        "Accept": "*/*"
+        "Accept": "*/*",
+        "User-Agent": "Wahoo-Route-Sync/1.0"
       }
     });
     
     if (!response.ok) {
       console.error(`Failed to download FIT file: ${response.status} ${response.statusText}`);
+      console.error(`Response headers:`, Object.fromEntries(response.headers.entries()));
+      
+      // Try to get error details
+      const errorText = await response.text();
+      console.error(`Error response body:`, errorText);
       return null;
     }
     
     const fileBuffer = await response.arrayBuffer();
     console.log(`Successfully downloaded FIT file, size: ${fileBuffer.byteLength} bytes`);
+    
+    // Validate it's actually a FIT file
+    if (fileBuffer.byteLength > 14) {
+      const headerView = new DataView(fileBuffer, 0, 14);
+      const signature = new Uint8Array(fileBuffer, 8, 4);
+      const fitSignature = Array.from(signature).map(b => String.fromCharCode(b)).join('');
+      
+      if (fitSignature === '.FIT') {
+        console.log('Validated FIT file signature');
+      } else {
+        console.warn(`File signature is '${fitSignature}', not '.FIT' - may not be a valid FIT file`);
+      }
+    }
     
     return fileBuffer;
   } catch (error) {
@@ -224,7 +250,7 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
     
     // Now fetch detailed data and FIT files for each activity
     const detailedActivities = [];
-    const maxDetailsToFetch = 5; // Reduced to prevent timeout
+    const maxDetailsToFetch = 10; // Increased to get more detailed data
     
     for (let i = 0; i < Math.min(summaryActivities.length, maxDetailsToFetch); i++) {
       const activity = summaryActivities[i];
@@ -256,7 +282,9 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
         if (fitFileUrl) {
           enhancedActivity.fit_file_url = fitFileUrl;
           enhancedActivity.needs_fit_processing = true;
-          console.log(`Activity ${activityId} has FIT file: ${fitFileUrl}`);
+          console.log(`Activity ${activityId} has file URL: ${fitFileUrl}`);
+        } else {
+          console.log(`Activity ${activityId} has no file URL found`);
         }
         
         // Ensure trackpoints are properly structured
@@ -264,6 +292,8 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
           enhancedActivity.trackpoints = detailedData.trackpoints;
           console.log(`Enhanced activity ${activityId} with ${detailedData.trackpoints.length} trackpoints`);
         }
+      } else {
+        console.log(`No detailed data found for activity ${activityId}`);
       }
       
       detailedActivities.push(enhancedActivity);

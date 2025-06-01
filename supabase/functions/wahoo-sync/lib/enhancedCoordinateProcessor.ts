@@ -1,6 +1,8 @@
+
 // Enhanced coordinate processing with FIT file handling and calorie calculations
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { downloadFitFile } from "./wahooDetailedApi.ts";
+import { insertTrackpointsForRoute } from "./trackpointsHandler.ts";
 
 /**
  * Process detailed trackpoint data and store with enhanced metadata
@@ -11,6 +13,7 @@ export async function processEnhancedTrackpoints(
   activity: any
 ): Promise<{ trackpointCount: number; coordinateCount: number; caloriesCalculated: boolean }> {
   console.log(`Processing enhanced trackpoints for route ${routeId}`);
+  console.log(`Activity has access token: ${!!activity._access_token}`);
   
   let trackpointCount = 0;
   let coordinateCount = 0;
@@ -30,11 +33,12 @@ export async function processEnhancedTrackpoints(
   }
   
   // STEP 2: Process FIT file if available and no trackpoints were found
-  if (trackpointCount === 0 && activity.fit_file_url) {
-    console.log(`Processing FIT file for route ${routeId}: ${activity.fit_file_url}`);
+  if (trackpointCount === 0 && (activity.fit_file_url || activity.file_url || activity.gpx_file_url)) {
+    const fileUrl = activity.fit_file_url || activity.file_url || activity.gpx_file_url;
+    console.log(`Processing file for route ${routeId}: ${fileUrl}`);
     
     try {
-      // Get access token for file download (assuming it's available in the activity context)
+      // Get access token from activity or environment
       const accessToken = activity._access_token || Deno.env.get("WAHOO_ACCESS_TOKEN");
       
       if (!accessToken) {
@@ -42,7 +46,7 @@ export async function processEnhancedTrackpoints(
         return { trackpointCount: 0, coordinateCount: 0, caloriesCalculated: false };
       }
       
-      const fitResult = await processFitFile(client, routeId, activity.fit_file_url, accessToken);
+      const fitResult = await processFitFile(client, routeId, fileUrl, accessToken);
       trackpointCount = fitResult.trackpointCount;
       coordinateCount = fitResult.coordinateCount;
       caloriesCalculated = fitResult.caloriesCalculated;
@@ -60,93 +64,67 @@ export async function processEnhancedTrackpoints(
     }
   }
   
+  console.log(`Route ${routeId} processing complete:`, {
+    trackpointCount,
+    coordinateCount,
+    caloriesCalculated
+  });
+  
   return { trackpointCount, coordinateCount, caloriesCalculated };
 }
 
 /**
- * Store trackpoints in the database
+ * Store trackpoints in the database with enhanced validation
  */
 async function storeTrackpoints(client: SupabaseClient, routeId: string, trackpoints: any[]): Promise<{
   trackpointCount: number;
   coordinateCount: number;
   powerData: any[] | null;
 }> {
-  // Validate and clean trackpoints
-  const validTrackpoints = trackpoints
+  console.log(`Storing ${trackpoints.length} trackpoints for route ${routeId}`);
+  
+  // Use the trackpoints handler for insertion
+  const insertedCount = await insertTrackpointsForRoute(client, routeId, trackpoints);
+  
+  // Extract coordinates for the coordinates field
+  const coordinates = trackpoints
     .filter((tp: any) => {
       const hasLat = tp.lat !== undefined && tp.lat !== null && !isNaN(Number(tp.lat));
       const hasLon = (tp.lon !== undefined && tp.lon !== null && !isNaN(Number(tp.lon))) || 
                      (tp.lng !== undefined && tp.lng !== null && !isNaN(Number(tp.lng)));
       return hasLat && hasLon;
     })
-    .map((tp: any, index: number) => ({
-      route_id: routeId,
-      time: tp.time || tp.timestamp || null,
-      lat: Number(tp.lat),
-      lon: Number(tp.lon || tp.lng),
-      elevation: tp.elevation !== undefined ? Number(tp.elevation) : 
-                 tp.ele !== undefined ? Number(tp.ele) : 
-                 tp.alt !== undefined ? Number(tp.alt) : null,
-      power: tp.power !== undefined ? Number(tp.power) : 
-             tp.watts !== undefined ? Number(tp.watts) : null,
-      heart_rate: tp.heart_rate !== undefined ? Number(tp.heart_rate) : 
-                  tp.hr !== undefined ? Number(tp.hr) : null,
-      cadence: tp.cadence !== undefined ? Number(tp.cadence) : null
-    }));
+    .map((tp: any) => [Number(tp.lat), Number(tp.lon || tp.lng)]);
   
-  if (validTrackpoints.length === 0) {
-    return { trackpointCount: 0, coordinateCount: 0, powerData: null };
-  }
-  
-  // Store trackpoints in batches
-  const batchSize = 50;
-  let trackpointCount = 0;
-  
-  for (let i = 0; i < validTrackpoints.length; i += batchSize) {
-    const batch = validTrackpoints.slice(i, i + batchSize);
+  // Update route with coordinates
+  if (coordinates.length > 0) {
+    const { error: routeUpdateError } = await client
+      .from('routes')
+      .update({
+        coordinates: coordinates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', routeId);
     
-    const { error } = await client
-      .from("trackpoints")
-      .insert(batch);
-    
-    if (error) {
-      console.error(`Error inserting trackpoints batch ${i/batchSize + 1}:`, error);
+    if (routeUpdateError) {
+      console.error("Error updating route coordinates:", routeUpdateError);
     } else {
-      trackpointCount += batch.length;
-      console.log(`Inserted trackpoints batch ${i/batchSize + 1}: ${batch.length} points`);
+      console.log(`Updated route ${routeId} with ${coordinates.length} coordinates`);
     }
   }
   
-  // Extract coordinates for the coordinates field
-  const coordinates = validTrackpoints.map(tp => [tp.lat, tp.lon]);
-  
-  // Update route with coordinates
-  const { error: routeUpdateError } = await client
-    .from('routes')
-    .update({
-      coordinates: coordinates,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', routeId);
-  
-  if (routeUpdateError) {
-    console.error("Error updating route coordinates:", routeUpdateError);
-  } else {
-    console.log(`Updated route ${routeId} with ${coordinates.length} coordinates`);
-  }
-  
   // Extract power data for calorie calculations
-  const powerData = validTrackpoints.filter(tp => tp.power && tp.power > 0);
+  const powerData = trackpoints.filter((tp: any) => tp.power && tp.power > 0);
   
   return {
-    trackpointCount,
+    trackpointCount: insertedCount,
     coordinateCount: coordinates.length,
     powerData: powerData.length > 0 ? powerData : null
   };
 }
 
 /**
- * Process FIT file and extract trackpoints
+ * Process FIT file and extract trackpoints with enhanced parsing
  */
 async function processFitFile(
   client: SupabaseClient, 
@@ -156,6 +134,8 @@ async function processFitFile(
 ): Promise<{ trackpointCount: number; coordinateCount: number; caloriesCalculated: boolean }> {
   
   try {
+    console.log(`Processing FIT file: ${fitFileUrl}`);
+    
     // Download the FIT file
     const fitBuffer = await downloadFitFile(fitFileUrl, accessToken);
     
@@ -164,12 +144,15 @@ async function processFitFile(
       return { trackpointCount: 0, coordinateCount: 0, caloriesCalculated: false };
     }
     
+    console.log(`Downloaded FIT file, size: ${fitBuffer.byteLength} bytes`);
+    
     // Call GPX parser function to handle FIT file
     const { error: parserError, data: parserResult } = await client.functions.invoke('gpx-parser', {
       body: {
         route_id: routeId,
         gpx_file_url: fitFileUrl,
-        file_type: 'fit'
+        file_type: 'fit',
+        file_data: Array.from(new Uint8Array(fitBuffer)) // Convert to array for JSON serialization
       }
     });
     
@@ -203,6 +186,8 @@ async function calculateAndStoreCalories(
   activity: any
 ): Promise<boolean> {
   try {
+    console.log(`Calculating calories for route ${routeId} from ${powerTrackpoints.length} power trackpoints`);
+    
     // Calculate average power
     const totalPower = powerTrackpoints.reduce((sum, tp) => sum + tp.power, 0);
     const avgPower = totalPower / powerTrackpoints.length;
@@ -254,12 +239,15 @@ async function calculateAndStoreCalories(
  * Extract coordinates from activity data as fallback
  */
 function extractFallbackCoordinates(activity: any): [number, number][] {
+  console.log('Extracting fallback coordinates from activity');
+  
   const sources = [
     activity.coordinates,
     activity.route_points,
     activity.path,
     activity.latlng,
-    activity.waypoints
+    activity.waypoints,
+    activity.geometry?.coordinates
   ];
   
   for (const source of sources) {
@@ -292,6 +280,7 @@ function extractFallbackCoordinates(activity: any): [number, number][] {
     }
   }
   
+  console.log('No fallback coordinates found');
   return [];
 }
 
@@ -304,6 +293,8 @@ async function storeFallbackCoordinates(
   coordinates: [number, number][]
 ): Promise<number> {
   try {
+    console.log(`Storing ${coordinates.length} fallback coordinates for route ${routeId}`);
+    
     // Update route with coordinates
     const { error: routeError } = await client
       .from('routes')

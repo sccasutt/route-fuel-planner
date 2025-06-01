@@ -126,12 +126,13 @@ Deno.serve(async (req) => {
       console.log("=== ACTIVITIES FETCH SUMMARY ===");
       console.log(`Total activities fetched: ${activities.length}`);
       
-      // Add source tracking
+      // Add source tracking and access token for FIT file processing
       if (Array.isArray(activities)) {
         activities = activities.map(activity => ({
           ...activity,
           _sourceEndpoint: "wahoo-api-enhanced",
-          _syncTimestamp: new Date().toISOString()
+          _syncTimestamp: new Date().toISOString(),
+          _access_token: access_token // Add access token for FIT file downloads
         }));
       }
     } catch (err: any) {
@@ -162,26 +163,40 @@ Deno.serve(async (req) => {
         console.error('Please create the trackpoints table in your Supabase database first!');
       }
 
-      console.log("=== STORING PROFILE AND ROUTES ===");
+      console.log("=== STORING PROFILE AND ROUTES WITH ACCESS TOKEN ===");
       await upsertWahooProfile(client, user_id, wahooProfileId, profile);
-      const routeCount = await upsertRoutes(client, user_id, activities);
-
-      console.log("=== ENHANCED SYNC OPERATION COMPLETED ===");
-      console.log(`User: ${user_id}`);
-      console.log(`Routes processed: ${routeCount}`);
-      console.log(`Activities fetched: ${activities.length}`);
       
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          profile,
-          routeCount,
-          activityCount: activities.length,
-          enhanced: true,
-          syncTimestamp: new Date().toISOString()
-        }),
-        { status: 200, headers: corsHeaders }
-      );
+      // Pass access token environment variable for FIT file processing
+      const originalEnv = Deno.env.get("WAHOO_ACCESS_TOKEN");
+      Deno.env.set("WAHOO_ACCESS_TOKEN", access_token);
+      
+      try {
+        const routeCount = await upsertRoutes(client, user_id, activities);
+        
+        console.log("=== ENHANCED SYNC OPERATION COMPLETED ===");
+        console.log(`User: ${user_id}`);
+        console.log(`Routes processed: ${routeCount}`);
+        console.log(`Activities fetched: ${activities.length}`);
+        
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            profile,
+            routeCount,
+            activityCount: activities.length,
+            enhanced: true,
+            syncTimestamp: new Date().toISOString()
+          }),
+          { status: 200, headers: corsHeaders }
+        );
+      } finally {
+        // Restore original environment variable
+        if (originalEnv) {
+          Deno.env.set("WAHOO_ACCESS_TOKEN", originalEnv);
+        } else {
+          Deno.env.delete("WAHOO_ACCESS_TOKEN");
+        }
+      }
     } catch (err: any) {
       console.error("Database operation error:", err);
       return new Response(
