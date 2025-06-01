@@ -17,7 +17,8 @@ export interface FitRecord {
  * Parse FIT file data and extract trackpoints with enhanced data extraction
  */
 export function parseFitFile(buffer: ArrayBuffer): FitRecord[] {
-  console.log('Starting enhanced FIT file parsing, buffer size:', buffer.byteLength);
+  console.log('=== ENHANCED FIT FILE PARSING ===');
+  console.log('Buffer size:', buffer.byteLength);
   
   const dataView = new DataView(buffer);
   const records: FitRecord[] = [];
@@ -44,7 +45,7 @@ export function parseFitFile(buffer: ArrayBuffer): FitRecord[] {
       return [];
     }
     
-    console.log('FIT file validation passed:', {
+    console.log('✓ FIT file validation passed:', {
       headerSize,
       protocolVersion,
       profileVersion,
@@ -60,7 +61,9 @@ export function parseFitFile(buffer: ArrayBuffer): FitRecord[] {
     // Track message definitions for proper parsing
     const messageDefinitions = new Map();
     
-    while (offset < maxOffset && recordCount < 50000) { // Increased safety limit
+    console.log('Starting to parse records...');
+    
+    while (offset < maxOffset && recordCount < 100000) { // Increased safety limit
       try {
         const result = parseNextRecord(dataView, offset, messageDefinitions);
         if (result) {
@@ -78,11 +81,12 @@ export function parseFitFile(buffer: ArrayBuffer): FitRecord[] {
       }
       
       // Log progress for large files
-      if (recordCount % 1000 === 0 && recordCount > 0) {
+      if (recordCount % 5000 === 0 && recordCount > 0) {
         console.log(`Processed ${recordCount} records, found ${records.length} GPS records`);
       }
     }
     
+    console.log(`=== PARSING COMPLETE ===`);
     console.log(`Parsed ${records.length} valid GPS records from ${recordCount} total records`);
     
     // Add sequence timestamps if missing
@@ -93,6 +97,10 @@ export function parseFitFile(buffer: ArrayBuffer): FitRecord[] {
         record.timestamp = new Date(baseTime.getTime() + (index * 1000)).toISOString();
       });
     }
+    
+    // Log quality statistics
+    const stats = calculateDataQuality(records);
+    console.log('Data quality statistics:', stats);
     
     return records;
     
@@ -304,4 +312,47 @@ function isValidGpsRecord(record: FitRecord): boolean {
          record.lat <= 90 && 
          record.lng >= -180 && 
          record.lng <= 180;
+}
+
+function calculateDataQuality(records: FitRecord[]): any {
+  if (records.length === 0) {
+    return { totalPoints: 0 };
+  }
+  
+  const stats = {
+    totalPoints: records.length,
+    withElevation: 0,
+    withPower: 0,
+    withHeartRate: 0,
+    withCadence: 0,
+    withTime: 0,
+    avgLat: 0,
+    avgLng: 0,
+    latRange: [Infinity, -Infinity],
+    lngRange: [Infinity, -Infinity]
+  };
+  
+  let latSum = 0;
+  let lngSum = 0;
+  
+  records.forEach(record => {
+    if (record.elevation !== undefined && record.elevation !== null) stats.withElevation++;
+    if (record.power !== undefined && record.power !== null) stats.withPower++;
+    if (record.heart_rate !== undefined && record.heart_rate !== null) stats.withHeartRate++;
+    if (record.cadence !== undefined && record.cadence !== null) stats.withCadence++;
+    if (record.timestamp !== undefined && record.timestamp !== null) stats.withTime++;
+    
+    latSum += record.lat;
+    lngSum += record.lng;
+    
+    stats.latRange[0] = Math.min(stats.latRange[0], record.lat);
+    stats.latRange[1] = Math.max(stats.latRange[1], record.lat);
+    stats.lngRange[0] = Math.min(stats.lngRange[0], record.lng);
+    stats.lngRange[1] = Math.max(stats.lngRange[1], record.lng);
+  });
+  
+  stats.avgLat = latSum / records.length;
+  stats.avgLng = lngSum / records.length;
+  
+  return stats;
 }

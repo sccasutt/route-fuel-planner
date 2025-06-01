@@ -12,8 +12,10 @@ export async function processEnhancedTrackpoints(
   routeId: string,
   activity: any
 ): Promise<{ trackpointCount: number; coordinateCount: number; caloriesCalculated: boolean }> {
-  console.log(`Processing enhanced trackpoints for route ${routeId}`);
+  console.log(`=== PROCESSING ENHANCED TRACKPOINTS FOR ROUTE ${routeId} ===`);
   console.log(`Activity has access token: ${!!activity._access_token}`);
+  console.log(`Activity has FIT file URL: ${!!(activity.fit_file_url || activity.file_url)}`);
+  console.log(`Activity has trackpoints: ${!!(activity.trackpoints && activity.trackpoints.length > 0)}`);
   
   let trackpointCount = 0;
   let coordinateCount = 0;
@@ -33,9 +35,9 @@ export async function processEnhancedTrackpoints(
   }
   
   // STEP 2: Process FIT file if available and no trackpoints were found
-  if (trackpointCount === 0 && (activity.fit_file_url || activity.file_url || activity.gpx_file_url)) {
-    const fileUrl = activity.fit_file_url || activity.file_url || activity.gpx_file_url;
-    console.log(`Processing file for route ${routeId}: ${fileUrl}`);
+  if (trackpointCount === 0 && (activity.fit_file_url || activity.file_url)) {
+    const fileUrl = activity.fit_file_url || activity.file_url;
+    console.log(`Processing FIT file for route ${routeId}: ${fileUrl}`);
     
     try {
       // Get access token from activity or environment
@@ -58,17 +60,17 @@ export async function processEnhancedTrackpoints(
   
   // STEP 3: Fallback to any coordinate data in the activity
   if (trackpointCount === 0 && coordinateCount === 0) {
+    console.log(`No trackpoints or FIT file data found, trying fallback coordinates`);
     const fallbackCoordinates = extractFallbackCoordinates(activity);
     if (fallbackCoordinates.length > 0) {
       coordinateCount = await storeFallbackCoordinates(client, routeId, fallbackCoordinates);
     }
   }
   
-  console.log(`Route ${routeId} processing complete:`, {
-    trackpointCount,
-    coordinateCount,
-    caloriesCalculated
-  });
+  console.log(`=== ROUTE ${routeId} PROCESSING COMPLETE ===`);
+  console.log(`Trackpoints stored: ${trackpointCount}`);
+  console.log(`Coordinates stored: ${coordinateCount}`);
+  console.log(`Calories calculated: ${caloriesCalculated ? 'YES' : 'NO'}`);
   
   return { trackpointCount, coordinateCount, caloriesCalculated };
 }
@@ -98,6 +100,7 @@ async function storeTrackpoints(client: SupabaseClient, routeId: string, trackpo
   
   // Update route with coordinates
   if (coordinates.length > 0) {
+    console.log(`Updating route ${routeId} with ${coordinates.length} coordinates`);
     const { error: routeUpdateError } = await client
       .from('routes')
       .update({
@@ -109,7 +112,7 @@ async function storeTrackpoints(client: SupabaseClient, routeId: string, trackpo
     if (routeUpdateError) {
       console.error("Error updating route coordinates:", routeUpdateError);
     } else {
-      console.log(`Updated route ${routeId} with ${coordinates.length} coordinates`);
+      console.log(`✓ Updated route ${routeId} with ${coordinates.length} coordinates`);
     }
   }
   
@@ -134,7 +137,9 @@ async function processFitFile(
 ): Promise<{ trackpointCount: number; coordinateCount: number; caloriesCalculated: boolean }> {
   
   try {
-    console.log(`Processing FIT file: ${fitFileUrl}`);
+    console.log(`=== PROCESSING FIT FILE ===`);
+    console.log(`Route ID: ${routeId}`);
+    console.log(`FIT file URL: ${fitFileUrl}`);
     
     // Download the FIT file
     const fitBuffer = await downloadFitFile(fitFileUrl, accessToken);
@@ -147,6 +152,7 @@ async function processFitFile(
     console.log(`Downloaded FIT file, size: ${fitBuffer.byteLength} bytes`);
     
     // Call GPX parser function to handle FIT file
+    console.log(`Calling GPX parser for FIT file processing...`);
     const { error: parserError, data: parserResult } = await client.functions.invoke('gpx-parser', {
       body: {
         route_id: routeId,
@@ -161,7 +167,7 @@ async function processFitFile(
       return { trackpointCount: 0, coordinateCount: 0, caloriesCalculated: false };
     }
     
-    console.log("FIT file processed successfully:", parserResult);
+    console.log("✓ FIT file processed successfully:", parserResult);
     
     // The GPX parser should have stored the coordinates and trackpoints
     return {
@@ -223,7 +229,7 @@ async function calculateAndStoreCalories(
       return false;
     }
     
-    console.log(`Calculated and stored energy data for route ${routeId}:`);
+    console.log(`✓ Calculated and stored energy data for route ${routeId}:`);
     console.log(`- Power-based calories: ${caloriesPowerBased}`);
     console.log(`- Average power: ${avgPower}W`);
     console.log(`- Macros: ${fatGrams}g fat, ${carbGrams}g carbs, ${proteinGrams}g protein`);
@@ -309,7 +315,7 @@ async function storeFallbackCoordinates(
       return 0;
     }
     
-    console.log(`Stored ${coordinates.length} fallback coordinates for route ${routeId}`);
+    console.log(`✓ Stored ${coordinates.length} fallback coordinates for route ${routeId}`);
     return coordinates.length;
   } catch (error) {
     console.error("Error storing fallback coordinates:", error);
