@@ -1,6 +1,6 @@
 
-// Edge function: Fetches Wahoo user profile and recent routes and stores them in the database
-// Updated to follow Wahoo API documentation workflow
+// Edge function: Enhanced Wahoo sync with detailed trackpoint data and calorie calculations
+// Updated to fetch detailed workout data and properly store GPS coordinates
 
 import { parseRequestJson } from './lib/parseRequestJson.ts';
 import { parseJwt, extractUserIdFromJwt } from './lib/jwtHelpers.ts';
@@ -18,6 +18,7 @@ const isDev = Deno.env.get("ENVIRONMENT") === "development";
 
 Deno.serve(async (req) => {
   if (isDev) {
+    console.log("=== ENHANCED WAHOO SYNC START ===");
     console.log("Received request:", {
       method: req.method,
       url: req.url,
@@ -93,7 +94,8 @@ Deno.serve(async (req) => {
       console.warn("Client-provided user ID doesn't match JWT user ID. Using JWT user ID for security.");
     }
 
-    console.log("Starting Wahoo data fetching for user:", user_id, "Wahoo user ID:", wahoo_user_id || "not provided");
+    console.log("=== STARTING ENHANCED WAHOO DATA SYNC ===");
+    console.log("User:", user_id, "Wahoo user ID:", wahoo_user_id || "not provided");
 
     // Fetch Wahoo profile
     let profile;
@@ -118,33 +120,25 @@ Deno.serve(async (req) => {
       }), { status: 500, headers: corsHeaders });
     }
 
-    // Fetch Wahoo activities (recent rides) with proper source endpoint tracking
+    // Fetch Wahoo activities with ENHANCED detailed data extraction
     let activities;
     try {
+      console.log("=== FETCHING ENHANCED WAHOO ACTIVITIES ===");
       activities = await fetchWahooActivities(access_token);
       
-      // Add source endpoint info to each activity
+      console.log("=== ACTIVITIES FETCH SUMMARY ===");
+      console.log(`Total activities fetched: ${activities.length}`);
+      
+      // Add source tracking
       if (Array.isArray(activities)) {
         activities = activities.map(activity => ({
           ...activity,
-          _sourceEndpoint: "wahoo-api"
+          _sourceEndpoint: "wahoo-api-enhanced",
+          _syncTimestamp: new Date().toISOString()
         }));
-        
-        // Log sample trackpoints for debugging
-        if (activities.length > 0) {
-          const sampleActivity = activities[0];
-          if (sampleActivity.trackpoints && Array.isArray(sampleActivity.trackpoints)) {
-            console.log(`Sample activity has ${sampleActivity.trackpoints.length} trackpoints`);
-            if (sampleActivity.trackpoints.length > 0) {
-              console.log('First trackpoint sample:', JSON.stringify(sampleActivity.trackpoints[0]));
-            }
-          } else {
-            console.log('First activity has no trackpoints array');
-          }
-        }
       }
     } catch (err: any) {
-      console.error("Wahoo activities fetch failed:", err.message);
+      console.error("Enhanced Wahoo activities fetch failed:", err.message);
       return new Response(JSON.stringify({
         error: err.message || "Failed to fetch Wahoo activities",
         details: err.details || "Wahoo API error",
@@ -152,7 +146,7 @@ Deno.serve(async (req) => {
       }), { status: err.status || 502, headers: corsHeaders });
     }
 
-    // Insert/update profile and upsert routes
+    // Process and store data
     try {
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.39.0");
       const client = createClient(
@@ -160,7 +154,7 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // First check if trackpoints table exists, if not, display an error
+      // Check database connectivity
       const { error: tableCheckError } = await client
         .from('trackpoints')
         .select('route_id')
@@ -169,20 +163,25 @@ Deno.serve(async (req) => {
       if (tableCheckError) {
         console.error('CRITICAL ERROR: The trackpoints table does not exist or is inaccessible:', tableCheckError.message);
         console.error('Please create the trackpoints table in your Supabase database first!');
-        
-        // We'll continue with the sync but warn the user
       }
 
+      console.log("=== STORING PROFILE AND ROUTES ===");
       await upsertWahooProfile(client, user_id, wahooProfileId, profile);
       const routeCount = await upsertRoutes(client, user_id, activities);
 
-      console.log("Sync operation completed successfully for user:", user_id);
+      console.log("=== ENHANCED SYNC OPERATION COMPLETED ===");
+      console.log(`User: ${user_id}`);
+      console.log(`Routes processed: ${routeCount}`);
+      console.log(`Activities fetched: ${activities.length}`);
+      
       return new Response(
         JSON.stringify({
           ok: true,
           profile,
           routeCount,
-          activityCount: activities.length
+          activityCount: activities.length,
+          enhanced: true,
+          syncTimestamp: new Date().toISOString()
         }),
         { status: 200, headers: corsHeaders }
       );
@@ -197,7 +196,7 @@ Deno.serve(async (req) => {
       );
     }
   } catch (err: any) {
-    console.error("wahoo-sync error:", err);
+    console.error("Enhanced wahoo-sync error:", err);
     return new Response(
       JSON.stringify({
         error: "Internal error",
