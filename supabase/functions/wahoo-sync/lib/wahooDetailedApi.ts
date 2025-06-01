@@ -210,19 +210,80 @@ export async function downloadFitFile(url: string, access_token: string): Promis
 }
 
 /**
- * Enhanced activity fetcher that gets detailed data and FIT files
+ * Enhanced activity fetcher with better debugging for routes endpoint
  */
 export async function fetchWahooActivitiesWithDetails(access_token: string) {
   console.log("=== FETCHING WAHOO ACTIVITIES WITH ENHANCED FIT FILE PROCESSING ===");
   
-  // First get the summary list
+  // First get the summary list with enhanced debugging
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   
   try {
-    // Get summary activities first - prioritize routes endpoints
-    const summaryEndpoints = [
-      "https://api.wahooligan.com/v1/routes?limit=25&ignore_cache=true",
+    // CRITICAL: Try routes endpoint ONLY first with detailed debugging
+    console.log("=== STEP 1: TRYING ROUTES ENDPOINT ===");
+    const routesEndpoint = "https://api.wahooligan.com/v1/routes?limit=25&ignore_cache=true";
+    
+    try {
+      console.log(`Making request to routes endpoint: ${routesEndpoint}`);
+      const routesRes = await fetch(routesEndpoint, {
+        headers: {
+          "Authorization": `Bearer ${access_token}`,
+          "Accept": "application/json"
+        },
+        signal: controller.signal,
+      });
+      
+      console.log(`Routes endpoint response status: ${routesRes.status} ${routesRes.statusText}`);
+      console.log(`Routes endpoint response headers:`, Object.fromEntries(routesRes.headers.entries()));
+      
+      if (routesRes.ok) {
+        const routesData = await routesRes.json();
+        console.log(`Routes endpoint raw response:`, JSON.stringify(routesData, null, 2));
+        
+        let routesItems = [];
+        if (Array.isArray(routesData)) {
+          routesItems = routesData;
+          console.log(`Routes data is direct array with ${routesItems.length} items`);
+        } else if (routesData?.results && Array.isArray(routesData.results)) {
+          routesItems = routesData.results;
+          console.log(`Routes data has results array with ${routesItems.length} items`);
+        } else if (routesData?.data && Array.isArray(routesData.data)) {
+          routesItems = routesData.data;
+          console.log(`Routes data has data array with ${routesItems.length} items`);
+        } else if (routesData?.routes && Array.isArray(routesData.routes)) {
+          routesItems = routesData.routes;
+          console.log(`Routes data has routes array with ${routesItems.length} items`);
+        } else {
+          console.log(`Routes response structure not recognized:`, Object.keys(routesData));
+        }
+        
+        if (routesItems.length > 0) {
+          console.log(`✓ SUCCESS: Found ${routesItems.length} routes from routes endpoint`);
+          console.log(`Sample route data:`, JSON.stringify(routesItems[0], null, 2));
+          
+          // Process routes with detailed data
+          const detailedRoutes = await processRoutesWithDetails(routesItems, access_token);
+          
+          clearTimeout(timeoutId);
+          const formattedActivities = formatWahooActivities(detailedRoutes);
+          console.log(`Formatted ${formattedActivities.length} route activities`);
+          
+          return formattedActivities;
+        } else {
+          console.log(`✗ Routes endpoint returned empty array`);
+        }
+      } else {
+        const errorText = await routesRes.text();
+        console.log(`✗ Routes endpoint failed: ${routesRes.status} - ${errorText}`);
+      }
+    } catch (routesError) {
+      console.error(`✗ Routes endpoint exception:`, routesError);
+    }
+    
+    // Only if routes endpoint fails, try fallback endpoints
+    console.log("=== STEP 2: TRYING FALLBACK ENDPOINTS ===");
+    const fallbackEndpoints = [
       "https://api.wahooligan.com/v1/workouts?limit=25&ignore_cache=true",
       "https://api.wahooligan.com/v1/workout_history?limit=25&ignore_cache=true", 
       "https://api.wahooligan.com/v1/rides?limit=25&ignore_cache=true"
@@ -230,9 +291,9 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
     
     let summaryActivities = [];
     
-    for (const endpoint of summaryEndpoints) {
+    for (const endpoint of fallbackEndpoints) {
       try {
-        console.log(`Fetching summary from: ${endpoint}`);
+        console.log(`Trying fallback endpoint: ${endpoint}`);
         const res = await fetch(endpoint, {
           headers: {
             "Authorization": `Bearer ${access_token}`,
@@ -254,13 +315,13 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
           }
           
           if (items.length > 0) {
-            console.log(`Found ${items.length} summary activities from ${endpoint}`);
+            console.log(`Found ${items.length} activities from fallback ${endpoint}`);
             summaryActivities = [...summaryActivities, ...items];
             break; // Use first successful endpoint
           }
         }
       } catch (err) {
-        console.log(`Summary endpoint failed: ${endpoint}`, err);
+        console.log(`Fallback endpoint failed: ${endpoint}`, err);
         continue;
       }
     }
@@ -268,80 +329,17 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
     clearTimeout(timeoutId);
     
     if (summaryActivities.length === 0) {
-      console.log("No summary activities found");
+      console.log("✗ No activities found from any endpoint");
       return [];
     }
     
-    console.log(`Got ${summaryActivities.length} summary activities, processing detailed data...`);
+    console.log(`Got ${summaryActivities.length} fallback activities, processing detailed data...`);
     
-    // Now fetch detailed data and FIT files for each activity
-    const detailedActivities = [];
-    const maxDetailsToFetch = 15; // Increased to get more detailed data
+    // Now fetch detailed data for fallback activities
+    const detailedActivities = await processActivitiesWithDetails(summaryActivities, access_token);
     
-    for (let i = 0; i < Math.min(summaryActivities.length, maxDetailsToFetch); i++) {
-      const activity = summaryActivities[i];
-      const activityId = activity.id || activity.workout_id || activity.ride_id;
-      
-      if (!activityId) {
-        console.log(`Skipping activity ${i} - no ID found`);
-        detailedActivities.push(activity);
-        continue;
-      }
-      
-      console.log(`=== PROCESSING ACTIVITY ${i + 1}/${Math.min(summaryActivities.length, maxDetailsToFetch)}: ${activityId} ===`);
-      
-      // Get detailed data
-      const detailedData = await fetchWahooWorkoutDetails(access_token, activityId);
-      
-      // Merge all data
-      let enhancedActivity = { ...activity };
-      
-      if (detailedData) {
-        enhancedActivity = { 
-          ...enhancedActivity, 
-          ...detailedData,
-          _hasDetailedData: true 
-        };
-        
-        // Extract FIT file URL - this is the critical part
-        const fitFileUrl = extractFitFileUrl(detailedData);
-        if (fitFileUrl) {
-          enhancedActivity.fit_file_url = fitFileUrl;
-          enhancedActivity.file_url = fitFileUrl;
-          enhancedActivity.needs_fit_processing = true;
-          console.log(`✓ Activity ${activityId} has FIT file URL: ${fitFileUrl}`);
-        } else {
-          console.log(`✗ Activity ${activityId} has no FIT file URL found`);
-          console.log('Activity data structure:', Object.keys(detailedData));
-        }
-        
-        // Ensure trackpoints are properly structured
-        if (detailedData.trackpoints && Array.isArray(detailedData.trackpoints)) {
-          enhancedActivity.trackpoints = detailedData.trackpoints;
-          console.log(`Enhanced activity ${activityId} with ${detailedData.trackpoints.length} trackpoints`);
-        }
-      } else {
-        console.log(`No detailed data found for activity ${activityId}`);
-      }
-      
-      detailedActivities.push(enhancedActivity);
-    }
-    
-    // Add remaining activities without detailed data
-    for (let i = maxDetailsToFetch; i < summaryActivities.length; i++) {
-      detailedActivities.push(summaryActivities[i]);
-    }
-    
-    console.log(`=== SUMMARY ===`);
-    console.log(`Successfully enhanced ${detailedActivities.length} activities with detailed data`);
-    
-    // Count activities with FIT files
-    const activitiesWithFitFiles = detailedActivities.filter(a => a.fit_file_url || a.file_url);
-    console.log(`Activities with FIT file URLs: ${activitiesWithFitFiles.length}/${detailedActivities.length}`);
-    
-    // Format the activities
     const formattedActivities = formatWahooActivities(detailedActivities);
-    console.log(`Formatted ${formattedActivities.length} enhanced activities`);
+    console.log(`Formatted ${formattedActivities.length} fallback activities`);
     
     return formattedActivities;
     
@@ -353,4 +351,134 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
       details: err.details || err
     };
   }
+}
+
+/**
+ * Process routes with detailed data (for routes endpoint)
+ */
+async function processRoutesWithDetails(routes: any[], access_token: string): Promise<any[]> {
+  console.log(`=== PROCESSING ${routes.length} ROUTES WITH DETAILED DATA ===`);
+  
+  const detailedRoutes = [];
+  const maxDetailsToFetch = 15;
+  
+  for (let i = 0; i < Math.min(routes.length, maxDetailsToFetch); i++) {
+    const route = routes[i];
+    const routeId = route.id || route.route_id;
+    
+    if (!routeId) {
+      console.log(`Skipping route ${i} - no ID found`);
+      detailedRoutes.push(route);
+      continue;
+    }
+    
+    console.log(`=== PROCESSING ROUTE ${i + 1}/${Math.min(routes.length, maxDetailsToFetch)}: ${routeId} ===`);
+    
+    // For routes, the summary data might already contain file URLs
+    if (route.file?.url) {
+      console.log(`✓ Route ${routeId} already has file URL: ${route.file.url}`);
+      route.fit_file_url = route.file.url;
+      route.file_url = route.file.url;
+      route.needs_fit_processing = true;
+    }
+    
+    // Get detailed data
+    const detailedData = await fetchWahooWorkoutDetails(access_token, routeId);
+    
+    // Merge all data
+    let enhancedRoute = { ...route };
+    
+    if (detailedData) {
+      enhancedRoute = { 
+        ...enhancedRoute, 
+        ...detailedData,
+        _hasDetailedData: true 
+      };
+      
+      // Extract FIT file URL
+      const fitFileUrl = extractFitFileUrl(detailedData);
+      if (fitFileUrl) {
+        enhancedRoute.fit_file_url = fitFileUrl;
+        enhancedRoute.file_url = fitFileUrl;
+        enhancedRoute.needs_fit_processing = true;
+        console.log(`✓ Route ${routeId} has FIT file URL: ${fitFileUrl}`);
+      }
+      
+      // Ensure trackpoints are properly structured
+      if (detailedData.trackpoints && Array.isArray(detailedData.trackpoints)) {
+        enhancedRoute.trackpoints = detailedData.trackpoints;
+        console.log(`Enhanced route ${routeId} with ${detailedData.trackpoints.length} trackpoints`);
+      }
+    }
+    
+    detailedRoutes.push(enhancedRoute);
+  }
+  
+  // Add remaining routes without detailed data
+  for (let i = maxDetailsToFetch; i < routes.length; i++) {
+    detailedRoutes.push(routes[i]);
+  }
+  
+  return detailedRoutes;
+}
+
+/**
+ * Process activities with detailed data (for fallback endpoints)
+ */
+async function processActivitiesWithDetails(activities: any[], access_token: string): Promise<any[]> {
+  console.log(`=== PROCESSING ${activities.length} ACTIVITIES WITH DETAILED DATA ===`);
+  
+  const detailedActivities = [];
+  const maxDetailsToFetch = 15;
+  
+  for (let i = 0; i < Math.min(activities.length, maxDetailsToFetch); i++) {
+    const activity = activities[i];
+    const activityId = activity.id || activity.workout_id || activity.ride_id;
+    
+    if (!activityId) {
+      console.log(`Skipping activity ${i} - no ID found`);
+      detailedActivities.push(activity);
+      continue;
+    }
+    
+    console.log(`=== PROCESSING ACTIVITY ${i + 1}/${Math.min(activities.length, maxDetailsToFetch)}: ${activityId} ===`);
+    
+    // Get detailed data
+    const detailedData = await fetchWahooWorkoutDetails(access_token, activityId);
+    
+    // Merge all data
+    let enhancedActivity = { ...activity };
+    
+    if (detailedData) {
+      enhancedActivity = { 
+        ...enhancedActivity, 
+        ...detailedData,
+        _hasDetailedData: true 
+      };
+      
+      // Extract FIT file URL
+      const fitFileUrl = extractFitFileUrl(detailedData);
+      if (fitFileUrl) {
+        enhancedActivity.fit_file_url = fitFileUrl;
+        enhancedActivity.file_url = fitFileUrl;
+        enhancedActivity.needs_fit_processing = true;
+        console.log(`✓ Activity ${activityId} has FIT file URL: ${fitFileUrl}`);
+      }
+      
+      // Ensure trackpoints are properly structured
+      if (detailedData.trackpoints && Array.isArray(detailedData.trackpoints)) {
+        enhancedActivity.trackpoints = detailedData.trackpoints;
+        console.log(`Enhanced activity ${activityId} with ${detailedData.trackpoints.length} trackpoints`);
+      }
+    }
+    
+    detailedActivities.push(enhancedActivity);
+  }
+  
+  // Add remaining activities without detailed data
+  for (let i = maxDetailsToFetch; i < activities.length; i++) {
+    detailedActivities.push(activities[i]);
+  }
+  
+  return detailedActivities;
 }
