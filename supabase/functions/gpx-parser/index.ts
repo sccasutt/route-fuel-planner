@@ -1,9 +1,6 @@
 
 // Edge function: Parses GPX and FIT files to extract GPS coordinates and stores them in the database
 
-import { parseRequestJson } from '../wahoo-sync/lib/parseRequestJson.ts';
-import { extractUserIdFromJwt } from '../wahoo-sync/lib/jwtHelpers.ts';
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,6 +8,91 @@ const corsHeaders = {
 };
 
 const isDev = Deno.env.get("ENVIRONMENT") === "development";
+
+/**
+ * Parse request JSON with error handling
+ */
+async function parseRequestJson(req: Request): Promise<any> {
+  try {
+    if ((req as any).bodyUsed) {
+      console.error("Request body has already been read");
+      throw new Error("Request body has already been read");
+    }
+
+    const contentType = req.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      console.warn("Request content-type is not application/json:", contentType);
+    }
+
+    // Get the raw text from the request
+    const text = await req.text();
+    console.log("Request body raw length:", text ? text.length : 0);
+    
+    if (!text || text.trim() === '') {
+      console.error("Empty request body received");
+      throw new Error("Empty request body");
+    }
+
+    try {
+      const parsedBody = JSON.parse(text);
+      
+      // Log safely (without tokens)
+      const safeKeys = Object.keys(parsedBody).filter(key => !key.includes('token'));
+      console.log("JSON parsed successfully with keys:", safeKeys);
+      
+      return parsedBody;
+    } catch (jsonError) {
+      console.error("JSON parse error:", jsonError);
+      throw new Error("Invalid JSON in request body");
+    }
+  } catch (err: any) {
+    console.error("Error parsing request body:", err);
+    throw {
+      message: err.message || "Invalid request body",
+      status: 400,
+    };
+  }
+}
+
+/**
+ * Extract user ID from JWT token
+ */
+function extractUserIdFromJwt(jwt: string): string | null {
+  try {
+    // JWT has 3 parts separated by dots
+    const parts = jwt.split('.');
+    if (parts.length !== 3) {
+      console.error("Invalid JWT format - expected 3 parts");
+      return null;
+    }
+
+    // Decode the payload (second part)
+    const payload = parts[1];
+    
+    // Add padding if needed for base64 decoding
+    const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
+    
+    try {
+      const decodedPayload = atob(paddedPayload);
+      const parsedPayload = JSON.parse(decodedPayload);
+      
+      // Extract user ID from the 'sub' field
+      const userId = parsedPayload.sub;
+      if (!userId) {
+        console.error("No 'sub' field found in JWT payload");
+        return null;
+      }
+      
+      return userId;
+    } catch (decodeError) {
+      console.error("Error decoding JWT payload:", decodeError);
+      return null;
+    }
+  } catch (err) {
+    console.error("Error parsing JWT:", err);
+    return null;
+  }
+}
 
 Deno.serve(async (req) => {
   if (isDev) {
