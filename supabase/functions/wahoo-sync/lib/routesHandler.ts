@@ -6,7 +6,7 @@ import { processEnhancedTrackpoints } from "./enhancedCoordinateProcessor.ts";
 /**
  * Enhanced routes upsert with FIT file processing and detailed trackpoint storage
  */
-export async function upsertRoutes(client: SupabaseClient, userId: string, activities: any[]) {
+export async function upsertRoutes(client: SupabaseClient, userId: string, activities: any[], accessToken: string) {
   console.log(`=== ENHANCED ROUTES UPSERT WITH FIT FILE PROCESSING ===`);
   console.log(`Processing ${activities.length} activities for user: ${userId}`);
 
@@ -71,7 +71,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         
         // Add access token to activity for FIT file download
         if (activity.fit_file_url || activity.file?.url) {
-          activity._access_token = Deno.env.get("WAHOO_ACCESS_TOKEN") || activity._access_token;
+          activity._access_token = accessToken;
         }
         
         // Use enhanced coordinate processor

@@ -40,8 +40,8 @@ export async function processEnhancedTrackpoints(
     console.log(`Processing FIT file for route ${routeId}: ${fileUrl}`);
     
     try {
-      // Get access token from activity or environment
-      const accessToken = activity._access_token || Deno.env.get("WAHOO_ACCESS_TOKEN");
+      // Get access token directly from activity
+      const accessToken = activity._access_token;
       
       if (!accessToken) {
         console.error("No access token available for FIT file download");

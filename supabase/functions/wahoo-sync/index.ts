@@ -166,37 +166,25 @@ Deno.serve(async (req) => {
       console.log("=== STORING PROFILE AND ROUTES WITH ACCESS TOKEN ===");
       await upsertWahooProfile(client, user_id, wahooProfileId, profile);
       
-      // Pass access token environment variable for FIT file processing
-      const originalEnv = Deno.env.get("WAHOO_ACCESS_TOKEN");
-      Deno.env.set("WAHOO_ACCESS_TOKEN", access_token);
+      // Pass access token directly to upsertRoutes instead of setting environment variable
+      const routeCount = await upsertRoutes(client, user_id, activities, access_token);
       
-      try {
-        const routeCount = await upsertRoutes(client, user_id, activities);
-        
-        console.log("=== ENHANCED SYNC OPERATION COMPLETED ===");
-        console.log(`User: ${user_id}`);
-        console.log(`Routes processed: ${routeCount}`);
-        console.log(`Activities fetched: ${activities.length}`);
-        
-        return new Response(
-          JSON.stringify({
-            ok: true,
-            profile,
-            routeCount,
-            activityCount: activities.length,
-            enhanced: true,
-            syncTimestamp: new Date().toISOString()
-          }),
-          { status: 200, headers: corsHeaders }
-        );
-      } finally {
-        // Restore original environment variable
-        if (originalEnv) {
-          Deno.env.set("WAHOO_ACCESS_TOKEN", originalEnv);
-        } else {
-          Deno.env.delete("WAHOO_ACCESS_TOKEN");
-        }
-      }
+      console.log("=== ENHANCED SYNC OPERATION COMPLETED ===");
+      console.log(`User: ${user_id}`);
+      console.log(`Routes processed: ${routeCount}`);
+      console.log(`Activities fetched: ${activities.length}`);
+      
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          profile,
+          routeCount,
+          activityCount: activities.length,
+          enhanced: true,
+          syncTimestamp: new Date().toISOString()
+        }),
+        { status: 200, headers: corsHeaders }
+      );
     } catch (err: any) {
       console.error("Database operation error:", err);
       return new Response(
