@@ -10,119 +10,226 @@ export function extractCoordinates(activity: any): [number, number][] {
   let coordinates: [number, number][] = [];
   
   // Log the activity structure to help debug
-  console.log(`Extracting coordinates from activity type: ${activity.type || 'unknown'}, has route_points: ${!!activity.route_points}, has trackpoints: ${!!activity.trackpoints}`);
+  console.log(`Extracting coordinates from activity ID: ${activity.id || activity.wahoo_id || 'unknown'}`);
+  console.log(`Activity type: ${activity.type || 'unknown'}, has route_points: ${!!activity.route_points}, has trackpoints: ${!!activity.trackpoints}`);
   
-  // Extract from route_points
-  if (Array.isArray(activity.route_points)) {
-    console.log(`Found ${activity.route_points.length} route_points in activity`);
-    const points = activity.route_points
-      .filter((point: any) => point.lat && point.lng)
-      .map((point: any) => [point.lat, point.lng] as [number, number]);
-    
-    if (points.length > 0) {
-      console.log(`Successfully extracted ${points.length} coordinates from route_points`);
-      return points;
-    }
-  }
-  
-  // Extract from trackpoints
-  if (Array.isArray(activity.trackpoints)) {
+  // PRIORITY 1: Extract from trackpoints (most detailed data)
+  if (Array.isArray(activity.trackpoints) && activity.trackpoints.length > 0) {
     console.log(`Found ${activity.trackpoints.length} trackpoints in activity`);
     const points = activity.trackpoints
       .filter((point: any) => {
-        const hasCoords = (point.lat !== undefined && point.lon !== undefined) || 
-                         (point.latitude !== undefined && point.longitude !== undefined);
-        return hasCoords;
+        const hasLat = point.lat !== undefined || point.latitude !== undefined;
+        const hasLng = point.lng !== undefined || point.lon !== undefined || point.longitude !== undefined;
+        return hasLat && hasLng;
       })
       .map((point: any) => {
         const lat = point.lat !== undefined ? point.lat : point.latitude;
-        const lng = point.lon !== undefined ? point.lon : point.longitude;
-        return [lat, lng] as [number, number];
-      });
+        const lng = point.lng !== undefined ? point.lng : 
+                   point.lon !== undefined ? point.lon : point.longitude;
+        return [parseFloat(lat), parseFloat(lng)] as [number, number];
+      })
+      .filter((coord: [number, number]) => 
+        !isNaN(coord[0]) && !isNaN(coord[1]) && 
+        coord[0] >= -90 && coord[0] <= 90 && 
+        coord[1] >= -180 && coord[1] <= 180
+      );
     
     if (points.length > 0) {
       console.log(`Successfully extracted ${points.length} coordinates from trackpoints`);
+      console.log(`First coordinate: [${points[0][0]}, ${points[0][1]}]`);
+      console.log(`Last coordinate: [${points[points.length-1][0]}, ${points[points.length-1][1]}]`);
       return points;
     }
   }
   
-  // Extract from coordinates array
-  if (Array.isArray(activity.coordinates)) {
+  // PRIORITY 2: Extract from route_points
+  if (Array.isArray(activity.route_points) && activity.route_points.length > 0) {
+    console.log(`Found ${activity.route_points.length} route_points in activity`);
+    const points = activity.route_points
+      .filter((point: any) => {
+        const hasLat = point.lat !== undefined || point.latitude !== undefined;
+        const hasLng = point.lng !== undefined || point.lon !== undefined || point.longitude !== undefined;
+        return hasLat && hasLng;
+      })
+      .map((point: any) => {
+        const lat = point.lat !== undefined ? point.lat : point.latitude;
+        const lng = point.lng !== undefined ? point.lng : 
+                   point.lon !== undefined ? point.lon : point.longitude;
+        return [parseFloat(lat), parseFloat(lng)] as [number, number];
+      })
+      .filter((coord: [number, number]) => 
+        !isNaN(coord[0]) && !isNaN(coord[1]) && 
+        coord[0] >= -90 && coord[0] <= 90 && 
+        coord[1] >= -180 && coord[1] <= 180
+      );
+    
+    if (points.length > 0) {
+      console.log(`Successfully extracted ${points.length} coordinates from route_points`);
+      console.log(`First coordinate: [${points[0][0]}, ${points[0][1]}]`);
+      return points;
+    }
+  }
+  
+  // PRIORITY 3: Extract from coordinates array
+  if (Array.isArray(activity.coordinates) && activity.coordinates.length > 0) {
+    console.log(`Found ${activity.coordinates.length} coordinates in activity.coordinates`);
     const coords = activity.coordinates
-      .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
-      .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+      .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
+      .map((coord: any) => [parseFloat(coord[0]), parseFloat(coord[1])] as [number, number])
+      .filter((coord: [number, number]) => 
+        !isNaN(coord[0]) && !isNaN(coord[1]) && 
+        coord[0] >= -90 && coord[0] <= 90 && 
+        coord[1] >= -180 && coord[1] <= 180
+      );
     
     if (coords.length > 0) {
       console.log(`Successfully extracted ${coords.length} coordinates from coordinates array`);
+      console.log(`First coordinate: [${coords[0][0]}, ${coords[0][1]}]`);
       return coords;
     }
   }
   
-  // Extract from latlng array
-  if (Array.isArray(activity.latlng)) {
+  // PRIORITY 4: Extract from latlng array
+  if (Array.isArray(activity.latlng) && activity.latlng.length > 0) {
+    console.log(`Found ${activity.latlng.length} latlng coordinates`);
     const latlngs = activity.latlng
-      .filter((coord: any) => Array.isArray(coord) && coord.length === 2)
-      .map((coord: any) => [coord[0], coord[1]] as [number, number]);
+      .filter((coord: any) => Array.isArray(coord) && coord.length >= 2)
+      .map((coord: any) => [parseFloat(coord[0]), parseFloat(coord[1])] as [number, number])
+      .filter((coord: [number, number]) => 
+        !isNaN(coord[0]) && !isNaN(coord[1]) && 
+        coord[0] >= -90 && coord[0] <= 90 && 
+        coord[1] >= -180 && coord[1] <= 180
+      );
     
     if (latlngs.length > 0) {
       console.log(`Successfully extracted ${latlngs.length} coordinates from latlng array`);
+      console.log(`First coordinate: [${latlngs[0][0]}, ${latlngs[0][1]}]`);
       return latlngs;
     }
   }
   
-  // Extract from path
-  if (Array.isArray(activity.path)) {
+  // PRIORITY 5: Extract from path
+  if (Array.isArray(activity.path) && activity.path.length > 0) {
+    console.log(`Found ${activity.path.length} path points`);
     const path = activity.path
-      .filter((point: any) => point.lat && point.lng)
-      .map((point: any) => [point.lat, point.lng] as [number, number]);
+      .filter((point: any) => {
+        const hasLat = point.lat !== undefined || point.latitude !== undefined;
+        const hasLng = point.lng !== undefined || point.lon !== undefined || point.longitude !== undefined;
+        return hasLat && hasLng;
+      })
+      .map((point: any) => {
+        const lat = point.lat !== undefined ? point.lat : point.latitude;
+        const lng = point.lng !== undefined ? point.lng : 
+                   point.lon !== undefined ? point.lon : point.longitude;
+        return [parseFloat(lat), parseFloat(lng)] as [number, number];
+      })
+      .filter((coord: [number, number]) => 
+        !isNaN(coord[0]) && !isNaN(coord[1]) && 
+        coord[0] >= -90 && coord[0] <= 90 && 
+        coord[1] >= -180 && coord[1] <= 180
+      );
     
     if (path.length > 0) {
       console.log(`Successfully extracted ${path.length} coordinates from path array`);
+      console.log(`First coordinate: [${path[0][0]}, ${path[0][1]}]`);
       return path;
     }
   }
   
-  // Extract from points
-  if (Array.isArray(activity.points)) {
-    const points = activity.points
-      .filter((point: any) => (point.lat !== undefined && point.lng !== undefined) || 
-                             (point.latitude !== undefined && point.longitude !== undefined))
+  // PRIORITY 6: Extract from waypoints
+  if (Array.isArray(activity.waypoints) && activity.waypoints.length > 0) {
+    console.log(`Found ${activity.waypoints.length} waypoints`);
+    const waypoints = activity.waypoints
+      .filter((point: any) => {
+        const hasLat = point.lat !== undefined || point.latitude !== undefined;
+        const hasLng = point.lng !== undefined || point.lon !== undefined || point.longitude !== undefined;
+        return hasLat && hasLng;
+      })
       .map((point: any) => {
         const lat = point.lat !== undefined ? point.lat : point.latitude;
-        const lng = point.lng !== undefined ? point.lng : point.longitude;
-        return [lat, lng] as [number, number];
-      });
+        const lng = point.lng !== undefined ? point.lng : 
+                   point.lon !== undefined ? point.lon : point.longitude;
+        return [parseFloat(lat), parseFloat(lng)] as [number, number];
+      })
+      .filter((coord: [number, number]) => 
+        !isNaN(coord[0]) && !isNaN(coord[1]) && 
+        coord[0] >= -90 && coord[0] <= 90 && 
+        coord[1] >= -180 && coord[1] <= 180
+      );
+    
+    if (waypoints.length > 0) {
+      console.log(`Successfully extracted ${waypoints.length} coordinates from waypoints`);
+      console.log(`First coordinate: [${waypoints[0][0]}, ${waypoints[0][1]}]`);
+      return waypoints;
+    }
+  }
+  
+  // PRIORITY 7: Extract from points
+  if (Array.isArray(activity.points) && activity.points.length > 0) {
+    console.log(`Found ${activity.points.length} points`);
+    const points = activity.points
+      .filter((point: any) => {
+        const hasLat = point.lat !== undefined || point.latitude !== undefined;
+        const hasLng = point.lng !== undefined || point.lon !== undefined || point.longitude !== undefined;
+        return hasLat && hasLng;
+      })
+      .map((point: any) => {
+        const lat = point.lat !== undefined ? point.lat : point.latitude;
+        const lng = point.lng !== undefined ? point.lng : 
+                   point.lon !== undefined ? point.lon : point.longitude;
+        return [parseFloat(lat), parseFloat(lng)] as [number, number];
+      })
+      .filter((coord: [number, number]) => 
+        !isNaN(coord[0]) && !isNaN(coord[1]) && 
+        coord[0] >= -90 && coord[0] <= 90 && 
+        coord[1] >= -180 && coord[1] <= 180
+      );
     
     if (points.length > 0) {
       console.log(`Successfully extracted ${points.length} coordinates from points array`);
+      console.log(`First coordinate: [${points[0][0]}, ${points[0][1]}]`);
       return points;
     }
   }
   
-  // Extract from track_points/track_data
+  // PRIORITY 8: Extract from track_points/track_data
   if (Array.isArray(activity.track_points) || Array.isArray(activity.track_data)) {
     const trackData = activity.track_points || activity.track_data;
+    console.log(`Found ${trackData.length} track_points/track_data`);
     if (Array.isArray(trackData)) {
       try {
         const tracks = trackData
           .filter((point: any) => {
-            return (point.lat !== undefined && point.lon !== undefined) || 
-                   (point.latitude !== undefined && point.longitude !== undefined);
+            const hasLat = point.lat !== undefined || point.latitude !== undefined;
+            const hasLng = point.lng !== undefined || point.lon !== undefined || point.longitude !== undefined;
+            return hasLat && hasLng;
           })
           .map((point: any) => {
             const lat = point.lat !== undefined ? point.lat : point.latitude;
-            const lng = point.lon !== undefined ? point.lon : point.longitude;
-            return [lat, lng] as [number, number];
-          });
+            const lng = point.lng !== undefined ? point.lng : 
+                       point.lon !== undefined ? point.lon : point.longitude;
+            return [parseFloat(lat), parseFloat(lng)] as [number, number];
+          })
+          .filter((coord: [number, number]) => 
+            !isNaN(coord[0]) && !isNaN(coord[1]) && 
+            coord[0] >= -90 && coord[0] <= 90 && 
+            coord[1] >= -180 && coord[1] <= 180
+          );
         
         if (tracks.length > 0) {
           console.log(`Successfully extracted ${tracks.length} coordinates from track_points/track_data`);
+          console.log(`First coordinate: [${tracks[0][0]}, ${tracks[0][1]}]`);
           return tracks;
         }
       } catch (err) {
         console.error(`Error processing track points:`, err);
       }
     }
+  }
+  
+  // Check if this activity needs GPX file processing
+  if (activity.needs_gpx_processing && activity.gpx_file_url) {
+    console.log(`Activity has GPX file URL but no extracted coordinates - GPX processing required: ${activity.gpx_file_url}`);
   }
   
   // Try to extract from fit_file or raw data if present
@@ -137,7 +244,7 @@ export function extractCoordinates(activity: any): [number, number][] {
     }
   }
   
-  console.log('No coordinates could be extracted from the activity');
+  console.log(`No coordinates could be extracted from activity ${activity.id || activity.wahoo_id || 'unknown'}`);
   return coordinates;
 }
 

@@ -2,6 +2,7 @@
 import { formatDurationString, durationToSeconds, parseNumericValue } from "./wahooUtils.ts";
 import { processCoordinates } from "./coordinateHandler.ts";
 import { processMetadata, processEnergyData } from "./metadataHandler.ts";
+import { extractCoordinates } from "./extractCoordinates.ts";
 
 /**
  * Transform activity data to route schema
@@ -21,25 +22,21 @@ export function transformActivityToRoute(activity: any, userId: string): any {
   console.log(`Processing coordinates for activity ID: ${id}`);
   let coordinates = null;
   
-  // First, try to extract from trackpoints or waypoints
-  if (activity.trackpoints || activity.waypoints) {
-    console.log(`Activity has ${activity.trackpoints?.length || 0} trackpoints or ${activity.waypoints?.length || 0} waypoints`);
-    const points = activity.trackpoints || activity.waypoints;
-    if (Array.isArray(points) && points.length > 0) {
-      coordinates = points.map((point: any) => {
-        const lat = parseNumericValue(point.lat || point.latitude);
-        const lng = parseNumericValue(point.lng || point.longitude);
-        const ele = parseNumericValue(point.elevation || point.ele || point.alt);
-        return [lat, lng, ele];
-      }).filter((coord: any[]) => coord[0] && coord[1]);
-      console.log(`Extracted ${coordinates.length} coordinates from trackpoints/waypoints`);
-    }
-  }
+  // Use the enhanced coordinate extraction function
+  const extractedCoordinates = extractCoordinates(activity);
   
-  // If no coordinates yet, try other methods
-  if (!coordinates || coordinates.length === 0) {
-    coordinates = processCoordinates(activity);
-    console.log(`Processed coordinates result: ${coordinates ? coordinates.length : 'none'} points found`);
+  if (extractedCoordinates && extractedCoordinates.length > 0) {
+    coordinates = extractedCoordinates;
+    console.log(`Extracted ${coordinates.length} coordinates for activity ${id}`);
+    console.log(`First coordinate: [${coordinates[0][0]}, ${coordinates[0][1]}]`);
+    console.log(`Last coordinate: [${coordinates[coordinates.length-1][0]}, ${coordinates[coordinates.length-1][1]}]`);
+  } else {
+    console.log(`No coordinates extracted for activity ${id}`);
+    
+    // If no coordinates but we have file URL, we'll process it later
+    if (gpxFileUrl) {
+      console.log(`Activity ${id} has GPX file URL but no coordinates - will process file: ${gpxFileUrl}`);
+    }
   }
   
   // Calculate duration_seconds if it doesn't exist
@@ -59,7 +56,12 @@ export function transformActivityToRoute(activity: any, userId: string): any {
   const energyData = processEnergyData(activity);
 
   // Log what we're about to return
-  console.log(`Transformed route ${id} has ${coordinates ? coordinates.length : 0} coordinates`);
+  console.log(`Transformed route ${id}:`);
+  console.log(`- Has ${coordinates ? coordinates.length : 0} coordinates`);
+  console.log(`- Has GPX file URL: ${!!gpxFileUrl}`);
+  console.log(`- Needs GPX processing: ${!!activity.needs_gpx_processing}`);
+  console.log(`- Distance: ${parseNumericValue(activity.distance)}`);
+  console.log(`- Duration: ${activity.duration || "0:01:00"}`);
   
   return {
     user_id: userId,

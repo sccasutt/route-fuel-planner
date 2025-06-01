@@ -35,6 +35,14 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       } else {
         console.log('Sample activity has no trackpoints array');
       }
+      
+      // Check for coordinate data availability
+      console.log('Coordinate data analysis for sample activity:');
+      console.log(`- trackpoints: ${batch[0].trackpoints?.length || 0}`);
+      console.log(`- coordinates: ${batch[0].coordinates?.length || 0}`);
+      console.log(`- route_points: ${batch[0].route_points?.length || 0}`);
+      console.log(`- gpx_file_url: ${!!batch[0].gpx_file_url}`);
+      console.log(`- needs_gpx_processing: ${!!batch[0].needs_gpx_processing}`);
     }
     
     // Transform the activities into the routes schema
@@ -54,7 +62,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         successCount += routes.length;
         console.log(`Successfully upserted batch ${i / batchSize + 1} with ${routes.length} routes`);
 
-        // After successfully upserting routes, process their trackpoints
+        // After successfully upserting routes, process their trackpoints and coordinates
         for (let j = 0; j < batch.length; j++) {
           const activity = batch[j];
           const route = routes[j];
@@ -63,9 +71,9 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
           const insertedRouteData = data && data[j];
           const routeId = insertedRouteData ? insertedRouteData.id : route.id;
           
-          console.log(`Processing trackpoints for route: ${routeId}`);
+          console.log(`Processing coordinate data for route: ${routeId}`);
           
-          // Insert trackpoints directly from activity
+          // STEP 1: Insert trackpoints directly from activity
           if (activity.trackpoints && Array.isArray(activity.trackpoints) && activity.trackpoints.length > 0) {
             console.log(`Found ${activity.trackpoints.length} trackpoints in activity, inserting...`);
             const insertedCount = await insertTrackpointsForRoute(client, routeId, activity.trackpoints);
@@ -74,15 +82,41 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
             console.log(`No trackpoints array found in activity for route ${routeId}`);
           }
           
-          // Also try to process and store detailed route points as fallback
+          // STEP 2: Process and store detailed route points as fallback
           const trackpointCount = await processAndStoreTrackpoints(client, activity, routeId);
           
           if (trackpointCount > 0) {
             console.log(`Successfully processed ${trackpointCount} additional trackpoints for route: ${routeId}`);
           } else if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
-            // Fall back to basic coordinates if no trackpoints were found
+            // STEP 3: Fall back to basic coordinates if no trackpoints were found
             const pointCount = await upsertRoutePoints(client, routeId, route.coordinates);
             console.log(`Inserted ${pointCount} basic route points for route: ${routeId}`);
+          } else {
+            console.log(`No coordinate data found for route: ${routeId}`);
+            
+            // STEP 4: If we still have no coordinates but there's a GPX file, mark it for processing
+            if (activity.needs_gpx_processing && activity.gpx_file_url) {
+              console.log(`Route ${routeId} requires GPX file processing from: ${activity.gpx_file_url}`);
+              
+              // Call the GPX parser edge function to extract coordinates
+              try {
+                const gpxResult = await client.functions.invoke('gpx-parser', {
+                  body: {
+                    route_id: routeId,
+                    gpx_file_url: activity.gpx_file_url,
+                    file_type: activity.file_type || 'unknown'
+                  }
+                });
+                
+                if (gpxResult.error) {
+                  console.error(`GPX parsing failed for route ${routeId}:`, gpxResult.error);
+                } else {
+                  console.log(`GPX parsing initiated for route ${routeId}`);
+                }
+              } catch (gpxError) {
+                console.error(`Error calling GPX parser for route ${routeId}:`, gpxError);
+              }
+            }
           }
         }
       }

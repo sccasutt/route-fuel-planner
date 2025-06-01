@@ -45,7 +45,7 @@ export async function fetchWahooProfile(access_token: string) {
 
 export async function fetchWahooActivities(access_token: string) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // Longer timeout for activities
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
     console.log("Fetching Wahoo activities with access token...");
     
@@ -81,6 +81,15 @@ export async function fetchWahooActivities(access_token: string) {
         if (res.ok) {
           const data = await res.json();
           
+          // DETAILED LOGGING: Log the complete structure of the first activity
+          if (Array.isArray(data) && data.length > 0) {
+            console.log(`DETAILED ACTIVITY STRUCTURE from ${endpoint}:`, JSON.stringify(data[0], null, 2));
+          } else if (data?.results && Array.isArray(data.results) && data.results.length > 0) {
+            console.log(`DETAILED ACTIVITY STRUCTURE from ${endpoint}:`, JSON.stringify(data.results[0], null, 2));
+          } else if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
+            console.log(`DETAILED ACTIVITY STRUCTURE from ${endpoint}:`, JSON.stringify(data.data[0], null, 2));
+          }
+          
           // Determine what kind of data we got based on endpoint and structure
           let items = [];
           
@@ -102,9 +111,36 @@ export async function fetchWahooActivities(access_token: string) {
             for (const key of Object.keys(data)) {
               if (Array.isArray(data[key]) && data[key].length > 0) {
                 console.log(`Found array in key: ${key} with ${data[key].length} items`);
+                console.log(`Sample item structure:`, JSON.stringify(data[key][0], null, 2));
                 items = data[key];
                 break;
               }
+            }
+          }
+          
+          // Enhanced logging for coordinate data detection
+          if (items.length > 0) {
+            const sampleItem = items[0];
+            console.log(`COORDINATE DATA ANALYSIS for sample from ${endpoint}:`);
+            console.log(`- Has trackpoints: ${!!sampleItem.trackpoints} (${sampleItem.trackpoints?.length || 0} items)`);
+            console.log(`- Has coordinates: ${!!sampleItem.coordinates} (${sampleItem.coordinates?.length || 0} items)`);
+            console.log(`- Has route_points: ${!!sampleItem.route_points} (${sampleItem.route_points?.length || 0} items)`);
+            console.log(`- Has waypoints: ${!!sampleItem.waypoints} (${sampleItem.waypoints?.length || 0} items)`);
+            console.log(`- Has gpx_data: ${!!sampleItem.gpx_data}`);
+            console.log(`- Has file URL: ${!!sampleItem.file?.url}`);
+            console.log(`- Has path data: ${!!sampleItem.path} (${sampleItem.path?.length || 0} items)`);
+            console.log(`- Has latlng data: ${!!sampleItem.latlng} (${sampleItem.latlng?.length || 0} items)`);
+            console.log(`- Has track_points: ${!!sampleItem.track_points} (${sampleItem.track_points?.length || 0} items)`);
+            
+            // Log sample coordinate if available
+            if (sampleItem.trackpoints && sampleItem.trackpoints.length > 0) {
+              console.log(`Sample trackpoint:`, JSON.stringify(sampleItem.trackpoints[0], null, 2));
+            }
+            if (sampleItem.coordinates && sampleItem.coordinates.length > 0) {
+              console.log(`Sample coordinate:`, JSON.stringify(sampleItem.coordinates[0], null, 2));
+            }
+            if (sampleItem.route_points && sampleItem.route_points.length > 0) {
+              console.log(`Sample route_point:`, JSON.stringify(sampleItem.route_points[0], null, 2));
             }
           }
           
@@ -112,7 +148,7 @@ export async function fetchWahooActivities(access_token: string) {
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
             
-            // Check if item has a FIT file URL
+            // Check if item has a FIT file URL or GPX file
             if (item.file?.url) {
               console.log(`Found file URL: ${item.file.url} for item: ${item.id}`);
               // Try to fetch FIT file data (if available)
@@ -134,8 +170,10 @@ export async function fetchWahooActivities(access_token: string) {
                     items[i] = {
                       ...items[i],
                       gpx_file_url: item.file.url,
-                      file_type: "fit"
+                      file_type: "fit",
+                      needs_gpx_processing: true
                     };
+                    console.log(`Marked item ${item.id} for FIT file processing`);
                   }
                   // If it's possibly a GPX file
                   else if (contentType && 
@@ -145,15 +183,18 @@ export async function fetchWahooActivities(access_token: string) {
                     items[i] = {
                       ...items[i],
                       gpx_file_url: item.file.url,
-                      file_type: "gpx"
+                      file_type: "gpx",
+                      needs_gpx_processing: true
                     };
+                    console.log(`Marked item ${item.id} for GPX file processing`);
                   }
                   // For other types just store the URL
                   else {
                     items[i] = {
                       ...items[i],
                       gpx_file_url: item.file.url,
-                      file_type: "unknown"
+                      file_type: "unknown",
+                      needs_gpx_processing: true
                     };
                   }
                 } else {
@@ -164,7 +205,8 @@ export async function fetchWahooActivities(access_token: string) {
                 // Still store the URL even if fetch failed
                 items[i] = {
                   ...items[i],
-                  gpx_file_url: item.file.url
+                  gpx_file_url: item.file.url,
+                  needs_gpx_processing: true
                 };
               }
             }
