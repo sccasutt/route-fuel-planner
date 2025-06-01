@@ -1,5 +1,5 @@
 
-// Wahoo API detailed data fetchers for individual workout/activity details
+// Enhanced Wahoo API detailed data fetchers with proper FIT file handling
 import { formatWahooActivities } from "./wahooActivityFormatter.ts";
 
 /**
@@ -14,11 +14,10 @@ export async function fetchWahooWorkoutDetails(access_token: string, workoutId: 
     
     // Try different endpoints for detailed workout data
     const detailEndpoints = [
-      `https://api.wahooligan.com/v1/workouts/${workoutId}?include_trackpoints=true`,
+      `https://api.wahooligan.com/v1/workouts/${workoutId}?include_trackpoints=true&include_files=true`,
       `https://api.wahooligan.com/v1/workouts/${workoutId}/details`,
-      `https://api.wahooligan.com/v1/workouts/${workoutId}/trackpoints`,
       `https://api.wahooligan.com/v1/workouts/${workoutId}`,
-      `https://api.wahooligan.com/v1/rides/${workoutId}?include_trackpoints=true`,
+      `https://api.wahooligan.com/v1/rides/${workoutId}?include_trackpoints=true&include_files=true`,
       `https://api.wahooligan.com/v1/rides/${workoutId}/details`,
       `https://api.wahooligan.com/v1/rides/${workoutId}`
     ];
@@ -40,15 +39,37 @@ export async function fetchWahooWorkoutDetails(access_token: string, workoutId: 
           console.log(`SUCCESS: Got detailed data from ${endpoint}`);
           
           // Log the structure to understand what we got
-          if (data.trackpoints && Array.isArray(data.trackpoints)) {
-            console.log(`Found ${data.trackpoints.length} trackpoints in detailed response`);
-            console.log('Sample trackpoint:', JSON.stringify(data.trackpoints[0]));
-          } else if (data.points && Array.isArray(data.points)) {
-            console.log(`Found ${data.points.length} points in detailed response`);
-            console.log('Sample point:', JSON.stringify(data.points[0]));
-          } else if (data.route_points && Array.isArray(data.route_points)) {
-            console.log(`Found ${data.route_points.length} route_points in detailed response`);
-            console.log('Sample route point:', JSON.stringify(data.route_points[0]));
+          console.log('Response structure:', {
+            hasTrackpoints: !!data.trackpoints,
+            trackpointsCount: data.trackpoints?.length || 0,
+            hasFiles: !!data.files,
+            filesCount: data.files?.length || 0,
+            hasFile: !!data.file,
+            hasFitFile: !!data.fit_file,
+            hasGpxFile: !!data.gpx_file,
+            hasDownloadUrl: !!data.download_url,
+            hasFileUrl: !!data.file_url
+          });
+          
+          // Look for FIT file references in various formats
+          if (data.files && Array.isArray(data.files)) {
+            console.log(`Found ${data.files.length} files in response`);
+            data.files.forEach((file: any, index: number) => {
+              console.log(`File ${index}:`, {
+                url: file.url,
+                type: file.type,
+                format: file.format,
+                downloadUrl: file.download_url
+              });
+            });
+          }
+          
+          if (data.file) {
+            console.log('Found file object:', {
+              url: data.file.url,
+              type: data.file.type,
+              downloadUrl: data.file.download_url
+            });
           }
           
           clearTimeout(timeoutId);
@@ -73,96 +94,86 @@ export async function fetchWahooWorkoutDetails(access_token: string, workoutId: 
 }
 
 /**
- * Fetch FIT file data for a workout if available
+ * Extract FIT file URL from workout data
  */
-export async function fetchWahooWorkoutFitFile(access_token: string, workoutId: string): Promise<any> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+export function extractFitFileUrl(workoutData: any): string | null {
+  // Check various possible locations for FIT file URL
+  const possibleUrls = [
+    workoutData.fit_file?.url,
+    workoutData.fit_file?.download_url,
+    workoutData.file?.url,
+    workoutData.file?.download_url,
+    workoutData.download_url,
+    workoutData.file_url,
+    workoutData.gpx_file_url // Sometimes FIT files are labeled as GPX
+  ];
   
-  try {
-    console.log(`Fetching FIT file for workout ${workoutId}`);
-    
-    // Try different endpoints for FIT file access
-    const fitEndpoints = [
-      `https://api.wahooligan.com/v1/workouts/${workoutId}/fit`,
-      `https://api.wahooligan.com/v1/workouts/${workoutId}/file`,
-      `https://api.wahooligan.com/v1/workouts/${workoutId}/export`,
-      `https://api.wahooligan.com/v1/rides/${workoutId}/fit`,
-      `https://api.wahooligan.com/v1/rides/${workoutId}/file`
-    ];
-    
-    for (const endpoint of fitEndpoints) {
-      try {
-        console.log(`Trying FIT endpoint: ${endpoint}`);
-        
-        const res = await fetch(endpoint, {
-          headers: {
-            "Authorization": `Bearer ${access_token}`,
-            "Accept": "application/octet-stream, application/fit, */*"
-          },
-          signal: controller.signal,
-        });
-        
-        if (res.ok) {
-          const contentType = res.headers.get("content-type") || "";
-          console.log(`SUCCESS: Got FIT file from ${endpoint}, content-type: ${contentType}`);
-          
-          // Check if it's a direct download URL or file content
-          if (contentType.includes("application/json")) {
-            // Probably a JSON response with download URL
-            const data = await res.json();
-            clearTimeout(timeoutId);
-            return {
-              type: "url",
-              url: data.download_url || data.file_url || data.url,
-              data: data
-            };
-          } else {
-            // Direct file content
-            const fileBlob = await res.blob();
-            clearTimeout(timeoutId);
-            return {
-              type: "content",
-              content: fileBlob,
-              contentType: contentType,
-              endpoint: endpoint
-            };
-          }
-        } else {
-          console.log(`FIT endpoint ${endpoint} returned ${res.status}`);
-        }
-      } catch (endpointErr) {
-        console.log(`Error with FIT endpoint ${endpoint}:`, endpointErr);
-        continue;
+  // Check files array
+  if (workoutData.files && Array.isArray(workoutData.files)) {
+    for (const file of workoutData.files) {
+      if (file.type === 'fit' || file.format === 'fit' || file.url?.includes('.fit')) {
+        possibleUrls.push(file.url, file.download_url);
       }
     }
+  }
+  
+  // Find the first valid URL
+  for (const url of possibleUrls) {
+    if (url && typeof url === 'string' && url.length > 0) {
+      console.log(`Found FIT file URL: ${url}`);
+      return url;
+    }
+  }
+  
+  console.log('No FIT file URL found in workout data');
+  return null;
+}
+
+/**
+ * Download FIT file content
+ */
+export async function downloadFitFile(url: string, access_token: string): Promise<ArrayBuffer | null> {
+  try {
+    console.log(`Downloading FIT file from: ${url}`);
     
-    clearTimeout(timeoutId);
-    console.log(`No FIT file found for workout ${workoutId}`);
-    return null;
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    console.error(`Error fetching FIT file for ${workoutId}:`, err);
+    const response = await fetch(url, {
+      headers: {
+        "Authorization": `Bearer ${access_token}`,
+        "Accept": "*/*"
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`Failed to download FIT file: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    
+    const fileBuffer = await response.arrayBuffer();
+    console.log(`Successfully downloaded FIT file, size: ${fileBuffer.byteLength} bytes`);
+    
+    return fileBuffer;
+  } catch (error) {
+    console.error(`Error downloading FIT file from ${url}:`, error);
     return null;
   }
 }
 
 /**
- * Enhanced activity fetcher that gets both summary and detailed data
+ * Enhanced activity fetcher that gets detailed data and FIT files
  */
 export async function fetchWahooActivitiesWithDetails(access_token: string) {
-  console.log("Fetching Wahoo activities with enhanced detailed data extraction...");
+  console.log("Fetching Wahoo activities with enhanced FIT file processing...");
   
-  // First get the summary list (reuse existing logic)
+  // First get the summary list
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   
   try {
     // Get summary activities first
     const summaryEndpoints = [
-      "https://api.wahooligan.com/v1/workouts?limit=50&ignore_cache=true",
-      "https://api.wahooligan.com/v1/workout_history?limit=50&ignore_cache=true", 
-      "https://api.wahooligan.com/v1/rides?limit=50&ignore_cache=true"
+      "https://api.wahooligan.com/v1/workouts?limit=25&ignore_cache=true",
+      "https://api.wahooligan.com/v1/workout_history?limit=25&ignore_cache=true", 
+      "https://api.wahooligan.com/v1/rides?limit=25&ignore_cache=true"
     ];
     
     let summaryActivities = [];
@@ -209,11 +220,11 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
       return [];
     }
     
-    console.log(`Got ${summaryActivities.length} summary activities, fetching detailed data...`);
+    console.log(`Got ${summaryActivities.length} summary activities, processing detailed data...`);
     
-    // Now fetch detailed data for each activity
+    // Now fetch detailed data and FIT files for each activity
     const detailedActivities = [];
-    const maxDetailsToFetch = 10; // Limit to prevent timeout
+    const maxDetailsToFetch = 5; // Reduced to prevent timeout
     
     for (let i = 0; i < Math.min(summaryActivities.length, maxDetailsToFetch); i++) {
       const activity = summaryActivities[i];
@@ -225,13 +236,10 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
         continue;
       }
       
-      console.log(`Fetching details for activity ${i + 1}/${Math.min(summaryActivities.length, maxDetailsToFetch)}: ${activityId}`);
+      console.log(`Processing activity ${i + 1}/${Math.min(summaryActivities.length, maxDetailsToFetch)}: ${activityId}`);
       
       // Get detailed data
       const detailedData = await fetchWahooWorkoutDetails(access_token, activityId);
-      
-      // Get FIT file if available
-      const fitFileData = await fetchWahooWorkoutFitFile(access_token, activityId);
       
       // Merge all data
       let enhancedActivity = { ...activity };
@@ -243,17 +251,19 @@ export async function fetchWahooActivitiesWithDetails(access_token: string) {
           _hasDetailedData: true 
         };
         
+        // Extract FIT file URL
+        const fitFileUrl = extractFitFileUrl(detailedData);
+        if (fitFileUrl) {
+          enhancedActivity.fit_file_url = fitFileUrl;
+          enhancedActivity.needs_fit_processing = true;
+          console.log(`Activity ${activityId} has FIT file: ${fitFileUrl}`);
+        }
+        
         // Ensure trackpoints are properly structured
         if (detailedData.trackpoints && Array.isArray(detailedData.trackpoints)) {
           enhancedActivity.trackpoints = detailedData.trackpoints;
           console.log(`Enhanced activity ${activityId} with ${detailedData.trackpoints.length} trackpoints`);
         }
-      }
-      
-      if (fitFileData) {
-        enhancedActivity.fit_file_data = fitFileData;
-        enhancedActivity.needs_fit_processing = true;
-        console.log(`Enhanced activity ${activityId} with FIT file data`);
       }
       
       detailedActivities.push(enhancedActivity);

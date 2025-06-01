@@ -1,5 +1,4 @@
-
-// Edge function: Parses GPX and FIT files to extract GPS coordinates and stores them in the database
+// Edge function: Enhanced parser for GPX and FIT files to extract GPS coordinates and trackpoints
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +23,6 @@ async function parseRequestJson(req: Request): Promise<any> {
       console.warn("Request content-type is not application/json:", contentType);
     }
 
-    // Get the raw text from the request
     const text = await req.text();
     console.log("Request body raw length:", text ? text.length : 0);
     
@@ -35,11 +33,8 @@ async function parseRequestJson(req: Request): Promise<any> {
 
     try {
       const parsedBody = JSON.parse(text);
-      
-      // Log safely (without tokens)
       const safeKeys = Object.keys(parsedBody).filter(key => !key.includes('token'));
       console.log("JSON parsed successfully with keys:", safeKeys);
-      
       return parsedBody;
     } catch (jsonError) {
       console.error("JSON parse error:", jsonError);
@@ -59,24 +54,19 @@ async function parseRequestJson(req: Request): Promise<any> {
  */
 function extractUserIdFromJwt(jwt: string): string | null {
   try {
-    // JWT has 3 parts separated by dots
     const parts = jwt.split('.');
     if (parts.length !== 3) {
       console.error("Invalid JWT format - expected 3 parts");
       return null;
     }
 
-    // Decode the payload (second part)
     const payload = parts[1];
-    
-    // Add padding if needed for base64 decoding
     const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
     
     try {
       const decodedPayload = atob(paddedPayload);
       const parsedPayload = JSON.parse(decodedPayload);
       
-      // Extract user ID from the 'sub' field
       const userId = parsedPayload.sub;
       if (!userId) {
         console.error("No 'sub' field found in JWT payload");
@@ -94,9 +84,96 @@ function extractUserIdFromJwt(jwt: string): string | null {
   }
 }
 
+/**
+ * Parse FIT file and extract trackpoints (simplified version)
+ */
+function parseFitFile(buffer: ArrayBuffer): { coordinates: [number, number][], trackpoints: any[] } {
+  console.log('Parsing FIT file, buffer size:', buffer.byteLength);
+  
+  const coordinates: [number, number][] = [];
+  const trackpoints: any[] = [];
+  
+  try {
+    const dataView = new DataView(buffer);
+    
+    // Basic FIT file validation
+    if (buffer.byteLength < 14) {
+      console.error('FIT file too small');
+      return { coordinates, trackpoints };
+    }
+    
+    // Check FIT signature
+    const signature = new Uint8Array(buffer, 8, 4);
+    const fitSignature = Array.from(signature).map(b => String.fromCharCode(b)).join('');
+    
+    if (fitSignature !== '.FIT') {
+      console.error('Invalid FIT file signature:', fitSignature);
+      return { coordinates, trackpoints };
+    }
+    
+    console.log('FIT file validation passed');
+    
+    // Simple pattern matching for GPS coordinates
+    // FIT coordinates are stored as semicircles (2^31 / 180 degrees)
+    const semicirclesToDegrees = 180 / Math.pow(2, 31);
+    
+    // Search for GPS coordinate patterns in the file
+    for (let i = 0; i < buffer.byteLength - 16; i += 4) {
+      try {
+        const lat32 = dataView.getInt32(i, true);
+        const lng32 = dataView.getInt32(i + 4, true);
+        
+        if (lat32 !== 0 && lng32 !== 0 && lat32 !== -1 && lng32 !== -1) {
+          const lat = lat32 * semicirclesToDegrees;
+          const lng = lng32 * semicirclesToDegrees;
+          
+          // Validate coordinates are reasonable
+          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            coordinates.push([lat, lng]);
+            
+            // Try to extract additional data from nearby bytes
+            const trackpoint: any = {
+              lat,
+              lng,
+              sequence_index: trackpoints.length
+            };
+            
+            // Try to extract elevation (uint16, scaled)
+            try {
+              const elevRaw = dataView.getUint16(i + 8, true);
+              if (elevRaw && elevRaw !== 0xFFFF && elevRaw < 10000) {
+                trackpoint.elevation = (elevRaw / 5) - 500;
+              }
+            } catch (e) {}
+            
+            // Try to extract power (uint16)
+            try {
+              const powerRaw = dataView.getUint16(i + 12, true);
+              if (powerRaw && powerRaw !== 0xFFFF && powerRaw < 2000) {
+                trackpoint.power = powerRaw;
+              }
+            } catch (e) {}
+            
+            trackpoints.push(trackpoint);
+          }
+        }
+      } catch (e) {
+        // Continue searching if this offset doesn't contain valid data
+      }
+    }
+    
+    console.log(`Extracted ${coordinates.length} coordinates and ${trackpoints.length} trackpoints from FIT file`);
+    
+  } catch (error) {
+    console.error('Error parsing FIT file:', error);
+  }
+  
+  return { coordinates, trackpoints };
+}
+
 Deno.serve(async (req) => {
   if (isDev) {
-    console.log("GPX Parser - Received request:", {
+    console.log("Enhanced GPX/FIT Parser - Received request:", {
       method: req.method,
       url: req.url,
       hasAuthHeader: !!req.headers.get("authorization")
@@ -123,7 +200,7 @@ Deno.serve(async (req) => {
     let body;
     try {
       body = await parseRequestJson(req);
-      console.log("GPX Parser - Request body:", {
+      console.log("Enhanced Parser - Request body:", {
         hasRouteId: !!body.route_id,
         hasGpxFileUrl: !!body.gpx_file_url,
         fileType: body.file_type
@@ -155,7 +232,7 @@ Deno.serve(async (req) => {
       }), { status: 401, headers: corsHeaders });
     }
 
-    console.log(`GPX Parser - Processing file for route ${route_id}, user ${userId}`);
+    console.log(`Enhanced Parser - Processing file for route ${route_id}, user ${userId}`);
     console.log(`File URL: ${gpx_file_url}, Type: ${file_type}`);
 
     // Initialize Supabase client
@@ -202,26 +279,19 @@ Deno.serve(async (req) => {
       }), { status: 502, headers: corsHeaders });
     }
 
-    // Get file content
-    const fileContent = await fileResponse.text();
-    console.log(`Downloaded file, size: ${fileContent.length} characters`);
-
-    // Parse coordinates based on file type
+    // Parse coordinates and trackpoints based on file type
     let coordinates: [number, number][] = [];
+    let trackpoints: any[] = [];
 
-    if (file_type === 'gpx' || gpx_file_url.toLowerCase().includes('.gpx')) {
-      // Parse GPX file
-      coordinates = parseGPXContent(fileContent);
-    } else if (file_type === 'fit' || gpx_file_url.toLowerCase().includes('.fit')) {
-      // For FIT files, we'd need a proper FIT parser
-      // For now, return an error indicating FIT parsing is not yet implemented
-      console.log("FIT file parsing not yet implemented");
-      return new Response(JSON.stringify({
-        error: "FIT file parsing not implemented",
-        details: "FIT file parsing is not yet supported"
-      }), { status: 501, headers: corsHeaders });
+    if (file_type === 'fit' || gpx_file_url.toLowerCase().includes('.fit')) {
+      // Parse FIT file
+      const fileBuffer = await fileResponse.arrayBuffer();
+      const fitResult = parseFitFile(fileBuffer);
+      coordinates = fitResult.coordinates;
+      trackpoints = fitResult.trackpoints;
     } else {
-      // Try to parse as GPX first, then give up
+      // Parse GPX file
+      const fileContent = await fileResponse.text();
       coordinates = parseGPXContent(fileContent);
     }
 
@@ -233,7 +303,7 @@ Deno.serve(async (req) => {
       }), { status: 400, headers: corsHeaders });
     }
 
-    console.log(`Extracted ${coordinates.length} coordinates from file`);
+    console.log(`Extracted ${coordinates.length} coordinates and ${trackpoints.length} trackpoints from file`);
 
     // Store coordinates in the routes table
     const { error: updateError } = await client
@@ -252,49 +322,47 @@ Deno.serve(async (req) => {
       }), { status: 500, headers: corsHeaders });
     }
 
-    // Store individual route points
-    const routePoints = coordinates.map((coord, index) => ({
-      route_id: route_id,
-      sequence_index: index,
-      lat: coord[0],
-      lng: coord[1],
-      elevation: coord.length > 2 ? coord[2] : null
-    }));
+    // Store trackpoints if we have them
+    let storedTrackpoints = 0;
+    if (trackpoints.length > 0) {
+      const trackpointRecords = trackpoints.map(tp => ({
+        route_id: route_id,
+        lat: tp.lat,
+        lon: tp.lng,
+        elevation: tp.elevation || null,
+        power: tp.power || null,
+        heart_rate: tp.heart_rate || null,
+        cadence: tp.cadence || null
+      }));
 
-    // Delete existing points first
-    await client
-      .from('route_points')
-      .delete()
-      .eq('route_id', route_id);
+      // Insert trackpoints in batches
+      const batchSize = 100;
+      for (let i = 0; i < trackpointRecords.length; i += batchSize) {
+        const batch = trackpointRecords.slice(i, i + batchSize);
+        
+        const { error: trackpointsError } = await client
+          .from('trackpoints')
+          .insert(batch);
 
-    // Insert new points in batches
-    const batchSize = 100;
-    let insertedCount = 0;
-
-    for (let i = 0; i < routePoints.length; i += batchSize) {
-      const batch = routePoints.slice(i, i + batchSize);
-      
-      const { error: pointsError } = await client
-        .from('route_points')
-        .insert(batch);
-
-      if (pointsError) {
-        console.error(`Error inserting route points batch ${i/batchSize + 1}:`, pointsError);
-      } else {
-        insertedCount += batch.length;
+        if (trackpointsError) {
+          console.error(`Error inserting trackpoints batch ${i/batchSize + 1}:`, trackpointsError);
+        } else {
+          storedTrackpoints += batch.length;
+        }
       }
     }
 
-    console.log(`GPX Parser - Successfully processed ${coordinates.length} coordinates and inserted ${insertedCount} route points for route ${route_id}`);
+    console.log(`Enhanced Parser - Successfully processed ${coordinates.length} coordinates and ${storedTrackpoints} trackpoints for route ${route_id}`);
 
     return new Response(JSON.stringify({
       success: true,
       coordinates_count: coordinates.length,
-      route_points_count: insertedCount
+      trackpoints_count: storedTrackpoints,
+      file_type: file_type
     }), { status: 200, headers: corsHeaders });
 
   } catch (err: any) {
-    console.error("GPX Parser error:", err);
+    console.error("Enhanced Parser error:", err);
     return new Response(JSON.stringify({
       error: "Internal error",
       details: err.message || "Unknown error"
@@ -309,8 +377,6 @@ function parseGPXContent(content: string): [number, number][] {
   const coordinates: [number, number][] = [];
   
   try {
-    // Simple regex-based GPX parsing
-    // Look for <trkpt> elements with lat and lon attributes
     const trkptRegex = /<trkpt\s+lat=["']([^"']+)["']\s+lon=["']([^"']+)["'][^>]*>/g;
     let match;
     

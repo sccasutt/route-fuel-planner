@@ -5,7 +5,7 @@ import { processMetadata, processEnergyData } from "./metadataHandler.ts";
 import { extractCoordinates } from "./extractCoordinates.ts";
 
 /**
- * Transform activity data to route schema
+ * Transform activity data to route schema with enhanced FIT file support
  */
 export function transformActivityToRoute(activity: any, userId: string): any {
   // Get a proper ID (prefer wahoo_route_id if present)
@@ -15,8 +15,9 @@ export function transformActivityToRoute(activity: any, userId: string): any {
   // Extract GPS data from activity
   const gpxData = activity.gpx_data || null;
   
-  // Store file URL if available
-  const gpxFileUrl = activity.gpx_file_url || activity.file?.url || null;
+  // Store FIT file URL if available (this is the key change)
+  const fitFileUrl = activity.fit_file_url || activity.file?.url || activity.download_url || null;
+  const gpxFileUrl = activity.gpx_file_url || fitFileUrl; // Use FIT file URL as GPX file URL for processing
   
   // Get coordinates - add more detailed logging
   console.log(`Processing coordinates for activity ID: ${id}`);
@@ -28,14 +29,12 @@ export function transformActivityToRoute(activity: any, userId: string): any {
   if (extractedCoordinates && extractedCoordinates.length > 0) {
     coordinates = extractedCoordinates;
     console.log(`Extracted ${coordinates.length} coordinates for activity ${id}`);
-    console.log(`First coordinate: [${coordinates[0][0]}, ${coordinates[0][1]}]`);
-    console.log(`Last coordinate: [${coordinates[coordinates.length-1][0]}, ${coordinates[coordinates.length-1][1]}]`);
   } else {
     console.log(`No coordinates extracted for activity ${id}`);
     
     // If no coordinates but we have file URL, we'll process it later
-    if (gpxFileUrl) {
-      console.log(`Activity ${id} has GPX file URL but no coordinates - will process file: ${gpxFileUrl}`);
+    if (fitFileUrl) {
+      console.log(`Activity ${id} has FIT file URL but no coordinates - will process file: ${fitFileUrl}`);
     }
   }
   
@@ -58,8 +57,8 @@ export function transformActivityToRoute(activity: any, userId: string): any {
   // Log what we're about to return
   console.log(`Transformed route ${id}:`);
   console.log(`- Has ${coordinates ? coordinates.length : 0} coordinates`);
-  console.log(`- Has GPX file URL: ${!!gpxFileUrl}`);
-  console.log(`- Needs GPX processing: ${!!activity.needs_gpx_processing}`);
+  console.log(`- Has FIT file URL: ${!!fitFileUrl}`);
+  console.log(`- Needs FIT processing: ${!!fitFileUrl && !coordinates}`);
   console.log(`- Distance: ${parseNumericValue(activity.distance)}`);
   console.log(`- Duration: ${activity.duration || "0:01:00"}`);
   
@@ -88,8 +87,12 @@ export function transformActivityToRoute(activity: any, userId: string): any {
     // Store additional metadata if available
     metadata: metadata ? JSON.stringify(metadata) : null,
     type: activity.type || "activity",
+    // Store FIT file URL for processing
     gpx_file_url: gpxFileUrl,
+    file_url: fitFileUrl,
     start_lat: startLat,
-    start_lng: startLng
+    start_lng: startLng,
+    // Flag for FIT file processing
+    needs_fit_processing: !!fitFileUrl && !coordinates
   };
 }

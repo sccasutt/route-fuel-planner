@@ -4,10 +4,10 @@ import { transformActivityToRoute } from "./routeTransformer.ts";
 import { processEnhancedTrackpoints } from "./enhancedCoordinateProcessor.ts";
 
 /**
- * Enhanced routes upsert with detailed trackpoint processing and calorie calculations
+ * Enhanced routes upsert with FIT file processing and detailed trackpoint storage
  */
 export async function upsertRoutes(client: SupabaseClient, userId: string, activities: any[]) {
-  console.log(`=== ENHANCED ROUTES UPSERT ===`);
+  console.log(`=== ENHANCED ROUTES UPSERT WITH FIT FILE PROCESSING ===`);
   console.log(`Processing ${activities.length} activities for user: ${userId}`);
 
   if (!activities || activities.length === 0) {
@@ -18,7 +18,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
   let successCount = 0;
 
   // Process activities in smaller batches for better performance
-  const batchSize = 10;
+  const batchSize = 5; // Reduced for FIT file processing
   for (let i = 0; i < activities.length; i += batchSize) {
     const batch = activities.slice(i, i + batchSize);
     
@@ -33,14 +33,10 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       console.log(`  - Name: ${sample.name || 'unnamed'}`);
       console.log(`  - Has detailed data: ${!!sample._hasDetailedData}`);
       console.log(`  - Trackpoints count: ${sample.trackpoints?.length || 0}`);
-      console.log(`  - Has FIT file: ${!!(sample.fit_file_data || sample.needs_fit_processing)}`);
+      console.log(`  - Has FIT file URL: ${!!(sample.fit_file_url || sample.file?.url)}`);
+      console.log(`  - FIT file URL: ${sample.fit_file_url || sample.file?.url || 'none'}`);
       console.log(`  - Duration: ${sample.duration || 'unknown'}`);
       console.log(`  - Distance: ${sample.distance || 'unknown'}km`);
-      
-      if (sample.trackpoints && sample.trackpoints.length > 0) {
-        const sampleTp = sample.trackpoints[0];
-        console.log(`  - Sample trackpoint: lat=${sampleTp.lat}, lon=${sampleTp.lon || sampleTp.lng}, power=${sampleTp.power || 'none'}`);
-      }
     }
     
     // Transform activities to route schema
@@ -62,7 +58,7 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
       successCount += routes.length;
       console.log(`Successfully upserted batch ${i / batchSize + 1} with ${routes.length} routes`);
 
-      // Process detailed data for each route in the batch
+      // Process FIT files and detailed data for each route in the batch
       for (let j = 0; j < batch.length; j++) {
         const activity = batch[j];
         const route = routes[j];
@@ -71,7 +67,12 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         const insertedRouteData = data && data[j];
         const routeId = insertedRouteData ? insertedRouteData.id : route.id;
         
-        console.log(`=== PROCESSING DETAILED DATA FOR ROUTE ${routeId} ===`);
+        console.log(`=== PROCESSING FIT FILE AND TRACKPOINTS FOR ROUTE ${routeId} ===`);
+        
+        // Add access token to activity for FIT file download
+        if (activity.fit_file_url || activity.file?.url) {
+          activity._access_token = Deno.env.get("WAHOO_ACCESS_TOKEN") || activity._access_token;
+        }
         
         // Use enhanced coordinate processor
         const result = await processEnhancedTrackpoints(client, routeId, activity);
@@ -80,6 +81,29 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         console.log(`  - Trackpoints stored: ${result.trackpointCount}`);
         console.log(`  - Coordinates stored: ${result.coordinateCount}`);
         console.log(`  - Calories calculated: ${result.caloriesCalculated ? 'YES' : 'NO'}`);
+        
+        // If we have a FIT file URL but no trackpoints, trigger FIT processing
+        if (result.trackpointCount === 0 && result.coordinateCount === 0 && route.gpx_file_url) {
+          console.log(`Triggering FIT file processing for route ${routeId}`);
+          
+          try {
+            const { error: fitError } = await client.functions.invoke('gpx-parser', {
+              body: {
+                route_id: routeId,
+                gpx_file_url: route.gpx_file_url,
+                file_type: 'fit'
+              }
+            });
+            
+            if (fitError) {
+              console.error(`FIT processing failed for route ${routeId}:`, fitError);
+            } else {
+              console.log(`FIT processing initiated for route ${routeId}`);
+            }
+          } catch (fitError) {
+            console.error(`Error calling FIT parser for route ${routeId}:`, fitError);
+          }
+        }
         
         if (result.trackpointCount === 0 && result.coordinateCount === 0) {
           console.warn(`WARNING: No coordinate data stored for route ${routeId}`);
