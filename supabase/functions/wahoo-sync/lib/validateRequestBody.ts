@@ -17,12 +17,8 @@ export function validateRequestBody(body: any): ValidationResult {
     return { valid: false, error: "Missing required field: refresh_token" };
   }
 
-  // user_id is validated separately against the JWT token
-  if (!body.user_id) {
-    return { valid: false, error: "Missing required field: user_id" };
-  }
-
-  // wahoo_user_id can be null, as it might be fetched from the profile
+  // Note: user_id is extracted from JWT, not from request body
+  // wahoo_user_id is optional and can be fetched from profile if not provided
   
   return { valid: true };
 }

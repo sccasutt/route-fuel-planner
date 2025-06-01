@@ -26,17 +26,29 @@ export async function syncWahooProfileAndRoutes(): Promise<WahooSyncResult> {
     
     const tokenData = JSON.parse(token);
     
-    // Call the Supabase edge function to sync data
+    // Get current user for logging purposes
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("No authenticated user found");
+      return { success: false, error: "User must be logged in to sync" };
+    }
+    
+    console.log("Sending sync request with flattened token structure:", {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      hasWahooUserId: !!tokenData.wahoo_user_id,
+      userId: user.id
+    });
+    
+    // Call the Supabase edge function with flattened structure
     const { data, error } = await supabase.functions.invoke('wahoo-sync', {
       method: 'POST',
       body: {
-        action: "sync",
-        token: {
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          expires_at: tokenData.expires_at,
-        },
+        // Flatten the token data structure - send fields at top level
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
         wahoo_user_id: tokenData.wahoo_user_id,
+        // Note: user_id will be extracted from JWT, not sent in body
       }
     });
     

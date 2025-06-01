@@ -44,6 +44,16 @@ Deno.serve(async (req) => {
     }
     const jwt = authHeader.split(" ")[1];
 
+    // Extract user_id from JWT as the primary identifier
+    const jwtUserId = extractUserIdFromJwt(jwt);
+    if (!jwtUserId) {
+      console.error("Could not extract user ID from JWT");
+      return new Response(JSON.stringify({ 
+        error: "Invalid user JWT",
+        details: "Could not extract user ID from JWT"
+      }), { status: 401, headers: corsHeaders });
+    }
+
     // Parse request body with better error handling
     let body;
     try {
@@ -53,7 +63,7 @@ Deno.serve(async (req) => {
           hasAccessToken: !!body.access_token,
           hasRefreshToken: !!body.refresh_token,
           hasWahooUserId: !!body.wahoo_user_id,
-          hasUserId: !!body.user_id
+          receivedFields: Object.keys(body)
         });
       }
     } catch (err) {
@@ -76,23 +86,10 @@ Deno.serve(async (req) => {
       }), { status: 400, headers: corsHeaders });
     }
 
-    const { access_token, refresh_token, wahoo_user_id, user_id: clientProvidedUserId } = body;
+    const { access_token, refresh_token, wahoo_user_id } = body;
 
-    // Extract user_id from JWT and use it as the primary identifier
-    const jwtUserId = extractUserIdFromJwt(jwt);
-    if (!jwtUserId) {
-      console.error("Could not extract user ID from JWT");
-      return new Response(JSON.stringify({ 
-        error: "Invalid user JWT",
-        details: "Could not extract user ID from JWT"
-      }), { status: 401, headers: corsHeaders });
-    }
-
-    // For security, ensure we use the JWT user_id, not the client-provided one
+    // Use JWT user_id as the authoritative user identifier
     const user_id = jwtUserId;
-    if (user_id !== clientProvidedUserId) {
-      console.warn("Client-provided user ID doesn't match JWT user ID. Using JWT user ID for security.");
-    }
 
     console.log("=== STARTING ENHANCED WAHOO DATA SYNC ===");
     console.log("User:", user_id, "Wahoo user ID:", wahoo_user_id || "not provided");
