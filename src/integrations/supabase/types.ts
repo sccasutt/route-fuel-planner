@@ -211,6 +211,53 @@ export type Database = {
         }
         Relationships: []
       }
+      trackpoints: {
+        Row: {
+          cadence: number | null
+          created_at: string
+          elevation: number | null
+          heart_rate: number | null
+          id: number
+          lat: number
+          lon: number
+          power: number | null
+          route_id: string
+          time: string | null
+        }
+        Insert: {
+          cadence?: number | null
+          created_at?: string
+          elevation?: number | null
+          heart_rate?: number | null
+          id?: number
+          lat: number
+          lon: number
+          power?: number | null
+          route_id: string
+          time?: string | null
+        }
+        Update: {
+          cadence?: number | null
+          created_at?: string
+          elevation?: number | null
+          heart_rate?: number | null
+          id?: number
+          lat?: number
+          lon?: number
+          power?: number | null
+          route_id?: string
+          time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trackpoints_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wahoo_profiles: {
         Row: {
           created_at: string

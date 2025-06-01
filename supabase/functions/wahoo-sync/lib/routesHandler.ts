@@ -54,40 +54,35 @@ export async function upsertRoutes(client: SupabaseClient, userId: string, activ
         successCount += routes.length;
         console.log(`Successfully upserted batch ${i / batchSize + 1} with ${routes.length} routes`);
 
-        // After successfully upserting routes, process their coordinates and trackpoints
+        // After successfully upserting routes, process their trackpoints
         for (let j = 0; j < batch.length; j++) {
           const activity = batch[j];
           const route = routes[j];
           
-          // Get the route ID from the response data if available, otherwise use the wahoo_route_id
+          // Get the route ID from the response data if available, otherwise use the generated ID
           const insertedRouteData = data && data[j];
-          const insertedRouteId = insertedRouteData ? insertedRouteData.id : route.wahoo_route_id;
+          const routeId = insertedRouteData ? insertedRouteData.id : route.id;
           
-          if (insertedRouteId) {
-            console.log(`Processing data for route: ${insertedRouteId}`);
-            
-            // 1. Insert trackpoints directly from activity
-            if (activity.trackpoints && Array.isArray(activity.trackpoints)) {
-              console.log(`Found ${activity.trackpoints.length} trackpoints in activity, inserting...`);
-              await insertTrackpointsForRoute(client, insertedRouteId, activity.trackpoints);
-            } else {
-              console.log(`No trackpoints array found in activity for route ${insertedRouteId}`);
-            }
-            
-            // 2. Process and store detailed route points
-            const trackpointCount = await processAndStoreTrackpoints(client, activity, insertedRouteId);
-            
-            if (trackpointCount > 0) {
-              console.log(`Successfully processed ${trackpointCount} trackpoints for route: ${insertedRouteId}`);
-            } else if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
-              // Fall back to basic coordinates if no trackpoints were found
-              const pointCount = await upsertRoutePoints(client, insertedRouteId, route.coordinates);
-              console.log(`Inserted ${pointCount} basic route points for route: ${insertedRouteId}`);
-            } else {
-              console.log(`No coordinates found for route: ${insertedRouteId}`);
-            }
+          console.log(`Processing trackpoints for route: ${routeId}`);
+          
+          // Insert trackpoints directly from activity
+          if (activity.trackpoints && Array.isArray(activity.trackpoints) && activity.trackpoints.length > 0) {
+            console.log(`Found ${activity.trackpoints.length} trackpoints in activity, inserting...`);
+            const insertedCount = await insertTrackpointsForRoute(client, routeId, activity.trackpoints);
+            console.log(`Successfully inserted ${insertedCount} trackpoints for route: ${routeId}`);
           } else {
-            console.error(`Could not determine route ID for upsertion result`);
+            console.log(`No trackpoints array found in activity for route ${routeId}`);
+          }
+          
+          // Also try to process and store detailed route points as fallback
+          const trackpointCount = await processAndStoreTrackpoints(client, activity, routeId);
+          
+          if (trackpointCount > 0) {
+            console.log(`Successfully processed ${trackpointCount} additional trackpoints for route: ${routeId}`);
+          } else if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
+            // Fall back to basic coordinates if no trackpoints were found
+            const pointCount = await upsertRoutePoints(client, routeId, route.coordinates);
+            console.log(`Inserted ${pointCount} basic route points for route: ${routeId}`);
           }
         }
       }
